@@ -1,6 +1,6 @@
-34d51e51ae75d662916fffc1b1fbd697 *DESCRIPTION
+9d1b36fc44a2deba734e8a2e26fc5f01 *DESCRIPTION
 5dca1edccb59b36caa23c66f7d93a7e0 *NAMESPACE
-745bf46d2d4fb6de86920ba6ce4850cd *NEWS
+ba33165bf9b696787684ddae16112360 *NEWS
 da30e78cdfb6c02a50c115d13e94c5b3 *R/CQI.R
 271d58387523281fcb3ef8f8b6e2df5d *R/CQI.cqpserver.R
 79191f8a12d2efc3b8fa581eb83b57bc *R/CQI.perl.R
@@ -85,7 +85,6 @@ f4fd6fd68b224275daa92e34e5740609 *R/weigh_method.R
 21f67f701f2ffc6c3be08e78109520f6 *R/zzz.R
 c49f8e0a089ecbed362695ac186d430e *README.md
 1bf45e5d86969471ad97369a97499d21 *build/vignette.rds
-5d7789db233c639a99e075a158fbdd0b *configure
 6d77b05292328348d9ec6fc2b90fdcf5 *inst/CITATION
 5c4508471c86247842959c27b98aa68a *inst/Rscript/getTopics.R
 5034be601a13426f27f54ad75b172799 *inst/cgi/kwic2fulltext.R
@@ -93,7 +92,7 @@ a689bce875fa9c99500342fbe192b661 *inst/css/markdown7.css
 6e0f24b5c855b4b7639c61d51686e64c *inst/css/tooltips.css
 dd57e13b09c7974a8cd84196ade6e0ad *inst/doc/vignette.R
 fe6d3ec7fbd61815ba0b06f6cf6eee2c *inst/doc/vignette.Rnw
-07a321b2da0d796527cdef9286423b07 *inst/doc/vignette.pdf
+44e63c36f1110c29cc905e258cbf8f70 *inst/doc/vignette.pdf
 ebe12b49f72fa93117be4ddcde63a281 *inst/init/cqpserver.init
 28a4ca2ff4df4a1df5089267bc5bdc87 *inst/perl/corpus_size.pl
 fd7a2e7a83e94191b75fed60ddb2eb46 *inst/rstudio/addins.dcf

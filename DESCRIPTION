@@ -1,7 +1,7 @@
 Package: polmineR
 Type: Package
 Title: Toolset for Corpus Analysis
-Version: 0.6.0
+Version: 0.6.1
 Date: 2016-06-22
 Author: Andreas Blaette
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
@@ -53,6 +53,6 @@ Collate: 'CQI.R' 'CQI.cqpserver.R' 'CQI.perl.R' 'CQI.rcqp.R'
         'utils.R' 'view_method.R' 'weigh_method.R' 'zzz.R'
 RoxygenNote: 5.0.1
 NeedsCompilation: no
-Packaged: 2016-06-22 07:28:00 UTC; blaette
+Packaged: 2016-06-22 13:46:11 UTC; blaette
 Repository: CRAN
-Date/Publication: 2016-06-22 10:32:51
+Date/Publication: 2016-06-23 09:05:14
