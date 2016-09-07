@@ -11,7 +11,7 @@
 \usage{
 partition(.Object, ...)
 
-\S4method{partition}{character}(.Object, def = NULL, name = c(""),
+\S4method{partition}{character}(.Object, def = NULL, name = "",
   encoding = NULL, pAttribute = NULL, meta = NULL, regex = FALSE,
   xml = "flat", id2str = TRUE, type = NULL, mc = FALSE,
   verbose = TRUE, ...)
@@ -20,7 +20,7 @@ partition(.Object, ...)
 
 \S4method{partition}{missing}(.Object)
 
-\S4method{partition}{partition}(.Object, def = NULL, name = c(""),
+\S4method{partition}{partition}(.Object, def = NULL, name = "",
   regex = FALSE, pAttribute = NULL, id2str = TRUE, type = NULL,
   verbose = TRUE, mc = FALSE, ...)
 }
@@ -32,7 +32,7 @@ partition(.Object, ...)
 \item{def}{list consisting of a set of character vectors (see
 details and examples)}
 
-\item{name}{name of the new partition, defaults to "noName"}
+\item{name}{name of the new partition, defaults to "}
 
 \item{encoding}{encoding of the corpus (typically "LATIN1 or "(UTF-8)), if NULL, the encoding provided in the registry file of the corpus (charset="...") will be used b}
 
@@ -100,6 +100,20 @@ if (require(polmineR.sampleCorpus) && require(rcqp)){
      )
    merkel <- subset(merkel, !word \%in\% punctuation)
    merkel <- subset(merkel, !word \%in\% tm::stopwords("de"))
+   
+   # a certain defined time segment
+   if (require("chron")){
+     firstDay <- "2009-10-28"
+     lastDay <- "2009-11-11"
+     days <- strftime(
+       chron::seq.dates(
+         from = strftime(firstDay, format="\%m/\%d/\%Y"),
+         to = strftime(lastDay, format="\%m/\%d/\%Y"),
+         by="days"),
+       format="\%Y-\%m-\%d"
+       )
+     period <- partition("PLPRBTTXT", text_date=days)
+   }
 }
 }
 \author{

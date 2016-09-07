@@ -9,13 +9,19 @@ NULL
 #' @seealso  For a metadata-based breakdown of counts
 #' (i.e. a differentiation by s-attributes), see \code{"dispersion"}.
 #' 
-#' @param .Object a \code{"partition"} or \code{"partitionBundle"} object, or a character vector (length 1) providing the name of a corpus
-#' @param query a character vector (one or multiple terms to be looked up), CQP syntax can be used.
+#' @param .Object a \code{"partition"} or \code{"partitionBundle"} object, or a
+#'   character vector (length 1) providing the name of a corpus
+#' @param query a character vector (one or multiple terms to be looked up), CQP
+#'   syntax can be used.
+#' @param cqp either logical (TRUE if query is a CQP query), or a
+#'   function to check whether query is a CQP query or not (defaults to is.query
+#'   auxiliary function)
 #' @param pAttribute the p-attribute(s) to use
 #' @param mc logical, whether to use multicore (defaults to FALSE)
 #' @param verbose logical, whether to be verbose
 #' @param freq logical, if FALSE, counts will be reported, if TRUE, frequencies
-#' @param total defaults to FALSE, if TRUE, the added value of counts (column: TOTAL) will be amended to the data.table that is returned
+#' @param total defaults to FALSE, if TRUE, the added value of counts (column:
+#'   TOTAL) will be amended to the data.table that is returned
 #' @param progress logical, whether to show progress
 #' @param ... further parameters
 #' @return a \code{"data.table"}
@@ -45,21 +51,19 @@ NULL
 setGeneric("count", function(.Object, ...){standardGeneric("count")})
 
 #' @rdname count-method
-setMethod("count", "partition", function(.Object, query, pAttribute=getOption("polmineR.pAttribute"), mc=F, verbose=T, progress=F){
-  .getNumberOfHits <- function(query) {
-    if (verbose == TRUE) message("... processing query ", query)
-    cposResult <- cpos(.Object=.Object, query=query, pAttribute=pAttribute, verbose=FALSE)
+setMethod("count", "partition", function(.Object, query, cqp=is.cqp, pAttribute=getOption("polmineR.pAttribute"), mc=getOption("polmineR.cores"), verbose=T, progress=F){
+  if (progress) verbose <- FALSE
+  .getNumberOfHits <- function(query, partition, cqp, pAttribute, ...) {
+    if (verbose) message("... processing query ", query)
+    cposResult <- cpos(.Object=.Object, query=query, cqp=cqp, pAttribute=pAttribute, verbose=FALSE)
     ifelse(is.null(cposResult), 0, nrow(cposResult))
   }
-  if (mc == FALSE){
-    no <- vapply(query, .getNumberOfHits, FUN.VALUE=1)
-  } else if (mc == TRUE){
-    no <- unlist(mclapply(
-      query,
-      .getNumberOfHits, 
-      mc.cores=getOption("polmineR.cores")
+  no <- as.integer(blapply(
+    as.list(query),
+    f=.getNumberOfHits,
+    partition=.Object, cqp=cqp, pAttribute=pAttribute,
+    mc=mc, verbose=verbose, progress=progress
     ))
-  }
   data.table(query=query, count=no, freq=no/.Object@size)
 })
 

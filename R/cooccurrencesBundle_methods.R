@@ -2,7 +2,7 @@
 NULL
 
 #' @rdname cooccurrencesBundle-class
-setMethod("as.TermDocumentMatrix", "cooccurrencesBundle", function(x, col, directed=TRUE, rel=FALSE, mc=TRUE){
+setMethod("as.TermDocumentMatrix", "cooccurrencesBundle", function(x, col, directed=TRUE, rel=FALSE, mc=getOption("polmineR.mc")){
   tabs <- lapply(x@objects, as.data.frame)
   if (directed == TRUE){
     keys <- unique(unlist(lapply(tabs, rownames)))
@@ -11,7 +11,7 @@ setMethod("as.TermDocumentMatrix", "cooccurrencesBundle", function(x, col, direc
     j <- unlist(lapply(c(1:length(tabs)), function(i) rep(i, nrow(tabs[[i]]))))
     v <- unlist(lapply(tabs, function(tab) tab[,col]))
   } else if (directed == FALSE){
-    uniqueKeys4tab <- function(tab){
+    .uniqueKeys4tab <- function(tab){
       tabMatrix <- as.matrix(tab[,c("nodeId", "cooccurrenceId", col)])
       tabMatrixPlus <- t(apply(tabMatrix, 1, .minMaxId))
       colnames(tabMatrixPlus) <- c(colnames(tabMatrix), c("idMin", "idMax"))
@@ -26,14 +26,10 @@ setMethod("as.TermDocumentMatrix", "cooccurrencesBundle", function(x, col, direc
       Encoding(tabDataFrame[,"characterKey"]) <- x@encoding
       tabDataFrame
     }
-    if (mc == FALSE) {
-      tabs <- lapply(tabs, uniqueKeys4tab)
-    } else if (mc == TRUE){
-      tabs <- mclapply(tabs, uniqueKeys4tab)
-    }
+    tabs <- blapply(tabs, f=.uniqueKeys4tab, mc=mc)
     keys <- unique(unlist(lapply(tabs, function(tab) tab[, "characterKey"])))
     keyVector <- setNames(c(1:length(keys)), keys)
-    reduceTab <- function(i) {
+    .reduceTab <- function(i, tab, keyVector) {
       tab <- data.frame(tabs[[i]], no=i, key=keyVector[tabs[[i]][, "characterKey"]])
       tab <- as.matrix(tab[,c("no", col, "key")])
       tabSplit <- split(tab, tab[,"key"])
@@ -45,11 +41,7 @@ setMethod("as.TermDocumentMatrix", "cooccurrencesBundle", function(x, col, direc
       colnames(tabReduced) <- c("no", col, "key")
       return(tabReduced)
     }
-    if (mc == FALSE) {
-      tabsReduced <- lapply(1:length(tabs), reduceTab)
-    } else if (mc == TRUE){
-      tabsReduced <- mclapply(1:length(tabs), reduceTab)
-    }
+    tabsReduced <- blapply(as.list(c(1:length(tabs))), f=.reduceTab, tab=tab, keyVector=keyVector)
     tab <- do.call(rbind, tabsReduced)
     i <- tab[,"key"]
     j <- tab[,"no"]

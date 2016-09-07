@@ -41,6 +41,7 @@ NULL
 #' @param verbose bla
 #' @param robust bla
 #' @param mc logical
+#' @param progress logical, whether to show progress bar
 #' @param ... to make the check happy
 #' @return a TermDocumentMatrix
 #' @author Andreas Blaette
@@ -57,23 +58,27 @@ setGeneric("as.DocumentTermMatrix", function(x, ...){UseMethod("as.DocumentTermM
 #' @examples
 #' if (require(polmineR.sampleCorpus) && require(rcqp)){
 #'    use("polmineR.sampleCorpus")
+#'    
+#'    # do-it-yourself 
 #'    p <- partition("PLPRBTTXT", text_date=".*", regex=TRUE)
-#'    pB <- partitionBundle(p, def=list(text_date=NULL))
+#'    pB <- partitionBundle(p, sAttribute="text_date")
 #'    pB <- enrich(pB, pAttribute="word")
 #'    tdm <- as.TermDocumentMatrix(pB, col="count")
 #'    
-#'    pB2 <- partitionBundle(p, def=list(text_date=NULL))
+#'    # leave the counting to the as.TermDocumentMatrix-method
+#'    pB2 <- partitionBundle(p, sAttribute="text_date")
 #'    tdm <- as.TermDocumentMatrix(pB2, pAttribute="word")
+#'    
+#'    # diretissima
+#'    pB3 <- as.TermDocumentMatrix("PLPRBTTXT", pAttribute="word", sAttribute="text_date")
 #' }
 #' @rdname as.DocumentTermMatrix
 setMethod(
   "as.TermDocumentMatrix", "character",
   function (
     x, pAttribute, sAttribute, from=NULL, to=NULL, strucs=NULL,
-    rmBlank=TRUE, verbose=TRUE, robust=FALSE, mc=FALSE
+    rmBlank=TRUE, verbose=TRUE, robust=FALSE, mc=FALSE, progress=TRUE
   ) {
-    sAttr <- paste(x, ".", sAttribute, sep="")
-    pAttr <- paste(x, ".", pAttribute, sep="")
     if (!is.null(strucs)){
       if (is.character(strucs)){
         sAttributeStrings <- sAttributes(x, sAttribute)
@@ -93,7 +98,7 @@ setMethod(
         strucs <- c(0:toStruc) 
       }
     }
-    .freqMatrix <- function(i){
+    .freqMatrix <- function(i, strucs, corpus, sAttribute, pAttribute, ...){
       struc <- strucs[i]
       cpos <- CQI$struc2cpos(corpus = x, sAttribute, struc)
       ids <- CQI$cpos2id(x, pAttribute, c(cpos[1]:cpos[2]))
@@ -105,18 +110,12 @@ setMethod(
       )
       cbind(rep(i, times=nrow(freqMatrix)), freqMatrix)
     }
-    if (verbose == TRUE) message("... computing term frequencies")
-    if (mc == FALSE){
-      freqMatrixList <- lapply(
-        c(1:length(strucs)), function(struc){
-          if (verbose == TRUE) message("... processing struc", struc)
-          .freqMatrix(struc)
-        })
-    } else if (mc == TRUE) {
-      coresToUse <- getOption("polmineR.cores")
-      if (verbose == TRUE) message("... using ", coresToUse, " cores")
-      freqMatrixList <- mclapply(c(1:length(strucs)), .freqMatrix, mc.cores=coresToUse)
-    }
+    if (verbose == TRUE) message("... getting counts")
+    freqMatrixList <- blapply(
+      as.list(c(1:length(strucs))), f=.freqMatrix,
+      strucs=strucs, corpus=corpus, sAttribute=sAttribute, pAttribute=pAttribute,
+      mc=mc, progress=progress
+      )
     if (verbose == TRUE) message("... combining results")
     freqMatrixAgg <- do.call(rbind, freqMatrixList)
     lexiconSize <- CQI$lexicon_size(x, pAttribute)
@@ -140,47 +139,47 @@ setMethod(
 
 #' @rdname as.DocumentTermMatrix
 #' @importFrom slam simple_triplet_matrix
-setMethod("as.TermDocumentMatrix", "bundle", function(x, col, pAttribute=NULL, verbose=TRUE){
+setMethod("as.TermDocumentMatrix", "bundle", function(x, col, pAttribute = NULL, verbose = TRUE){
   if (is.null(pAttribute)){
     pAttribute <- x@objects[[1]]@pAttribute
     if (verbose == TRUE) message("... using the pAttribute-slot of the first object in the bundle as pAttribute: ", pAttribute)
   }
-  # stopifnot(
-    #    col %in% colnames(x@objects[[1]]),
-    pAttribute %in% colnames(x@objects[[1]])
-  # )
   if (verbose == TRUE) message("... generating (temporary) key column")
   if (length(pAttribute) > 1){
-    lapply(
+    dummy <- lapply(
       c(1:length(x@objects)),
       function(i){
         keysRaw <- x@objects[[i]]@stat[, c(pAttribute), with=FALSE]
         keys <- apply(keys, 1, function(row) paste(row, collapse="//"))
         x@objects[[i]]@stat[, key := keys]
       })
+    rm(dummy)
   } else {
-    lapply(c(1:length(x@objects)), function(i) setnames(x@objects[[i]]@stat, old=pAttribute, new="key"))
+    dummy <- lapply(c(1:length(x@objects)), function(i) setnames(x@objects[[i]]@stat, old = pAttribute, new="key"))
+    rm(dummy)
   }
   if (verbose == TRUE) message("... generating cumulated data.table")
   DT <- data.table::rbindlist(lapply(x@objects, function(y) y@stat))
-  
+  j <- unlist(lapply(c(1:length(x@objects)), function(i) rep(i, times = nrow(x@objects[[i]]@stat))))
+  DT[, "j" := j, with = FALSE]
+  DT <- DT[which(DT[["key"]] != "")] # to avoid errors
   if (verbose == TRUE) message("... getting unique keys")
   uniqueKeys <- unique(DT[["key"]])
   keys <- setNames(c(1:length(uniqueKeys)), uniqueKeys)
   if (verbose == TRUE) message("... generating integer keys")
   i <- keys[ DT[["key"]] ]
-  j <- unlist(lapply(c(1:length(x@objects)), function(i) rep(i, times = nrow(x@objects[[i]]@stat))))
   retval <- simple_triplet_matrix(
-    i = i, j = j, v = DT[[col]],
+    i = unname(i), j = DT[["j"]], v = DT[[col]],
+    nrow = length(names(keys)), ncol = length(names(x@objects)),
     dimnames = list(Terms=names(keys), Docs=names(x@objects))
   )
   class(retval) <- c("TermDocumentMatrix", "simple_triplet_matrix")
   
   if (verbose == TRUE) message("... cleaning up temporary key columns")
   if (length(pAttribute) > 1){
-    lapply(c(1:length(x@objects)), function(i) x@objects[[i]]@stat[, key := NULL])
+    dummy <- lapply(c(1:length(x@objects)), function(i) x@objects[[i]]@stat[, key := NULL])
   } else {
-    lapply(c(1:length(x@objects)), function(i) setnames(x@objects[[i]]@stat, old="key", new=pAttribute))
+    dummy <- lapply(c(1:length(x@objects)), function(i) setnames(x@objects[[i]]@stat, old="key", new=pAttribute))
   }
   attr(retval, "weighting") <- c("term frequency", "tf")
   retval

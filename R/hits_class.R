@@ -1,11 +1,13 @@
-#' hits class
+#' Hits Class
 #' 
-#' A potentially useful worker. 
+#' Backend for dispersion method.
 #' 
 #' @slot dt a \code{"data.table"}
 #' @slot corpus a \code{"character"} vector
 #' @slot query Object of class \code{"character"}
 #' @param query character vector
+#' @param cqp either logical (TRUE if query is a CQP query), or a
+#'   function to check whether query is a CQP query or not
 #' @param sAttribute s-attributes
 #' @param pAttribute p-attribute (will be passed into cpos)
 #' @param size logical
@@ -32,7 +34,7 @@ setClass("hits",
 setGeneric("hits", function(.Object, ...) standardGeneric("hits"))
 
 #' @rdname hits
-setMethod("hits", "character", function(.Object, query, sAttribute=NULL, pAttribute="word", size=TRUE, freq=FALSE, mc=FALSE, verbose=TRUE, progress=TRUE){
+setMethod("hits", "character", function(.Object, query, cqp = FALSE, sAttribute = NULL, pAttribute = "word", size = FALSE, freq = FALSE, mc = FALSE, verbose = TRUE, progress = TRUE){
   stopifnot(.Object %in% CQI$list_corpora())
   # check availability of sAttributes before proceeding
   if (!is.null(sAttribute)) {
@@ -40,21 +42,12 @@ setMethod("hits", "character", function(.Object, query, sAttribute=NULL, pAttrib
     sAttrs <- paste(.Object, sAttribute, sep=".")
     names(sAttrs) <- sAttribute
   }
-  if (mc == FALSE){
-    if (progress == TRUE) pb <- txtProgressBar(max=length(query), style=3)
-    corpusPositions <- lapply(
-      c(1:length(query)),
-      function(i){
-        if (progress == TRUE) setTxtProgressBar(pb, i)
-        cpos(.Object, query[i], pAttribute=pAttribute, verbose=FALSE)[,1]
-      })
-  } else if (mc == TRUE){
-    corpusPositions <- mclapply(
-      c(1:length(query)),
-      function(i){
-        cpos(.Object, query[i], pAttribute=pAttribute, verbose=FALSE)[,1]
-      }, mc.cores=getOption("polmineR.cores"))
-  }
+  corpusPositions <- blapply(
+    as.list(query), f=cpos,
+    .Object=.Object, cqp=cqp, pAttribute=pAttribute,
+    verbose=F, mc=mc, progress=progress
+    )
+  corpusPositions <- lapply(corpusPositions, function(x) x[,1])
   names(corpusPositions) <- query
   for (i in c(length(query):1)) {
     if (is.null(corpusPositions[[i]])) corpusPositions[[i]] <- NULL
@@ -70,14 +63,15 @@ setMethod("hits", "character", function(.Object, query, sAttribute=NULL, pAttrib
     setnames(TF, old="V1", new="count")
     if (freq == TRUE) size <- TRUE
     if (size == TRUE){
+      if (verbose) message("... getting sizes")
       META <- as.data.table(
         lapply(setNames(sAttribute, sAttribute), function(sAttr) CQI$struc2str(.Object, sAttr, c(1:(CQI$attribute_size(.Object, sAttr) -1))))
       )
       cposMatrix <- do.call(
         rbind,
-        mclapply(
+        lapply(
           c(1:(CQI$attribute_size(.Object, sAttribute[1]) -1)),
-          function(x) CQI$struc2cpos(.Object, sAttribute[1], x), mc.cores=getOption("polmineR.cores"))
+          function(x) CQI$struc2cpos(.Object, sAttribute[1], x))
         )
       META[, size := cposMatrix[,2] - cposMatrix[,1] + 1]
       SIZE <- META[, sum(size), by=eval(sAttribute), with=TRUE]
@@ -86,7 +80,10 @@ setMethod("hits", "character", function(.Object, query, sAttribute=NULL, pAttrib
       TF <- TF[SIZE]
       TF <- TF[is.na(TF[["query"]]) == FALSE]
       setnames(TF, old="V1", new="size")
-      if (freq == TRUE) TF[, freq := count / size]
+      if (freq == TRUE){
+        if (verbose) message("... frequencies")
+        TF[, freq := count / size]
+      }
     }
   } else {
     TF <- DT
@@ -96,11 +93,11 @@ setMethod("hits", "character", function(.Object, query, sAttribute=NULL, pAttrib
 
 
 #' @rdname hits
-setMethod("hits", "partition", function(.Object, query, sAttribute=NULL, pAttribute="word", size=FALSE, freq=FALSE, mc=FALSE, progress=FALSE, verbose=TRUE){
+setMethod("hits", "partition", function(.Object, query, cqp = FALSE, sAttribute = NULL, pAttribute = "word", size = FALSE, freq = FALSE, mc = FALSE, progress = FALSE, verbose = TRUE){
   stopifnot(all(sAttribute %in% sAttributes(.Object@corpus)))
   if (freq == TRUE) size <- TRUE
   sAttrs <- paste(.Object@corpus, sAttribute, sep=".")
-  DT <- hits(.Object@corpus, query=query, sAttribute=NULL, pAttribute=pAttribute, mc=mc, progress=progress)@dt
+  DT <- hits(.Object@corpus, query = query, cqp = cqp, sAttribute = NULL, pAttribute = pAttribute, mc = mc, progress = progress)@dt
   DT[, "struc" := CQI$cpos2struc(.Object@corpus, .Object@sAttributeStrucs, DT[["cpos"]]), with=TRUE]
   DT <- subset(DT, DT[["struc"]] %in% .Object@strucs)
   if (!is.null(sAttribute)){
@@ -128,14 +125,14 @@ setMethod("hits", "partition", function(.Object, query, sAttribute=NULL, pAttrib
     # if (size == TRUE) TF[, size := .Object@size]
     # if (freq == TRUE) TF[, freq := count / size]
   }
-  new("hits", dt=TF, corpus=.Object@corpus, query=query)
+  new("hits", dt = TF, corpus = .Object@corpus, query = query)
 })
 
 
 #' @rdname hits
 setMethod("hits", "partitionBundle", function(
-  .Object, query, pAttribute="word", size=TRUE, freq=FALSE,
-  mc=FALSE, progress=FALSE, verbose=TRUE
+  .Object, query, pAttribute = getOption("polmineR.pAttribute"), size = TRUE, freq = FALSE,
+  mc = getOption("polmineR.mc"), progress = FALSE, verbose = TRUE
   ){
   corpus <- unique(unlist(lapply(.Object@objects, function(x) x@corpus)))
   if (length(corpus) == 1){
@@ -151,52 +148,33 @@ setMethod("hits", "partitionBundle", function(
     setkey(strucDT, cols="struc")
     # perform counts
     if (verbose == TRUE) message("... performing counts")
-    
-    if (mc == FALSE){
-      if (progress == TRUE) pb <- txtProgressBar(max=length(query), style=3)
-      countDTlist <- lapply(
-        c(1:length(query)),
-        function(i) {
-          if (progress == TRUE) pb <- setTxtProgressBar(pb, i)
-          queryToPerform <- query[i]
-          cposMatrix <- cpos(
-            corpus, query=queryToPerform, encoding=corpusEncoding,
-            verbose=ifelse(progress == TRUE, FALSE, verbose)
-          )
-          if (!is.null(cposMatrix)){
-            dt <- data.table(cposMatrix)
-            dt[, "query" := queryToPerform, with = TRUE]
-            return(dt)
-          } else {
-            return(NULL)
-          }
-        }
-      )
-    } else if (mc == TRUE){
-      countDTlist <- mclapply(
-        query,
-        function(queryToPerform) {
-          cposMatrix <- cpos(corpus, query=queryToPerform, encoding=corpusEncoding)
-          if (!is.null(cposMatrix)){
-            dt <- data.table()
-            dt[, query := queryToPerform]
-            return(dt)
-          } else {
-            return(NULL)
-          }
-        }, mc.cores=getOption("polmineR.cores")
-      )
+    .query <- function(toFind, corpus, encoding, ...) {
+      cposMatrix <- cpos(.Object=corpus, query=toFind, encoding=encoding)
+      if (!is.null(cposMatrix)){
+        dt <- data.table(cposMatrix)
+        dt[, query := toFind]
+        return(dt)
+      } else {
+        return(NULL)
+      }
     }
+    countDTlist <- blapply(
+      as.list(query), f=.query,
+      corpus=corpus, encoding=corpusEncoding,
+      mc=mc, progress=progress, verbose=F
+      )
     countDT <- rbindlist(countDTlist)
     if (verbose == TRUE) message("... matching data.tables")
     countDT[, "struc" := CQI$cpos2struc(corpus, sAttributeStrucs, countDT[["V1"]]), with=TRUE]
     setkeyv(countDT, cols="struc")
     DT <- strucDT[countDT] # merge
-    DT[, "dummy" := 1, with=TRUE]
-    count <- function(x) return(x)
-    TF <- DT[, count(.N), by=c("partition", "query"), with=TRUE]
+    # DT[, "dummy" := 1, with=TRUE]
+    # count <- function(x) return(x)
+    # TF <- DT[, count(.N), by=c("partition", "query"), with=TRUE]
+    TF <- DT[, .N, by=c("partition", "query")]
     # TF <- DT[, count(.N), by=.(partition, query)]
-    setnames(TF, old="V1", new="count")
+    # setnames(TF, old="V1", new="count")
+    setnames(TF, old="N", new="count")
     if (freq == TRUE) size <- TRUE
     if (size == TRUE){
       TF[, size := sapply(.Object@objects, function(x) x@size)[TF[["partition"]]]]

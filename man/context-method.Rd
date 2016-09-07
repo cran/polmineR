@@ -12,11 +12,11 @@
 \alias{context,partitionBundle-method}
 \title{Analyze context of a node word}
 \usage{
-\S4method{context}{partition}(.Object, query,
+\S4method{context}{partition}(.Object, query, cqp = is.cqp,
   pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   stoplist = NULL, positivelist = NULL, count = TRUE, method = "ll",
-  mc = getOption("polmineR.mc"), verbose = TRUE)
+  mc = getOption("polmineR.mc"), verbose = TRUE, progress = FALSE)
 
 \S4method{context}{character}(.Object, query, ...)
 
@@ -30,6 +30,8 @@
 \item{.Object}{a partition or a partitionBundle object}
 
 \item{query}{query, which may by a character vector or a cqpQuery object}
+
+\item{cqp}{defaults to is.cqp-function, or provide TRUE/FALSE}
 
 \item{pAttribute}{p-attribute of the query}
 
@@ -58,6 +60,8 @@ the value from the options}
 
 \item{verbose}{report progress, defaults to TRUE}
 
+\item{progress}{logical, whether to show progress bar}
+
 \item{...}{further parameters}
 
 \item{complete}{enhance completely}
@@ -73,8 +77,9 @@ examples). Statistical tests available are log-likelihood, t-test, pmi.
 }
 \examples{
 if (require(polmineR.sampleCorpus) && require(rcqp)){
+  use("polmineR.sampleCorpus")
   p <- partition("PLPRBTTXT", list(text_type="speech"))
-  a <- context(p, "Integration", "word")
+  a <- context(p, query="Integration", pAttribute="word")
 }
 }
 \author{

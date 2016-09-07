@@ -10,11 +10,11 @@
 \usage{
 dispersion(.Object, ...)
 
-\S4method{dispersion}{partition}(.Object, query, sAttribute,
-  pAttribute = getOption("polmineR.pAttribute"), freq = TRUE, mc = FALSE,
+\S4method{dispersion}{partition}(.Object, query, sAttribute, cqp = FALSE,
+  pAttribute = getOption("polmineR.pAttribute"), freq = FALSE, mc = FALSE,
   progress = TRUE, verbose = FALSE)
 
-\S4method{dispersion}{character}(.Object, query, sAttribute,
+\S4method{dispersion}{character}(.Object, query, sAttribute, cqp = FALSE,
   pAttribute = getOption("polmineR.pAttribute"), freq = FALSE, mc = FALSE,
   progress = TRUE, verbose = TRUE)
 
@@ -28,6 +28,8 @@ dispersion(.Object, ...)
 \item{query}{a character vector containing one or multiple queries}
 
 \item{sAttribute}{a character vector of length 1 or 2 providing the sAttributes}
+
+\item{cqp}{if logical, whether the query is a CQP query (TRUE/FALSE), if it is a function that is passed in, the function will be applied to the query to guess whether query is a CQP query}
 
 \item{pAttribute}{the p-attribute that will be looked up, typically 'word'
 or 'lemma'}
@@ -49,12 +51,21 @@ in sub-partitions defined by one or two dimensions. This is a wrapper function, 
 on the number of queries and dimensions provided.
 }
 \examples{
-if (require(polmineR.sampleCorpus) && require(rcqp)){
+if (require("polmineR.sampleCorpus") && require("rcqp")){
   use("polmineR.sampleCorpus")
-  test <- partition("PLPRBTTXT", text_year="2009", pAttribute=NULL)
-  integration <- dispersion(test, query="Integration", pAttribute="word", sAttribute="text_date")
-  integration <- dispersion(test, "Integration", sAttribute=c("text_date", "text_party"))
-  integration <- dispersion(test, '"Integration.*"', sAttribute=c("text_year"))
+  test <- partition("PLPRBTTXT", text_year = "2009", pAttribute = NULL)
+  integration <- dispersion(
+    test, query = "Integration",
+    pAttribute = "word", sAttribute = "text_date"
+    )
+  integration <- dispersion(
+    test, "Integration",
+    sAttribute = c("text_date", "text_party")
+    )
+  integration <- dispersion(
+    test, '"Integration.*"',
+    sAttribute = "text_year", cqp = TRUE
+    )
 }
 }
 \author{

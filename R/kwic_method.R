@@ -10,7 +10,10 @@ NULL
 #' will offer partition objects present in the global environment.
 #' 
 #' @param .Object a \code{partition} or \code{context} object, if \code{missing}, a shiny application will be launched
-#' @param query a query, CQP-syntax can be used, then use 
+#' @param query a query, CQP-syntax can be used
+#' @param cqp either logical (TRUE if query is a CQP query), or a
+#'   function to check whether query is a CQP query or not (defaults to is.query
+#'   auxiliary function)
 #' @param left to the left
 #' @param right to the right
 #' @param meta metainformation to display
@@ -103,7 +106,7 @@ setMethod("kwic", "context", function(.Object, meta=getOption("polmineR.meta"), 
 #' @rdname kwic
 #' @exportMethod kwic
 setMethod("kwic", "partition", function(
-  .Object, query,
+  .Object, query, cqp=is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   meta = getOption("polmineR.meta"),
@@ -112,7 +115,7 @@ setMethod("kwic", "partition", function(
   verbose=TRUE
 ){
   ctxt <- context(
-    .Object=.Object, query=query,
+    .Object=.Object, query=query, cqp=cqp,
     pAttribute=pAttribute, sAttribute=sAttribute,
     left=left, right=right,
     method=NULL, count=FALSE, verbose=verbose
@@ -136,7 +139,7 @@ setMethod("kwic", "missing", function(.Object, ...){
 
 #' @rdname kwic
 setMethod("kwic", "character", function(
-  .Object, query,
+  .Object, query, cqp=is.cqp,
   left=getOption("polmineR.left"),
   right=getOption("polmineR.right"),
   meta=getOption("polmineR.meta"),
@@ -144,7 +147,7 @@ setMethod("kwic", "character", function(
   neighbor=NULL,
   verbose=TRUE
 ){
-  hits <- cpos(.Object, query=query, pAttribute=pAttribute, verbose=FALSE)
+  hits <- cpos(.Object, query=query, cqp=cqp, pAttribute=pAttribute, verbose=FALSE)
   if (is.null(hits)) {
     message("sorry, not hits")
     return(NULL)

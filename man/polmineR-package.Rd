@@ -28,6 +28,13 @@ term-document matrix (class 'TermDocumentMatrix' from the tm package) can be
 generated (with \code{as.TermDocumentMatrix}). This opens the door to the wealth of
 statistical methods implemented in R.
 }
+\examples{
+\dontrun{
+# examples in the manual rely in a sample corpus that can be install as follows:
+drat::addRepo("PolMine", alturl="https://polmine.github.io/drat/")
+install.packages("polmineR.sampleCorpus")
+}
+}
 \author{
 Andreas Blaette (andreas.blaette@uni-due.de)
 }

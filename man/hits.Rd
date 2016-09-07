@@ -8,20 +8,21 @@
 \alias{hits,partitionBundle-method}
 \alias{hits-class}
 \alias{sample,hits-method}
-\title{hits class}
+\title{Hits Class}
 \usage{
 hits(.Object, ...)
 
-\S4method{hits}{character}(.Object, query, sAttribute = NULL,
-  pAttribute = "word", size = TRUE, freq = FALSE, mc = FALSE,
+\S4method{hits}{character}(.Object, query, cqp = FALSE, sAttribute = NULL,
+  pAttribute = "word", size = FALSE, freq = FALSE, mc = FALSE,
   verbose = TRUE, progress = TRUE)
 
-\S4method{hits}{partition}(.Object, query, sAttribute = NULL,
+\S4method{hits}{partition}(.Object, query, cqp = FALSE, sAttribute = NULL,
   pAttribute = "word", size = FALSE, freq = FALSE, mc = FALSE,
   progress = FALSE, verbose = TRUE)
 
-\S4method{hits}{partitionBundle}(.Object, query, pAttribute = "word",
-  size = TRUE, freq = FALSE, mc = FALSE, progress = FALSE,
+\S4method{hits}{partitionBundle}(.Object, query,
+  pAttribute = getOption("polmineR.pAttribute"), size = TRUE,
+  freq = FALSE, mc = getOption("polmineR.mc"), progress = FALSE,
   verbose = TRUE)
 
 \S4method{sample}{hits}(x, size)
@@ -32,6 +33,9 @@ hits(.Object, ...)
 \item{...}{further parameters}
 
 \item{query}{character vector}
+
+\item{cqp}{either logical (TRUE if query is a CQP query), or a
+function to check whether query is a CQP query or not}
 
 \item{sAttribute}{s-attributes}
 
@@ -50,7 +54,7 @@ hits(.Object, ...)
 \item{x}{a hits object}
 }
 \description{
-A potentially useful worker.
+Backend for dispersion method.
 }
 \section{Slots}{
 
