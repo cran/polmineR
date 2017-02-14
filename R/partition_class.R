@@ -29,6 +29,7 @@ NULL
 #' @param cpos ...
 #' @param meta ...
 #' @param i index
+#' @param cutoff maximum number of tokens to decode
 #' @param ... further parameters
 #' @param value value
 #' @param object a partition object
@@ -46,24 +47,24 @@ NULL
 setClass(
   "partition",
   representation(
-    name="character", 
-    corpus="character",
-    encoding="character",
-    sAttributes="list",
-    explanation="character",
-    cpos="matrix",
-    pos="list",
-    annotations="list",
-    size="numeric",
-    metadata="data.frame",
-    strucs="numeric",
-    stat="data.table",
-    pAttribute="character",
-    xml="character",
-    sAttributeStrucs="character",
-    call="character"
+    name = "character", 
+    corpus = "character",
+    encoding = "character",
+    sAttributes = "list",
+    explanation = "character",
+    cpos = "matrix",
+    pos = "list",
+    annotations = "list",
+    size = "numeric",
+    metadata = "data.frame",
+    strucs = "numeric",
+    stat = "data.table",
+    pAttribute = "character",
+    xml = "character",
+    sAttributeStrucs = "character",
+    call = "character"
   ),
-  contains=c("textstat")
+  contains = c("textstat")
 )
 
 
@@ -73,7 +74,7 @@ setClass("plprPartition", contains="partition")
 #' @rdname partition-class
 setClass("pressPartition", contains="partition")
 
-setAs(from="partition", to="plprPartition", function(from){
+setAs(from = "partition", to = "plprPartition", function(from){
   y <- new("plprPartition")
   for (z in slotNames(from)) slot(y, z) <- slot(from, z)
   y

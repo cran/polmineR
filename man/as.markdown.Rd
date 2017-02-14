@@ -3,30 +3,34 @@
 \docType{methods}
 \name{as.markdown}
 \alias{as.markdown}
+\alias{as.markdown,numeric-method}
 \alias{as.markdown,plprPartition-method}
-\alias{as.markdown,pressPartition-method}
-\title{turn partition into markdown}
+\title{Generate markdown from a partition.}
 \usage{
-as.markdown(object, ...)
+as.markdown(.Object, ...)
 
-\S4method{as.markdown}{plprPartition}(object, meta, cpos = FALSE,
-  interjections = TRUE)
+\S4method{as.markdown}{numeric}(.Object, corpus, meta = NULL, cpos = FALSE,
+  cutoff = NULL, ...)
 
-\S4method{as.markdown}{pressPartition}(object, meta = c("text_newspaper",
-  "text_date"), cpos = FALSE)
+\S4method{as.markdown}{plprPartition}(.Object, meta = NULL, cpos = FALSE,
+  interjections = TRUE, cutoff = NULL, ...)
 }
 \arguments{
-\item{object}{object to be converted}
+\item{.Object}{object to be converted}
 
 \item{...}{further arguments}
+
+\item{corpus}{name of CWB corpus}
 
 \item{meta}{metainformation i.e. s-attributes) to be displayed}
 
 \item{cpos}{logical, whether to add cpos as ids in span elements}
 
+\item{cutoff}{maximum number of tokens to reconstruct}
+
 \item{interjections}{logical, whether to format interjections}
 }
 \description{
-for further processing to html
+The method is the worker behind the html-method.
 }
 

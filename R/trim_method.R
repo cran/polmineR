@@ -28,6 +28,14 @@ setGeneric("trim", function(object, ...){standardGeneric("trim")})
 #' @importFrom slam as.simple_triplet_matrix
 #' @rdname trim-method
 setMethod("trim", "TermDocumentMatrix", function(object, termsToKeep=NULL, termsToDrop=NULL, docsToKeep=NULL, docsToDrop=NULL, verbose=TRUE){
+  .rmBlank <- function(mat, verbose=TRUE){
+    if (verbose==TRUE) message("... removing empty rows")
+    matTmp <- as.sparseMatrix(mat)
+    matTmp <- matTmp[which(rowSums(matTmp) > 0),]
+    mat <- as.simple_triplet_matrix(matTmp)
+    class(mat) <- c("TermDocumentMatrix", "simple_triplet_matrix")
+    mat
+  }
   if (!is.null(docsToKeep)){
     object <- object[,which(colnames(object) %in% docsToKeep)]
   }
@@ -84,14 +92,14 @@ setMethod("trim", "dispersion", function(object, drop=NULL, merge=list(old=c(), 
 
 #' @exportMethod subset
 #' @rdname cooccurrences-class
-setMethod("trim", "cooccurrences", function(object, by=NULL){
+setMethod("trim", "cooccurrences", function(object, by = NULL){
   if (is.null(by) == FALSE){
     keys <- unlist(lapply(c("a", "b"), function(what) paste(what, object@pAttribute, sep="_")))
     setkeyv(by@stat, keys)
     setkeyv(object@stat, keys)
     object@stat <- by@stat[object@stat]
     object@stat <- object@stat[by@stat]
-    for (toDrop in grep("i\\.", colnames(object@stat), value=T)) object@stat[, eval(toDrop) := NULL, with=TRUE]
+    for (toDrop in grep("i\\.", colnames(object@stat), value = TRUE)) object@stat[, eval(toDrop) := NULL, with=TRUE]
     object@stat[, "count_ref" := NULL]
     object@stat[, "count_coi" := NULL]
   }

@@ -1,26 +1,29 @@
-#' get token stream
+#' Get Token Stream Based on Corpus Positions.
 #' 
-#' @param .Object an object of classe \code{matrix} or \code{partition}
+#' Turn regions of a corpus defined by corpus positions into the original text.
+#' 
+#' @param .Object an object of class \code{matrix} or \code{partition}
 #' @param pAttribute the pAttribute to decode
 #' @param encoding encoding to use
 #' @param collapse character string length 1
 #' @param corpus the CWB corpus
-#' @param beautify logical, whether to correct whitespace before and after interpunctation
+#' @param beautify logical, whether to adjust whitespace before and after interpunctation
 #' @param left left corpus position
 #' @param right right corpus position
 #' @param cpos logical, whether to return cpos as names of the tokens
+#' @param cutoff maximum number of tokens to be reconstructed
 #' @param ... further arguments
 #' @exportMethod getTokenStream
 #' @rdname getTokenStream-method
 setGeneric("getTokenStream", function(.Object, ...) standardGeneric("getTokenStream"))
 
 #' @rdname getTokenStream-method
-setMethod("getTokenStream", "numeric", function(.Object, corpus, pAttribute, encoding=NULL, collapse=NULL, beautify=TRUE, cpos=FALSE){
-  # pAttr <- paste(corpus, pAttribute, sep=".")
+setMethod("getTokenStream", "numeric", function(.Object, corpus, pAttribute, encoding = NULL, collapse = NULL, beautify = TRUE, cpos = FALSE, cutoff = NULL){
+  if (!is.null(cutoff)) .Object <- .Object[1:cutoff]
   tokens <- CQI$cpos2str(corpus, pAttribute, .Object)
   if (!is.null(encoding)){
     Encoding(tokens) <- encoding
-    tokens <- iconv(tokens, from=encoding, to="UTF-8")
+    tokens <- iconv(tokens, from = encoding, to = "UTF-8")
   }
   if (cpos == TRUE) names(tokens) <- .Object
   if (!is.null(collapse)) {
@@ -33,7 +36,7 @@ setMethod("getTokenStream", "numeric", function(.Object, corpus, pAttribute, enc
       whitespace[1] <- ""
       tokens <- paste(paste(whitespace, tokens, sep=""), collapse="")
     } else {
-      tokens <- paste(tokens, collapse=collapse)  
+      tokens <- paste(tokens, collapse = collapse)  
     }
   }
   tokens
@@ -47,15 +50,31 @@ setMethod("getTokenStream", "matrix", function(.Object, ...){
 
 
 #' @rdname getTokenStream-method
-setMethod("getTokenStream", "character", function(.Object, left, right, ...){
-  getTokenStream(c(left:right), corpus=.Object, ...)
+setMethod("getTokenStream", "character", function(.Object, left = NULL, right = NULL, ...){
+  if (is.null(left)) left <- 0
+  if (is.null(right)) right <- size(.Object) - 1
+  getTokenStream(c(left:right), corpus = .Object, ...)
 })
 
 #' @rdname getTokenStream-method
-setMethod("getTokenStream", "partition", function(.Object, pAttribute, collapse=NULL, cpos=FALSE){
+setMethod("getTokenStream", "partition", function(.Object, pAttribute, collapse = NULL, cpos = FALSE, ...){
   getTokenStream(
-    .Object=.Object@cpos, corpus=.Object@corpus, pAttribute=pAttribute,
-    encoding=.Object@encoding, collapse=collapse, cpos=cpos
+    .Object=.Object@cpos, corpus=.Object@corpus, pAttribute = pAttribute,
+    encoding=.Object@encoding, collapse = collapse, cpos = cpos, ...
     )
+})
+
+#' @rdname getTokenStream-method
+setMethod("getTokenStream", "Regions", function(.Object, pAttribute = "word", ...){
+  .getText <- function(.BY){
+    list(text = getTokenStream(
+      .BY[[1]]:.BY[[2]],
+      corpus = .Object@corpus, encoding = .Object@encoding,
+      pAttribute = "word",
+      collapse = " ",
+      ...
+    ))
+  }
+  .Object@cpos[, .getText(.BY), by = c("cpos_left", "cpos_right"), with = TRUE]
 })
 

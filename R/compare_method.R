@@ -28,7 +28,7 @@ setGeneric("compare", function(x, ...){standardGeneric("compare")})
 #' @references Manning / Schuetze ...
 #' @exportMethod compare
 #' @examples
-#' if (require("polmineR.sampleCorpus")){
+#' \dontrun{
 #'   use(polmineR.sampleCorpus)
 #'   kauder <- partition("PLPRBTTXT", text_name="Volker Kauder", pAttribute="word")
 #'   all <- partition("PLPRBTTXT", text_date=".*", regex=TRUE, pAttribute="word")
@@ -75,7 +75,7 @@ setMethod("compare", signature=c(x="partition"), function(
 #' @docType methods
 #' @rdname compare-method
 #' @examples 
-#' if (require("polmineR.sampleCorpus")){
+#' \dontrun{
 #'   use(polmineR.sampleCorpus)
 #'   byName <- partitionBundle("PLPRBTTXT", sAttribute="text_name")
 #'   byName <- enrich(byName, pAttribute="word")
@@ -96,12 +96,12 @@ setMethod("compare", signature=c(x="partitionBundle"), function(
 
 
 #' @rdname compare-method
-setMethod("compare", "cooccurrences", function(x, y, included=FALSE, method="ll", mc=TRUE, verbose=TRUE){
+setMethod("compare", "cooccurrences", function(x, y, included = FALSE, method = "ll", mc = TRUE, verbose = TRUE){
   newObject <- new(
     'compCooccurrences',
-    encoding=x@encoding, included=included, corpus=x@corpus, sizeCoi=x@partitionSize,
-    sizeRef=ifelse(included == FALSE, y@partitionSize, y@partitionSize-x@partitionSize),
-    stat=data.table()
+    encoding = x@encoding, included = included, corpus = x@corpus, sizeCoi = x@partitionSize,
+    sizeRef = ifelse(included == FALSE, y@partitionSize, y@partitionSize - x@partitionSize),
+    stat = data.table()
   )
   if (identical(x@pAttribute, y@pAttribute) == FALSE) {
     warning("BEWARE: cooccurrences objects are not based on the same pAttribute!")
@@ -127,16 +127,12 @@ setMethod("compare", "cooccurrences", function(x, y, included=FALSE, method="ll"
   
   newObject@stat <- MATCH
   for (how in method){
-    if (verbose==TRUE) message("... statistical test: ", how)
-    newObject <- do.call(how, args=list(.Object=newObject))
+    if (verbose == TRUE) message("... statistical test: ", how)
+    newObject <- do.call(how, args = list(.Object = newObject))
   }
   newObject
 })
 
-#' @rdname compare-method
-setMethod("compare", "missing", function(){
-  .getClassObjectsAvailable(".GlobalEnv", "comp")
-})
 
 #' @rdname compare-method
 setMethod(

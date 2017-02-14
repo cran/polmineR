@@ -1,4 +1,0 @@
-Name: make partition
-Description: make a new partition
-Binding: partitionGadget
-Interactive: true

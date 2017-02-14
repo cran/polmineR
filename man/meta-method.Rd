@@ -3,10 +3,13 @@
 \docType{methods}
 \name{meta}
 \alias{meta}
+\alias{meta,character-method}
 \alias{meta,partition-method}
 \title{metainformation}
 \usage{
 meta(.Object, ...)
+
+\S4method{meta}{character}(.Object, sAttributes, struc)
 
 \S4method{meta}{partition}(.Object, sAttributes)
 }
@@ -16,6 +19,8 @@ meta(.Object, ...)
 \item{...}{further parameters}
 
 \item{sAttributes}{a character vector}
+
+\item{struc}{integer vector, strucs to get metadata for}
 }
 \value{
 a \code{"data.frame"}

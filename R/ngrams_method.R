@@ -19,8 +19,8 @@ setClass(
 #' @param ... further parameters
 #' @exportMethod ngrams
 #' @rdname ngrams
-#' @examples
-#' if (require("polmineR.sampleCorpus") && require("rcqp")){
+#' @examples 
+#' \dontrun{
 #'   use("polmineR.sampleCorpus")
 #'   P <- partition("PLPRBTTXT", text_date = "2009-10-27")
 #'   ngramObject <- ngrams(P, n = 2, pAttribute = "word", char = NULL)
@@ -30,10 +30,10 @@ setClass(
 #'     ngramObject,
 #'     ngramObject[["1_pos"]] == "ADJA"  & ngramObject[["2_pos"]] == "NN"
 #'     )
-#'   ngramObject2@stat[, "1_pos" := NULL, with = FALSE][, "2_pos" := NULL, with = FALSE]
+#'   ngramObject2@@stat[, "1_pos" := NULL, with = FALSE][, "2_pos" := NULL, with = FALSE]
 #'   ngramObject3 <- sort(ngramObject2, by = "count")
 #'   head(ngramObject3)
-#' }
+#'  }
 setGeneric("ngrams", function(.Object, ...) standardGeneric("ngrams"))
 
 

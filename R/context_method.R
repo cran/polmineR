@@ -8,7 +8,7 @@ NULL
 #' @exportMethod context
 #' @docType methods
 #' @noRd
-setGeneric("context", function(.Object, ...){standardGeneric("context")})
+setGeneric("context", function(.Object, ...) standardGeneric("context") )
 
 #' Analyze context of a node word
 #' 
@@ -46,7 +46,7 @@ setGeneric("context", function(.Object, ...){standardGeneric("context")})
 #'   context,partitionBundle-method context,cooccurrences-method
 #'   context,cooccurrences-method
 #' @examples
-#' if (require(polmineR.sampleCorpus) && require(rcqp)){
+#' \dontrun{
 #'   use("polmineR.sampleCorpus")
 #'   p <- partition("PLPRBTTXT", list(text_type="speech"))
 #'   a <- context(p, query="Integration", pAttribute="word")
@@ -63,20 +63,20 @@ setMethod(
   function
   (
     .Object, query, cqp=is.cqp,
-    pAttribute=getOption("polmineR.pAttribute"),
-    sAttribute=NULL,
-    left=getOption("polmineR.left"),
-    right=getOption("polmineR.right"),
-    stoplist=NULL, positivelist=NULL,
-    count=TRUE,
-    method="ll",
-    mc=getOption("polmineR.mc"),
-    verbose=TRUE,
-    progress=FALSE
+    pAttribute = getOption("polmineR.pAttribute"),
+    sAttribute = NULL,
+    left = getOption("polmineR.left"),
+    right = getOption("polmineR.right"),
+    stoplist = NULL, positivelist = NULL,
+    count = TRUE,
+    method = "ll",
+    mc = getOption("polmineR.mc"),
+    verbose = TRUE,
+    progress = FALSE
   ) {
     if (!identical(.Object@pAttribute, pAttribute) && !is.null(method)){
       message("... count for pAttribute ", pAttribute, " not available")
-      .Object <- enrich(.Object, pAttribute=pAttribute)
+      .Object <- enrich(.Object, pAttribute = pAttribute)
     }
 
     # set method for making left and right context
@@ -95,14 +95,14 @@ setMethod(
     # instantiate the context object
     ctxt <- new(
       "context",
-      query=query, pAttribute=pAttribute,
-      stat=data.table(),
-      corpus=.Object@corpus,
-      left=ifelse(is.character(left), 0, left),
-      right=ifelse(is.character(right), 0, right),
-      encoding=.Object@encoding, 
-      partition=.Object@name,
-      partitionSize=.Object@size
+      query = query, pAttribute = pAttribute,
+      stat = data.table(),
+      corpus = .Object@corpus,
+      left = ifelse(is.character(left), 0, left),
+      right = ifelse(is.character(right), 0, right),
+      encoding = .Object@encoding, 
+      partition = .Object@name,
+      partitionSize = as.numeric(.Object@size)
     )
     if (!is.null(sAttribute)) ctxt@sAttribute <- sAttribute
     ctxt@call <- deparse(match.call())
@@ -168,8 +168,8 @@ setMethod(
     if (!is.null(method)){
       ctxt@stat[, "count_partition" := merge(ctxt@stat, .Object@stat, all.x=TRUE, all.y=FALSE)[["count"]]]
       for (test in method){
-        .verboseOutput(message=paste("statistical test:", test), verbose = verbose)
-        ctxt <- do.call(test, args=list(.Object=ctxt))  
+        .verboseOutput(message = paste("statistical test:", test), verbose = verbose)
+        ctxt <- do.call(test, args = list(.Object=ctxt))  
       }
       colnamesOld <- colnames(ctxt@stat)
     }
@@ -251,8 +251,12 @@ setMethod(
 
 
 #' @rdname context-method
-setMethod("context", "character", function(.Object, query, ...){
-  context(partition(.Object), query=query, ...)
+setMethod("context", "character", function(.Object, ...) context(partition(.Object), ...))
+
+#' @rdname context-method
+setMethod("context", "Corpus", function(.Object, pAttribute = getOption("polmineR.pAttribute"), ...){
+  if (nrow(.Object$stat) == 0) .Object$count(pAttribute)
+  context(.Object$as.partition(), pAttribute = pAttribute, ...)
 })
 
 #' @docType methods
@@ -326,15 +330,3 @@ setMethod("context", "cooccurrences", function(.Object, query, complete=FALSE){
   }
   return(newObject)
 })
-
-#' @rdname context-method
-setMethod("context", "missing", function(){
-  if (requireNamespace("shiny", quietly=TRUE)){
-    shiny::runApp(system.file("shiny", "context", package="polmineR"), launch.browser=TRUE)  
-    # shiny::runApp("/Users/blaette/Lab/github/polmineR/inst/shiny/context", launch.browser=TRUE)
-  } else {
-    message("package shiny not available")
-  }
-})
-
-

@@ -16,11 +16,11 @@ html(object, ...)
 
 \S4method{html}{partition}(object, meta = getOption("polmineR.meta"),
   highlight = list(), cqp = FALSE, tooltips = NULL, cpos = FALSE,
-  verbose = FALSE, ...)
+  verbose = FALSE, cutoff = NULL, ...)
 
 \S4method{html}{partitionBundle}(object, filename = c(), type = "debate")
 
-\S4method{html}{kwic}(object, i, type)
+\S4method{html}{kwic}(object, i, type = NULL, verbose = FALSE)
 }
 \arguments{
 \item{object}{the object}
@@ -38,6 +38,8 @@ html(object, ...)
 \item{cpos}{logical}
 
 \item{verbose}{logical}
+
+\item{cutoff}{maximum number of tokens to decode from token stream}
 
 \item{filename}{the filename}
 

@@ -35,7 +35,7 @@ ngrams(.Object, ...)
 Count n-grams, either of words, or of characters.
 }
 \examples{
-if (require("polmineR.sampleCorpus") && require("rcqp")){
+\dontrun{
   use("polmineR.sampleCorpus")
   P <- partition("PLPRBTTXT", text_date = "2009-10-27")
   ngramObject <- ngrams(P, n = 2, pAttribute = "word", char = NULL)
@@ -48,6 +48,6 @@ if (require("polmineR.sampleCorpus") && require("rcqp")){
   ngramObject2@stat[, "1_pos" := NULL, with = FALSE][, "2_pos" := NULL, with = FALSE]
   ngramObject3 <- sort(ngramObject2, by = "count")
   head(ngramObject3)
-}
+ }
 }
 

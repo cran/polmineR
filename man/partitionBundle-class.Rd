@@ -11,14 +11,10 @@
 \alias{[[,partitionBundle-method}
 \alias{as.matrix,partitionBundle-method}
 \alias{as.partitionBundle,list-method}
-\alias{as.sparseMatrix}
-\alias{as.sparseMatrix,TermDocumentMatrix-method}
-\alias{as.sparseMatrix,partitionBundle-Method}
-\alias{as.sparseMatrix,partitionBundle-method}
 \alias{barplot,partitionBundle-method}
 \alias{merge,partitionBundle-method}
 \alias{names,partitionBundle-method}
-\alias{partitionBundle,missing-method}
+\alias{partitionBundle,environment-method}
 \alias{partitionBundle-class}
 \alias{sAttributes,partitionBundle-method}
 \alias{show,partitionBundle-method}
@@ -35,9 +31,9 @@
 
 \S4method{barplot}{partitionBundle}(height, ...)
 
-\S4method{partitionBundle}{missing}()
+\S4method{partitionBundle}{environment}(.Object)
 
-\S4method{sAttributes}{partitionBundle}(object, sAttribute)
+\S4method{sAttributes}{partitionBundle}(.Object, sAttribute)
 }
 \arguments{
 \item{.Object}{a partitionBundle object}

@@ -3,18 +3,19 @@
 \docType{methods}
 \name{read}
 \alias{read}
+\alias{read,Regions-method}
 \alias{read,data.table-method}
 \alias{read,hits-method}
 \alias{read,kwic-method}
 \alias{read,partition-method}
 \alias{read,partitionBundle-method}
-\title{Return to the original text and read}
+\title{Display and read full text}
 \usage{
 read(.Object, ...)
 
-\S4method{read}{partition}(.Object, meta = getOption("polmineR.meta"),
-  highlight = list(), cqp = FALSE, tooltips = NULL, verbose = TRUE,
-  cpos = FALSE, ...)
+\S4method{read}{partition}(.Object, meta = NULL, highlight = list(),
+  cqp = FALSE, tooltips = NULL, verbose = TRUE, cpos = FALSE,
+  cutoff = getOption("polmineR.cutoff"), ...)
 
 \S4method{read}{partitionBundle}(.Object, highlight = list(), cqp = FALSE,
   cpos = FALSE, ...)
@@ -25,6 +26,8 @@ read(.Object, ...)
 \S4method{read}{hits}(.Object, def, i = NULL, ...)
 
 \S4method{read}{kwic}(.Object, i, type = NULL)
+
+\S4method{read}{Regions}(.Object, meta = NULL)
 }
 \arguments{
 \item{.Object}{an object to be read (\code{"partition" or "partitionBundle"})}
@@ -46,6 +49,8 @@ colors}
 
 \item{cpos}{logical}
 
+\item{cutoff}{maximum number of tokens to display}
+
 \item{col}{column}
 
 \item{partitionBundle}{a partitionBundle object}
@@ -62,26 +67,26 @@ a \code{"partitionBundle"}-object, skip through the partitions contained in the
 bundle.
 }
 \examples{
-if (require(polmineR.sampleCorpus) && require(rcqp)){
-   use("polmineR.sampleCorpus")
-   options("polmineR.meta" = "text_date")
-   merkel <- partition(
-     "PLPRBTTXT",
-     text_date="2009-11-10", text_name="Angela Dorothea Merkel",
-     type="plpr"
-   )
-   read(merkel, meta=c("text_name", "text_date"))
-   read(
-     merkel,
-     highlight=list(yellow=c("Deutschland", "Bundesrepublik"), lightgreen="Regierung")
-     )
-   all <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE, type="plpr")
-   \dontrun{
-   speeches <- as.speeches(all, sAttributeDates="text_date", sAttributeNames="text_name", gap=500)
-   read(speeches)
-   migVocab <- count(speeches, query=c("Migration", "Integration", "Zuwanderung"))
-   read(migVocab, col="Integration", partitionBundle=speeches)
-   }
+\dontrun{
+use("polmineR.sampleCorpus")
+options("polmineR.meta" = "text_date")
+merkel <- partition(
+  "PLPRBTTXT",
+   text_date="2009-11-10", text_name="Angela Dorothea Merkel",
+   type="plpr"
+ )
+ read(merkel, meta=c("text_name", "text_date"))
+ read(
+   merkel,
+   highlight = list(yellow=c("Deutschland", "Bundesrepublik"), lightgreen="Regierung"),
+   meta = c("text_name", "text_date")
+)
+all <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE, type="plpr")
+   
+speeches <- as.speeches(all, sAttributeDates="text_date", sAttributeNames="text_name", gap=500)
+read(speeches)
+migVocab <- count(speeches, query=c("Migration", "Integration", "Zuwanderung"))
+read(migVocab, col="Integration", partitionBundle=speeches)
 }
 }
 \seealso{

@@ -2,11 +2,13 @@
 options(width=60)
 
 ## ----require, echo=TRUE, results="tex", out.width=60, tidy=FALSE----
-if (
-  require(rcqp, quietly = T)
-  && require(polmineR.sampleCorpus, quietly = T)
+if ("CORPUS_REGISTRY" %in% names(Sys.getenv())){
+  if (require(rcqp, quietly = T) && require(polmineR.sampleCorpus, quietly = T)
   ){
-  execute <- TRUE
+    execute <- TRUE
+  } else {
+    execute <- FALSE
+  }
 } else {
   execute <- FALSE
 }
@@ -14,6 +16,7 @@ if (
 ## ----load, echo=TRUE, results="tex", out.width=60, tidy=FALSE----
 if (execute){
   library(polmineR)
+  CQI <- CQI.rcqp$new()
   library(polmineR.sampleCorpus)
   use("polmineR.sampleCorpus")
 }
