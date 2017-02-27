@@ -50,7 +50,7 @@ setMethod("blapply", "list", function(x, f, mc = TRUE, progress = TRUE, verbose 
     stopifnot(backend %in% c("parallel", "doParallel", "doSNOW", "doMC"))
     
     if (requireNamespace(backend, quietly=TRUE)){
-      if (backend == "parallel"){
+      if (backend == "parallel" && Sys.info()["sysname"] != "Windows"){
         if (progress == FALSE){
           retval <- parallel::mclapply(x, function(y) f(y, mc=FALSE, progress=FALSE, verbose=FALSE, ...))
         } else {
@@ -74,15 +74,15 @@ setMethod("blapply", "list", function(x, f, mc = TRUE, progress = TRUE, verbose 
           }
           if (length(parallel:::children()) > 0){
             warning("there have been zombie processes collected with mccollect()")
-            graveyard <- mccollect()
+            graveyard <- parallel:::mccollect()
           }
           threadNames <- paste("thread", c(1:getOption("polmineR.cores")), sep="")
           startTime <- Sys.time()
           for (core in c(1:getOption("polmineR.cores"))){
             assign(
               threadNames[core],
-              mcparallel(lapply(xChunks[[core]], function(x) fWrapped(x, ...))),
-              envir=environment()
+              parallel:::mcparallel(lapply(xChunks[[core]], function(x) fWrapped(x, ...))),
+              envir = environment()
               )
           }
           while (length(parallel:::selectChildren()) < noCores){
@@ -92,7 +92,7 @@ setMethod("blapply", "list", function(x, f, mc = TRUE, progress = TRUE, verbose 
             setTxtProgressBar(pb, progressStatus)
             Sys.sleep(1)
           }
-          retval <- parallel::mccollect(
+          retval <- parallel:::mccollect(
             jobs=lapply(threadNames, function(x) get(x, envir=environment())),
             wait=TRUE
           )

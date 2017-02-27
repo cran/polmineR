@@ -1,14 +1,18 @@
+#' @rdname encode-method
 setGeneric("encode", function(.Object, ...) standardGeneric("encode"))
 
 #' Encode CWB Corpus.
 #' 
 #' @param .Object a data.frame to encode
 #' @param name name of the (new) CWB corpus
+#' @param corpus the name of the CWB corpus
 #' @param pAttributes columns of .Object with tokens (such as word/pos/lemma)
+#' @param sAttribute a single s-attribute
 #' @param sAttributes columns of .Object that will be encoded as structural attributes
 #' @param registry path to the corpus registry
 #' @param indexedCorpusDir directory where to create directory for indexed corpus files
 #' @param verbose logical, whether to be verbose
+#' @param ... further parameters
 #' @examples 
 #' \dontrun{
 #' library(tm)
@@ -31,7 +35,8 @@ setGeneric("encode", function(.Object, ...) standardGeneric("encode"))
 #'   )
 #' encode(reuters.tidy, name = "reuters", sAttributes = c("language", "places"))
 #' }
-#' @rdname encode
+#' @rdname encode-method
+#' @exportMethod encode
 setMethod("encode", "data.frame", function(
   .Object, name, pAttributes = "word", sAttributes = NULL,
   registry = Sys.getenv("CORPUS_REGISTRY"),
@@ -133,5 +138,23 @@ setMethod("encode", "data.frame", function(
   } else {
     warning("package 'plyr' required but not available")
   }
+})
+
+#' @rdname encode-method
+setMethod("encode", "data.table", function(.Object, corpus, sAttribute){
+  stopifnot(ncol(.Object) == 3)
+  .Object[[1]] <- as.character(.Object[[1]])
+  .Object[[2]] <- as.character(.Object[[2]])
+  lines <- apply(.Object, 1, function(x) paste(x, collapse = "\t"))
+  lines <- paste(lines, "\n", sep = "")
+  tmp_file <- tempfile()
+  cat(lines, file = tmp_file)
   
+  cmd <- c(
+    "cwb-s-encode",
+    "-d", parseRegistry(corpus)[["HOME"]],
+    "-f", tmp_file,
+    "-V", sAttribute
+  )
+  system(paste(cmd, collapse = " "))
 })

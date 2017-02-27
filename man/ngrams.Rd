@@ -13,8 +13,8 @@ ngrams(.Object, ...)
 \S4method{ngrams}{partition}(.Object, n = 2, pAttribute = "word",
   char = NULL, progress = FALSE, ...)
 
-\S4method{ngrams}{partitionBundle}(.Object, char = NULL, mc = FALSE,
-  progress = FALSE, ...)
+\S4method{ngrams}{partitionBundle}(.Object, n = 2, char = NULL,
+  pAttribute = "word", mc = FALSE, progress = FALSE, ...)
 }
 \arguments{
 \item{.Object}{object of class \code{partition}}

@@ -2,13 +2,16 @@
 % Please edit documentation in R/use_method.R
 \name{use}
 \alias{use}
-\title{use corpus}
+\title{Use packaged corpus.}
 \usage{
 use(pkg = "default")
 }
 \arguments{
 \item{pkg}{the package with a cwb corpus that shall be used, defaults to "default"
 (will reset original registry)}
+}
+\value{
+the function returns invisibly the registry that was previously set
 }
 \description{
 Use a cwb corpus shipped in a package or return to default registry.
