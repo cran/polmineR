@@ -12,8 +12,9 @@ as.markdown(.Object, ...)
 \S4method{as.markdown}{numeric}(.Object, corpus, meta = NULL, cpos = FALSE,
   cutoff = NULL, ...)
 
-\S4method{as.markdown}{plprPartition}(.Object, meta = NULL, cpos = FALSE,
-  interjections = TRUE, cutoff = NULL, ...)
+\S4method{as.markdown}{plprPartition}(.Object, meta = NULL,
+  template = getTemplate(.Object), cpos = FALSE, interjections = TRUE,
+  cutoff = NULL, ...)
 }
 \arguments{
 \item{.Object}{object to be converted}
@@ -27,6 +28,8 @@ as.markdown(.Object, ...)
 \item{cpos}{logical, whether to add cpos as ids in span elements}
 
 \item{cutoff}{maximum number of tokens to reconstruct}
+
+\item{template}{a template for formatting output}
 
 \item{interjections}{logical, whether to format interjections}
 }

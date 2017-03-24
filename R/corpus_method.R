@@ -1,4 +1,4 @@
-#' get corpus
+#' Get corpus.
 #' 
 #' Calling \code{corpus()} will return the corpora available. If object 
 #' is a partition or partitionBundle-object, the corpus the respective
@@ -25,11 +25,8 @@ setMethod("corpus", "missing", function(){
     corpora <- CQI$list_corpora()
     y <- data.frame(
       corpus = corpora,
-      size = unname(sapply(
-        setNames(corpora, corpora),
-        function(x){
-          CQI$attribute_size(x, CQI$attributes(x, "p")[1])
-        })),
+      size = unname(sapply(corpora,function(x) CQI$attribute_size(x, CQI$attributes(x, "p")[1], type = "p"))),
+      template = unname(sapply(corpora, function(x) x %in% names(getOption("polmineR.templates")))),
       stringsAsFactors = FALSE
     )
   } else {

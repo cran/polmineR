@@ -5,33 +5,37 @@
 \alias{getTemplate}
 \alias{getTemplate,character-method}
 \alias{getTemplate,missing-method}
+\alias{getTemplate,partition-method}
 \alias{setTemplate}
 \alias{setTemplate,character-method}
 \alias{setTemplate,missing-method}
-\title{Manage templates.}
+\title{Get and set templates.}
 \usage{
-getTemplate(x)
+getTemplate(.Object, ...)
 
-\S4method{getTemplate}{character}(x)
+\S4method{getTemplate}{character}(.Object)
 
-\S4method{getTemplate}{missing}()
+\S4method{getTemplate}{partition}(.Object)
 
-setTemplate(x, ...)
+\S4method{getTemplate}{missing}(.Object)
 
-\S4method{setTemplate}{character}(x, template)
+setTemplate(.Object, ...)
 
-\S4method{setTemplate}{missing}()
+\S4method{setTemplate}{character}(.Object, template)
+
+\S4method{setTemplate}{missing}(.Object, verbose = FALSE)
 }
 \arguments{
-\item{x}{either a "character" vector, if missing, the names of available templates will be returned}
+\item{.Object}{object}
 
 \item{...}{further parameters}
 
 \item{template}{template to assign (a list)}
+
+\item{verbose}{logical, whether to be verbose}
 }
 \description{
-When the polmineR package is loaded, an environment .templates will be assigned to the global 
-environment that will is used when preparing the html output for reading the text in a partition.
-The
+Templates are used to format the markdown/html output of partitions. Upon loading 
+the polmineR package, templates for corpora are loaded into the option 'polmineR.templates'.
 }
 

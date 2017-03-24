@@ -23,7 +23,7 @@ Corpus class.
 \section{Methods}{
 
 \describe{
-  \item{one}{bla}
+  \item{\code{count(pAttribute = getOption("polmineR.pAttribute"), id2str = TRUE)}}{Perform counts.}
 }
 }
 \keyword{datasets}

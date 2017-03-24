@@ -8,13 +8,15 @@ setOldClass("Corpus")
 #' @field count data.table with counts
 #' @section Methods:
 #' \describe{
-#'   \item{one}{bla}
+#'   \item{\code{count(pAttribute = getOption("polmineR.pAttribute"), id2str = TRUE)}}{Perform counts.}
 #' }
 #' 
 #' @rdname Corpus-class
 #' @export Corpus
 Corpus <- R6Class(
+  
   "Corpus",
+  
   public = list(
     
     corpus = NULL,
@@ -31,9 +33,9 @@ Corpus <- R6Class(
       if (!is.null(pAttribute)) self$count(pAttribute)
     }, 
     
-    count = function(pAttribute = getOption("polmineR.pAttribute")){
+    count = function(pAttribute = getOption("polmineR.pAttribute"), id2str = TRUE){
       self$pAttribute <- pAttribute
-      self$stat <- count(self$corpus, pAttribute = pAttribute)
+      self$stat <- count(self$corpus, pAttribute = pAttribute, id2str = id2str)
     },
     
     as.partition = function(){
@@ -46,6 +48,10 @@ Corpus <- R6Class(
         size = self$size,
         pAttribute = self$pAttribute
       )
+    },
+    
+    getInfo = function(as.html = FALSE){
+      RegistryFile$new(self$corpus)$getInfo()
     }
   )
 )

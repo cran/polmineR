@@ -41,7 +41,7 @@ details and examples)}
 
 \item{meta}{a character vector}
 
-\item{regex}{logical (defaults to FALSE), if TRUE, the s-attributes provided will be handeled as regular expressions; the length of the character vectors with s-attributes then needs to be 1}
+\item{regex}{logical (defaults to FALSE)}
 
 \item{xml}{either 'flat' (default) or 'nested'}
 
@@ -59,15 +59,20 @@ details and examples)}
 An object of the S4 class 'partition'
 }
 \description{
-Set up an object of the \code{partition} class. Frequency lists are computeted and kept 
-in the stat-slot if pAttribute is not NULL.
+Create a subcorpus stored in an object of the \code{partition} class.
+Counts are performed for the p-attribute defined by the parameter \code{pAttribute}.
 }
 \details{
-The function sets up a partition based on a list of s-attributes with respective values.
-The s-attributes defining the partition are a list, e.g. list(text_type="speech", text_year="2013").
-The values of the list may contain regular expressions. To use regular expression syntax, set the 
+The function sets up a partition (subcorpus) based on a list of s-attributes with respective values.
+
+The s-attributes defining the partition can be passed in as a list, e.g. list(text_type="speech",
+text_year="2013"), or - for convencience - directly.
+
+The values defining the partition may contain regular expressions. To use regular expression syntax, set the 
 parameter regex to \code{"TRUE"}. Regular expressions are passed into grep, i.e. the regex syntax
-used in R needs to be used (double backlashes etc.).
+used in R needs to be used (double backlashes etc.). If regular expressions are used, the length
+of the character vector needs to be 1. If regex is \code{"FALSE"}, the length of the character
+vectors can be > 1, matching s-attributes are identifies with the operator \code{in}.
 
 The XML imported into the CWB may be "flat" or "nested". This needs to be indicated with the
 parameter \code{xml} (default is "flat"). If you generate a partition based on a 
@@ -84,10 +89,8 @@ A typical scenario is to combine the p-attributes "word" or "lemma" and "pos".
 }
 \examples{
 \dontrun{
-   use(polmineR.sampleCorpus)
-   spd <- partition(
-     "PLPRBTTXT", text_party="SPD", text_type="speech"
-     )
+   use("polmineR.sampleCorpus")
+   spd <- partition("PLPRBTTXT", text_party="SPD", text_type="speech")
    kauder <- partition(
    "PLPRBTTXT", text_name="Volker Kauder", pAttribute="word"
    )
@@ -121,5 +124,8 @@ A typical scenario is to combine the p-attributes "word" or "lemma" and "pos".
 }
 \author{
 Andreas Blaette
+}
+\seealso{
+\code{\link{partition-class}}
 }
 

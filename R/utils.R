@@ -145,7 +145,7 @@ flatten <- function(object){
 }
 
 
-# used by compare,cooccurrences-method
+# used by features,cooccurrences-method
 # listed here because it may be used by other methods
 .minMaxId <- function(row){
   if (row["nodeId"] == row["cooccurrenceId"]){
@@ -187,7 +187,7 @@ getSlot <- function(x, name){
 }
 
 
-.verboseOutput <- function(message, verbose){
+.verboseOutput <- function(message, verbose = TRUE){
   if (verbose == TRUE){
     message(paste("...", message))
   } else if (verbose == "shiny"){

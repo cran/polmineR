@@ -1,111 +1,194 @@
-## ----setup, include=FALSE---------------------------------
-options(width=60)
-
-## ----require, echo=TRUE, results="tex", out.width=60, tidy=FALSE----
-if ("CORPUS_REGISTRY" %in% names(Sys.getenv())){
-  if (require(rcqp, quietly = T) && require(polmineR.sampleCorpus, quietly = T)
-  ){
-    execute <- TRUE
-  } else {
-    execute <- FALSE
-  }
-} else {
-  execute <- FALSE
+## ---- eval = TRUE, message = FALSE, echo = FALSE-------------------------
+runcode <- FALSE
+if ("CORPUS_REGISTRY" %in% names(Sys.getenv()) && nchar(Sys.getenv("CORPUS_REGISTRY")) > 1){
+  library(data.table)
+  if (require("rcqp", quietly = T) && require("europarl.en", quietly = T)) runcode <- TRUE
 }
 
-## ----load, echo=TRUE, results="tex", out.width=60, tidy=FALSE----
-if (execute){
-  library(polmineR)
-  CQI <- CQI.rcqp$new()
-  library(polmineR.sampleCorpus)
-  use("polmineR.sampleCorpus")
-}
+## ---- eval = FALSE-------------------------------------------------------
+#  Sys.getenv("CORPUS_REGISTRY")
 
-## ----setDrillingControls, echo=TRUE, results="tex"--------
-if (execute){
-  # to view all options defined for polmineR 
-  options()[grep("polmineR", names(options()))]
-  
-  # setting options
-  options("polmineR.corpus" = "PLPRBTTXT")
-  options("polmineR.left" = 15)
-  options("polmineR.right" = 15)
-  options("polmineR.mc" = FALSE)
-}
+## ---- eval = runcode, message = FALSE------------------------------------
+library(polmineR)
 
-## ----partitionInit, echo=TRUE, results="tex", tidy=FALSE----
-if (execute){
-  bt <- partition("PLPRBTTXT", text_type="speech")
-  cdu <- partition(
-    "PLPRBTTXT",
-    text_type="speech", text_party="CDU_CSU"
-    )
-}
+## ---- eval = runcode, message = FALSE------------------------------------
+use("europarl.en")
 
-## ----showPartition, echo=TRUE, results="tex", tidy=FALSE----
-if (execute){
-  cdu
-}
+## ---- eval = FALSE-------------------------------------------------------
+#  install.corpus("europarl.en", repo = "http://polmine.sowi.uni-due.de/packages")
 
-## ----partitionMethod, echo=TRUE, results="tex", tidy=FALSE----
-if (execute){
-  coalition <- partition(
-    "PLPRBTTXT",
-    text_type="speech", text_party=c("CDU_CSU", "FDP")
-    )
-}
+## ---- eval = runcode-----------------------------------------------------
+class(CQI)
 
-## ----cluster, echo=TRUE, results="tex", tidy=FALSE, eval=FALSE, message=FALSE----
-#  if (execute){
-#    base <- partition("PLPRBTTXT", text_type="speech")
-#    parties <- partitionBundle(
-#      base, def=list(text_party=NULL),
-#      pAttribute="word", progress=TRUE, verbose=FALSE
-#      )
-#    tdm <- as.TermDocumentMatrix(parties, col="count")
-#    class(tdm) # to see what it is
-#    show(tdm)
-#    m <- as.matrix(tdm) # turn it into an ordinary matrix
-#    m[c("Integration", "Zuwanderung", "Migration"),]
+## ---- eval = FALSE-------------------------------------------------------
+#  unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
+#  assign("CQI", CQI.rcqp$new(), envir = getNamespace("polmineR"))
+#  lockBinding(env = getNamespace("polmineR"), sym = "CQI")
 #  }
 
-## ----context, echo=TRUE, results="tex", tidy=FALSE--------
-if (execute){
-  integration <- context(
-     bt, "Integration", pAttribute="word",
-    left=20, right=20
-  )
-  summary(integration)
-}
+## ---- eval = FALSE-------------------------------------------------------
+#  devtools::install_github("PolMine/polmineR.Rcpp")
+#  setCorpusWorkbenchInterface("Rcpp")
 
-## ----distributionReal, echo=TRUE, results="tex", message=FALSE, eval=FALSE, tidy=FALSE----
-#  if (execute){
-#  
-#    # one query / one dimension
-#    oneQuery <- dispersion(
-#      bt, query = '"Gerechtigkeit"',
-#      "text_party", progress = F
-#    )
-#  
-#    # # multiple queries / one dimension
-#    twoQueries <- dispersion(
-#      bt,
-#      c('"[eE]uro.*"', '"Br.ssel"'),
-#      "text_party", progress = F
-#    )
-#  
-#    # multiple queries / two dimensions
-#    twoDim <- dispersion(
-#      bt, query = '"Regierung"',
-#      c("text_date", "text_party"), progress = F
-#    )
-#  
+## ---- eval = FALSE-------------------------------------------------------
+#  unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
+#  assign("CQI", CQI.Rcpp$new(), envir = getNamespace("polmineR"))
+#  lockBinding(env = getNamespace("polmineR"), sym = "CQI")
 #  }
 
-## ----keyness, echo=TRUE, results="tex", message=FALSE, tidy=FALSE----
-if (execute){
-  coalition <- enrich(coalition, pAttribute="word")
-  bt <- enrich(coalition, pAttribute="word")
-  vocabulary <- compare(coalition, bt, included=TRUE)
-}
+## ---- eval = runcode, message = FALSE------------------------------------
+corpus()
+
+## ---- eval = FALSE, message = FALSE, results = 'hide'--------------------
+#  options()[grep("polmineR", names(options()))]
+
+## ------------------------------------------------------------------------
+options("polmineR.left" = 15)
+options("polmineR.right" = 15)
+options("polmineR.mc" = FALSE)
+
+## ---- eval = FALSE-------------------------------------------------------
+#  devtools::install_github("PolMineR/polmineR")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  getOption("polmineR.Rcpp")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  options("polmineR.Rcpp" = FALSE)
+
+## ---- eval = FALSE-------------------------------------------------------
+#  kwic("EUROPARL-EN", "Islam")
+#  kwic("EUROPARL-EN", "Islam", meta = c("text_date", "speaker_name"))
+
+## ---- eval = FALSE-------------------------------------------------------
+#  kwic("EUROPARL-EN", '"Geneva" "Convention"')
+#  kwic("EUROPARL-EN", '"[Ss]ocial" "justice"')
+
+## ---- eval = runcode-----------------------------------------------------
+count("EUROPARL-EN", "France")
+count("EUROPARL-EN", c("France", "Germany", "Britain", "Spain", "Italy", "Denmark", "Poland"))
+count("EUROPARL-EN", '"[pP]opulism"')
+
+## ---- eval = runcode, message = FALSE------------------------------------
+pop <- dispersion("EUROPARL-EN", "populism", sAttribute = "text_year", progress = FALSE)
+popRegex <- dispersion("EUROPARL-EN", '"[pP]opulism"', sAttribute = "text_year", cqp = TRUE, progress = FALSE)
+
+## ---- eval = runcode-----------------------------------------------------
+barplot(height = popRegex[,count], names.arg = popRegex[,text_year], las = 2)
+
+## ---- eval = runcode, message = FALSE------------------------------------
+br <- cooccurrences("EUROPARL-EN", query = "Brussels")
+eu <- cooccurrences("EUROPARL-EN", query = '"European" "Union"', left = 10, right = 10)
+subset(eu, rank_ll <= 100)@stat[["word"]][1:15]
+
+## ---- eval = runcode, message = FALSE, results = 'hide'------------------
+ep2006 <- partition("EUROPARL-EN", text_year = "2006")
+
+## ---- eval = runcode-----------------------------------------------------
+ep2006
+
+## ---- eval = runcode, message = FALSE------------------------------------
+barroso <- partition("EUROPARL-EN", speaker_name = "Barroso", regex = TRUE)
+sAttributes(barroso, "speaker_name")
+
+## ---- eval = runcode, message = FALSE------------------------------------
+ep2002 <- partition("EUROPARL-EN", text_year = "2006")
+terror <- cooccurrences(ep2002, "terrorism", pAttribute = "lemma", left = 10, right = 10)
+
+## ---- eval = runcode-----------------------------------------------------
+terror@stat[1:10,][,.(lemma, count_partition, rank_ll)]
+
+## ---- eval = runcode-----------------------------------------------------
+# one query / one dimension
+oneQuery <- dispersion(ep2002, query = 'terrorism', "text_date", progress = FALSE)
+
+# # multiple queries / one dimension
+twoQueries <- dispersion(ep2002, query= c("war", "peace"), "text_date", progress = FALSE)
+
+## ---- eval = runcode, message = FALSE------------------------------------
+ep2002 <- partition("EUROPARL-EN", text_year = "2002")
+ep2002 <- enrich(ep2002, pAttribute = "word")
+
+epPre911 <- partition("EUROPARL-EN", text_year = as.character(1997:2001))
+epPre911 <- enrich(epPre911, pAttribute = "word")
+
+F <- features(ep2002, epPre911, included = FALSE)
+subset(F, rank_chisquare <= 50)@stat[["word"]]
+
+## ---- eval = FALSE-------------------------------------------------------
+#  speakers <- partitionBundle(
+#    "EUROPARL-EN", sAttribute = "speaker_id",
+#    progress = FALSE, verbose = FALSE
+#  )
+#  speakers <- enrich(speakers, pAttribute = "word")
+#  tdm <- as.TermDocumentMatrix(speakers, col = "count")
+#  class(tdm) # to see what it is
+#  show(tdm)
+#  m <- as.matrix(tdm) # turn it into an ordinary matrix
+#  m[c("Barroso", "Schulz"),]
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("plyr")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("rcqp", repos = "http://polmine.sowi.uni-due.de/packages", type = "win.binary")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages(pkgs = c("htmltools", "htmlwidgets", "magrittr", "iterators", "NLP"))
+#  install.packages("rcqp")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("polmineR")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("devtools")
+#  devtools::install_github("PolMine/polmineR", ref = "dev")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  Sys.setenv(CORPUS_REGISTRY = "C:/PATH/TO/YOUR/REGISTRY")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  library(polmineR)
+#  corpus() # to see corpora available at your system
+
+## ---- eval = FALSE-------------------------------------------------------
+#  setCorpusWorkbenchInterface("Rcpp")
+
+## ---- eval = runcode-----------------------------------------------------
+corpus()
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("polmineR", repos = "http://polmine.sowi.uni-due.de", type = "binary")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages(pkgs = c("RUnit", "devtools", "plyr", "tm“))
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("rcqp")
+#  install.packages("polmineR")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  devtools::install_github("PolMine/polmineR", ref = "dev")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("RUnit", "devtools", "plyr", "tm")
+#  install.packages("rcqp")
+#  install.packages("polmineR")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  Sys.setenv(CORPUS_REGISTRY "/PATH/TO/YOUR/REGISTRY/DIRECTORY")
+
+## ------------------------------------------------------------------------
+Sys.getenv("CORPUS_REGISTRY")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  CORPUS_REGISTRY="/PATH/TO/YOUR/REGISTRY/DIRECTORY"
+
+## ---- eval = FALSE-------------------------------------------------------
+#  ?Startup
+
+## ---- eval = runcode, message = FALSE, results = 'hide'------------------
+library(polmineR)
+CQI <- CQI.rcqp$new()
+use("polmineR.sampleCorpus")
 

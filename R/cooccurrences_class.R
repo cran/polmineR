@@ -5,6 +5,7 @@ NULL
 #' 
 #' class to organize information of context analysis
 #' 
+#' @param .Object object to work with
 #' @slot call Object of class \code{"character"} the call that generated the object
 #' @slot partition Object of class \code{"character"} the partition the analysis is based on
 #' @slot partitionSize  Object of class \code{"numeric"} the size of the partition
@@ -18,12 +19,6 @@ NULL
 #' @slot method  Object of class \code{"character"} statistical test(s) used
 #' @slot cutoff  Object of class \code{"list"} cutoff levels that have been applied
 #' @slot svg Object of class \code{"character"} - valid XML with svg representation
-#' @param object object
-#' @param .Object object
-#' @param x object
-#' @param col column
-#' @param by by
-#' @param mc whether to use multicore
 #' @aliases cooccurrences-class [,cooccurrences-method
 #'   [,cooccurrences,ANY,ANY,ANY-method show,cooccurrences-method
 #'   summary,cooccurrences-method as.sparseMatrix,cooccurrences-method
@@ -33,14 +28,11 @@ NULL
 #' @rdname cooccurrences-class
 setClass(
   "cooccurrences",
-  representation(
-    svg = "character"
-  ),
-  contains = c("context", "comp", "textstat")
+  contains = c("context", "features", "textstat")
 )
 
 #' @rdname cooccurrences-class
-setClass("cooccurrencesReshaped", contains=c("cooccurrences"))
+setClass("cooccurrencesReshaped", contains = "cooccurrences")
 
 #' Methods for manipulating cooccurrencesReshaped-class-objects
 #' 
@@ -79,4 +71,36 @@ setClass("cooccurrencesBundle",
          ),
          contains=c("bundle")
 )
+
+#' @docType methods
+setMethod('summary', 'cooccurrences',
+          function(object) {
+            cat("\n** Context object - general information: **\n")
+            cat(sprintf("%-20s", "CWB-Korpus:"), object@corpus, "\n")
+            cat(sprintf("%-20s", "Partition:"), object@partition, "\n")
+            cat(sprintf("%-20s", "Node:"), object@query, "\n")
+            cat(sprintf("%-20s", "P-Attribute:"), object@pAttribute, "\n")
+            cat(sprintf("%-20s", "Node count:"), object@count, "\n")
+            cat(sprintf("%-20s", "Stat table length:"), nrow(object@stat), "\n\n")
+            # return(.statisticalSummary(object))
+            
+          })
+
+
+
+#' @docType methods
+setMethod('show', 'cooccurrences', function(object) {
+  roundedTextstatObject <- as.data.frame(round(object))
+  if (Sys.getenv("RSTUDIO") == "1"){
+    View(roundedTextstatObject)
+  } else {
+    if (getOption("polmineR.browse") == TRUE){
+      browse(roundedTextstatObject)  
+    } else {
+      return(roundedTextstatObject) 
+    }
+  }
+})
+
+
 
