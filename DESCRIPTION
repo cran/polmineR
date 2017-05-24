@@ -1,14 +1,14 @@
 Package: polmineR
 Type: Package
 Title: Toolkit for Corpus Analysis
-Version: 0.7.2
-Date: 2017-03-23
+Version: 0.7.3
+Date: 2017-05-18
 Author: Andreas Blaette
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
-Imports: methods, R6, data.table, slam, Matrix, tm, foreach, DT, utils
-Suggests: parallel, polmineR.Rcpp, europarl.en, rcqp, doParallel,
-        markdown, htmltools, xlsx, sendmailR, knitr, bigmemory,
-        bigtabulate, rJava, shiny
+Imports: methods, R6, data.table, slam, Matrix, tm, DT, utils
+Suggests: pbapply, parallel, polmineR.Rcpp, europarl.en, rcqp,
+        doParallel, markdown, htmltools, xml2, xlsx, sendmailR, knitr,
+        rJava, shiny, testthat
 Additional_repositories: http://polmine.sowi.uni-due.de/packages
 VignetteBuilder: knitr
 LazyData: yes
@@ -16,10 +16,10 @@ Description: Library for corpus analysis using the Corpus Workbench as an
     efficient back end for indexing and querying large corpora. The package offers
     functionality to flexibly create partitions and to carry out basic statistical
     operations (count, co-occurrences etc.). The original full text of documents
-    can be reconstructed and inspected at any time. Beyond that, the package
-    is intended to serve as an interface to packages implementing advanced
-    statistical procedures. Respective data structures (document term matrices, term
-    co-occurrence matrices etc.) can be created based on the indexed corpora.
+    can be reconstructed and inspected at any time. Beyond that, the package is
+    intended to serve as an interface to packages implementing advanced statistical
+    procedures. Respective data structures (document term matrices, term co-
+    occurrence matrices etc.) can be created based on the indexed corpora.
 BugReports: https://github.com/PolMine/polmineR/issues
 License: GPL-3
 URL: https://www.github.com/PolMine/polmineR
@@ -44,18 +44,18 @@ Collate: 'CQI.R' 'CQI.Rcpp.R' 'CQI.cqpserver.R' 'CQI.perl.R'
         'frequencies_method.R' 'getEncoding_method.R'
         'getTerms_method.R' 'getTokenStream_method.R'
         'highlight_method.R' 'html_method.R' 'html_methods.R'
-        'install.corpus_function.R' 'll_method.R' 'mail_method.R'
-        'means_method.R' 'meta_method.R' 'noise_method.R'
+        'install.corpus_function.R' 'label_method.R' 'll_method.R'
+        'mail_method.R' 'means_method.R' 'noise_method.R'
         'pAttributes_method.R' 'partitionBundle_method.R'
         'partitionBundle_methods.R' 'sAttributes2cpos_method.R'
-        'partition_method.R' 'partition_methods.R' 'plot_method.R'
-        'pmi_method.R' 'read_method.R' 'registry.R' 'rustyard.R'
+        'partition_method.R' 'plot_method.R' 'pmi_method.R'
+        'read_method.R' 'registry.R' 'reindex_method.R' 'rustyard.R'
         'sAttributes_method.R' 'scatterplot_method.R' 'size_method.R'
         'tTest.R' 'templates_method.R' 'terms_method.R' 'trim_method.R'
         'use_method.R' 'utils.R' 'view_method.R' 'weigh_method.R'
         'zzz.R'
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2017-03-23 19:54:24 UTC; blaette
+Packaged: 2017-05-24 20:18:18 UTC; blaette
 Repository: CRAN
-Date/Publication: 2017-03-24 06:25:38 UTC
+Date/Publication: 2017-05-25 00:36:38 UTC

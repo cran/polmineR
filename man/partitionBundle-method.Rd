@@ -3,9 +3,9 @@
 \docType{methods}
 \name{partitionBundle}
 \alias{partitionBundle}
+\alias{partitionBundle,partition-method}
 \alias{partitionBundle,character-method}
 \alias{partitionBundle,context-method}
-\alias{partitionBundle,partition-method}
 \title{Generate a bundle of partitions}
 \usage{
 partitionBundle(.Object, ...)
@@ -49,17 +49,16 @@ but not yet enriched.
 \examples{
 \dontrun{
   use("polmineR.sampleCorpus")
-  bt2009 <- partition("PLPRBTTXT", text_year="2009")
-  pBundle <- partitionBundle(bt2009, sAttribute="text_date", progress=TRUE, pAttribute="word")
-  dtm <- as.DocumentTermMatrix(pBundle, col="count")
+  bt2009 <- partition("PLPRBTTXT", text_year = "2009")
+  pBundle <- partitionBundle(bt2009, sAttribute = "text_date", progress = TRUE, pAttribute = "word")
+  dtm <- as.DocumentTermMatrix(pBundle, col = "count")
   summary(pBundle)
-  btBundle <- partitionBundle("PLPRBTTXT", sAttribute="text_date")
+  btBundle <- partitionBundle("PLPRBTTXT", sAttribute = "text_date")
 }
-}
-\author{
-Andreas Blaette
 }
 \seealso{
 \code{\link{partition}} and \code{\link{bundle-class}}
 }
-
+\author{
+Andreas Blaette
+}

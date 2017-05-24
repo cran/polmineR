@@ -2,25 +2,28 @@
 % Please edit documentation in R/textstat_class.R, R/view_method.R
 \docType{class}
 \name{textstat-class}
-\alias{+,textstat,textstat-method}
-\alias{[,textstat,ANY,ANY,ANY-method}
-\alias{[[,textstat-method}
-\alias{as.DataTables,textstat-method}
-\alias{as.bundle}
+\alias{textstat-class}
 \alias{as.data.frame,textstat-method}
-\alias{as.data.table,textstat-method}
-\alias{colnames,textstat-method}
+\alias{show,textstat-method}
 \alias{dim,textstat-method}
-\alias{head,textstat-method}
+\alias{colnames,textstat-method}
+\alias{rownames,textstat-method}
 \alias{names,textstat-method}
+\alias{as.DataTables,textstat-method}
+\alias{head,textstat-method}
+\alias{tail,textstat-method}
+\alias{dim,textstat-method}
 \alias{nrow,textstat-method}
 \alias{round,textstat-method}
-\alias{rownames,textstat-method}
-\alias{show,textstat-method}
+\alias{colnames,textstat-method}
 \alias{sort,textstat-method}
+\alias{as.bundle}
+\alias{+,textstat,textstat-method}
 \alias{subset,textstat-method}
-\alias{tail,textstat-method}
-\alias{textstat-class}
+\alias{as.data.table,textstat-method}
+\alias{as.data.frame,textstat-method}
+\alias{[[,textstat-method}
+\alias{[,textstat,ANY,ANY,ANY-method}
 \alias{view,textstat-method}
 \title{S4 textstat class}
 \usage{
@@ -46,9 +49,11 @@ as.bundle(object, ...)
 
 \S4method{as.data.table}{textstat}(x)
 
+\S4method{as.data.frame}{textstat}(x)
+
 \S4method{[[}{textstat}(x, i)
 
-\S4method{[}{textstat,ANY,ANY,ANY}(x, i)
+\S4method{[}{textstat,ANY,ANY,ANY}(x, i, j)
 
 \S4method{view}{textstat}(.Object)
 }
@@ -69,12 +74,20 @@ as.bundle(object, ...)
 
 \item{e2}{object 2}
 
-\item{i}{index}
+\item{i}{vector to index data.table in stat-slot}
+
+\item{j}{vector to index data.table in stat-slot}
 
 \item{.Object}{an object}
 }
 \description{
-superclass for comp and context class
+Superclass for features, context, and partition class.
+}
+\details{
+Objects derived from the \code{textstat} class can be indexed with simple
+square brackets ("[") to get rows specified by an numeric/integer vector,
+and with double square brackets ("[[") to get specific columns from the 
+\code{data.table} in the slot \code{stat}.
 }
 \section{Slots}{
 
@@ -90,3 +103,16 @@ superclass for comp and context class
 \item{\code{encoding}}{Object of class \code{"character"} encoding of the corpus}
 }}
 
+\examples{
+\dontrun{
+use("polmineR.sampleCorpus")
+P <- partition("PLPRBTTXT", text_year = "2009", pAttribute = "word")
+y <- cooccurrences(P, query = "Arbeit")
+y[1:25]
+y[,c("word", "ll")]
+y[1:25, "word"]
+y[1:25][["word"]]
+y[which(y[["word"]] \%in\% c("Arbeit", "Sozial"))]
+y[ y[["word"]] \%in\% c("Arbeit", "Sozial") ]
+}
+}

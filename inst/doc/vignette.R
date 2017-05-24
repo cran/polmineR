@@ -135,7 +135,6 @@ subset(F, rank_chisquare <= 50)@stat[["word"]]
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages(pkgs = c("htmltools", "htmlwidgets", "magrittr", "iterators", "NLP"))
-#  install.packages("rcqp")
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages("polmineR")
@@ -186,9 +185,4 @@ Sys.getenv("CORPUS_REGISTRY")
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  ?Startup
-
-## ---- eval = runcode, message = FALSE, results = 'hide'------------------
-library(polmineR)
-CQI <- CQI.rcqp$new()
-use("polmineR.sampleCorpus")
 

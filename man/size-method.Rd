@@ -3,9 +3,9 @@
 \docType{methods}
 \name{size}
 \alias{size}
-\alias{size,DocumentTermMatrix-method}
 \alias{size,character-method}
 \alias{size,partition-method}
+\alias{size,DocumentTermMatrix-method}
 \title{Get number of tokens.}
 \usage{
 size(x, ...)
@@ -25,7 +25,32 @@ size(x, ...)
 
 \item{verbose}{logical, whether to print messages}
 }
-\description{
-Get number of tokens.
+\value{
+an integer vector if sAttribute is NULL, a \code{data.table} otherweise
 }
+\description{
+The method will get the number of tokens in a corpus or partition,
+or the dispersion across one or more s-attributes.
+}
+\details{
+One or more s-attributes can be provided to get the dispersion of
+tokens across one or more dimensions. Two or more s-attributes
+can lead to reasonable results only if the corpus XML is flat.
+}
+\examples{
+\dontrun{
+use("polmineR.sampleCorpus")
+size("PLPRBTTXT")
+size("PLPRBTTXT", sAttribute = "text_date")
+size("PLPRBTTXT", sAttribute = c("text_date", "text_party"))
 
+P <- partition("PLPRBTTXT", text_date = "2009-11-11")
+size(P, sAttribute = "text_name")
+size(P, sAttribute = "text_party")
+size(P, sAttribute = c("text_name", "text_party"))
+}
+}
+\seealso{
+See \code{\link{dispersion}}-method for counts of hits. The \code{\link{hits}}
+method calls the \code{size}-method to get sizes of subcorpora.
+}

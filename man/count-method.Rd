@@ -3,11 +3,11 @@
 \docType{methods}
 \name{count}
 \alias{count}
-\alias{count,character-method}
+\alias{count-method}
 \alias{count,partition-method}
 \alias{count,partitionBundle-method}
+\alias{count,character-method}
 \alias{count,vector-method}
-\alias{count-method}
 \title{Get counts.}
 \usage{
 count(.Object, ...)
@@ -67,19 +67,28 @@ Count all tokens, or number of occurrences of a query (CQP syntax may be used).
 \details{
 If .Object is a partitonBundle, the data.table returned will have the queries
 in the columns, and as many rows as there are in the partitionBundle.
+
+If .Object is a character vector (length 1) and query is NULL, the count is performed
+for the whole partition. The method will check whether the \code{polmineR.Rcpp} package,
+or the \code{cwb-lexdecode} utilities are available, and use them resepectively for 
+performance reasons.
 }
 \examples{
 \dontrun{
   use("polmineR.sampleCorpus")
   debates <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE)
-  x <- count(debates, "Arbeit") # get frequencies for one token
-  x <- count(debates, c("Arbeit", "Freizeit", "Zukunft")) # get frequencies for multiple tokens
-  x <- count("PLPRBTTXT", query = c("Migration", "Integration"), "word")
+  count(debates, query = "Arbeit") # get frequencies for one token
+  count(debates, c("Arbeit", "Freizeit", "Zukunft")) # get frequencies for multiple tokens
+  
+  count("PLPRBTTXT", query = c("Migration", "Integration"), pAttribute = "word")
 
   debates <- partitionBundle(
     "PLPRBTTXT", sAttribute = "text_date", values = NULL,
     regex = TRUE, mc = FALSE, verbose = FALSE
   )
+  y <- count(debates, query = "Arbeit", pAttribute = "word")
+  y <- count(debates, query = c("Arbeit", "Migration", "Zukunft"), pAttribute = "word")
+  
 }
 }
 \seealso{
@@ -88,4 +97,3 @@ For a metadata-based breakdown of counts
 
 count
 }
-

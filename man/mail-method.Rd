@@ -3,13 +3,13 @@
 \docType{methods}
 \name{mail}
 \alias{mail}
-\alias{mail,context-method}
-\alias{mail,data.frame-method}
-\alias{mail,dispersion-method}
+\alias{mail-method}
+\alias{mail,partition-method}
+\alias{mail,cooccurrences-method}
 \alias{mail,features-method}
 \alias{mail,kwic-method}
-\alias{mail,partition-method}
-\alias{mail-method}
+\alias{mail,dispersion-method}
+\alias{mail,data.frame-method}
 \title{Mail result.}
 \usage{
 mail(object, ...)
@@ -17,7 +17,7 @@ mail(object, ...)
 \S4method{mail}{partition}(object, to = NULL,
   filename = "drillerExport.html", what = "html")
 
-\S4method{mail}{context}(object, to = NULL, nrow = NULL,
+\S4method{mail}{cooccurrences}(object, to = NULL, nrow = NULL,
   fileFormat = c("csv", "xlsx"))
 
 \S4method{mail}{features}(object, to = NULL, nrow = NULL,
@@ -50,4 +50,3 @@ mail(object, ...)
 \description{
 Mail a result (to yourself).
 }
-

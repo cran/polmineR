@@ -2,14 +2,14 @@
 % Please edit documentation in R/as.DocumentTermMatrix_method.R
 \docType{methods}
 \name{as.TermDocumentMatrix}
-\alias{as.DocumentTermMatrix}
-\alias{as.DocumentTermMatrix,bundle-method}
-\alias{as.DocumentTermMatrix,character-method}
-\alias{as.DocumentTermMatrix,partitionBundle-method}
 \alias{as.TermDocumentMatrix}
-\alias{as.TermDocumentMatrix,bundle-method}
+\alias{as.DocumentTermMatrix}
 \alias{as.TermDocumentMatrix,character-method}
+\alias{as.DocumentTermMatrix,character-method}
+\alias{as.TermDocumentMatrix,bundle-method}
+\alias{as.DocumentTermMatrix,bundle-method}
 \alias{as.TermDocumentMatrix,partitionBundle-method}
+\alias{as.DocumentTermMatrix,partitionBundle-method}
 \title{as.TermDocumentMatrix / as.DocumentTermMatrix}
 \usage{
 as.TermDocumentMatrix(x, ...)
@@ -74,14 +74,14 @@ use("polmineR.sampleCorpus")
 p <- partition("PLPRBTTXT", text_date=".*", regex=TRUE)
 pB <- partitionBundle(p, sAttribute="text_date")
 pB <- enrich(pB, pAttribute="word")
-tdm <- as.TermDocumentMatrix(pB, col="count")
+tdm <- as.TermDocumentMatrix(pB, col = "count")
    
  # leave the counting to the as.TermDocumentMatrix-method
-pB2 <- partitionBundle(p, sAttribute="text_date")
-tdm <- as.TermDocumentMatrix(pB2, pAttribute="word")
+pB2 <- partitionBundle(p, sAttribute = "text_date")
+tdm <- as.TermDocumentMatrix(pB2, pAttribute = "word", verbose = TRUE)
    
 # diretissima
-tdm <- as.TermDocumentMatrix("PLPRBTTXT", pAttribute="word", sAttribute="text_date")
+tdm <- as.TermDocumentMatrix("PLPRBTTXT", pAttribute = "word", sAttribute = "text_date")
 }
 }
 \author{
@@ -89,4 +89,3 @@ Andreas Blaette
 
 me
 }
-

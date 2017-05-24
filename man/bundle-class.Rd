@@ -2,19 +2,21 @@
 % Please edit documentation in R/bundle_class.R
 \docType{class}
 \name{bundle-class}
-\alias{+,bundle,bundle-method}
-\alias{+,bundle,textstat-method}
-\alias{[[,bundle-method}
-\alias{as.bundle,list-method}
-\alias{as.bundle,textstat-method}
-\alias{as.matrix,bundle-method}
 \alias{bundle-class}
 \alias{length,bundle-method}
 \alias{names,bundle-method}
 \alias{names<-,bundle,character-method}
-\alias{sample,bundle-method}
 \alias{unique,bundle-method}
-\title{bundle class}
+\alias{+,bundle,bundle-method}
+\alias{+,bundle,textstat-method}
+\alias{[[,bundle-method}
+\alias{sample,bundle-method}
+\alias{as.bundle,list-method}
+\alias{as.bundle,textstat-method}
+\alias{as.data.table,bundle-method}
+\alias{as.matrix,bundle-method}
+\alias{subset,bundle-method}
+\title{Bundle class}
 \usage{
 \S4method{length}{bundle}(x)
 
@@ -30,32 +32,36 @@
 
 \S4method{[[}{bundle}(x, i)
 
-\S4method{as.matrix}{bundle}(x, col)
-
 \S4method{sample}{bundle}(x, size)
 
 \S4method{as.bundle}{list}(object, ...)
 
 \S4method{as.bundle}{textstat}(object)
+
+\S4method{as.data.table}{bundle}(x, col)
+
+\S4method{as.matrix}{bundle}(x, col)
+
+\S4method{subset}{bundle}(x, ...)
 }
 \arguments{
 \item{x}{a bundle object}
 
-\item{value}{...}
+\item{value}{character string with a name to be assigned}
 
 \item{e1}{object 1}
 
 \item{e2}{object 2}
 
-\item{i}{index to address an object}
+\item{i}{integer to index a bundle object}
 
-\item{col}{columns of the table to be used}
-
-\item{size}{xxx}
+\item{size}{number of items to choose to generate a sample}
 
 \item{object}{a bundle object}
 
 \item{...}{further parameters}
+
+\item{col}{columns of the data.table to use to generate an object}
 }
 \description{
 A class to bundle several objects (partition, context, comp, cooccurrences objects)
@@ -67,8 +73,22 @@ in one S4 object.
 \item{\code{objects}}{Object of class \code{"list"}}
 
 \item{\code{pAttribute}}{Object of class \code{"character"}}
+
+\item{\code{encoding}}{encoding of objects}
 }}
+
+\examples{
+\dontrun{
+use("europarl.en")
+Ps <- partitionBundle(
+  "EUROPARL-EN", sAttribute = "text_year",
+  values = sAttributes("EUROPARL-EN", "text_year")
+)
+Cs <- cooccurrences(Ps, query = "Europe", cqp = FALSE, verbose = FALSE)
+dt <- as.data.table(Cs, col = "ll")
+m <- as.matrix(Cs, col = "ll")
+}
+}
 \author{
 Andreas Blaette
 }
-

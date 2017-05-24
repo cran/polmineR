@@ -4,17 +4,16 @@
 \name{partition}
 \alias{partition}
 \alias{partition,character-method}
-\alias{partition,environment-method}
 \alias{partition,list-method}
+\alias{partition,environment-method}
 \alias{partition,partition-method}
 \title{Initialize a partition.}
 \usage{
 partition(.Object, ...)
 
 \S4method{partition}{character}(.Object, def = NULL, name = "",
-  encoding = NULL, pAttribute = NULL, meta = NULL, regex = FALSE,
-  xml = "flat", id2str = TRUE, type = NULL, mc = FALSE,
-  verbose = TRUE, ...)
+  encoding = NULL, pAttribute = NULL, regex = FALSE, xml = "flat",
+  id2str = TRUE, type = NULL, mc = FALSE, verbose = TRUE, ...)
 
 \S4method{partition}{list}(.Object, ...)
 
@@ -38,8 +37,6 @@ details and examples)}
 \item{encoding}{encoding of the corpus (typically "LATIN1 or "(UTF-8)), if NULL, the encoding provided in the registry file of the corpus (charset="...") will be used b}
 
 \item{pAttribute}{the pAttribute(s) for which term frequencies shall be retrieved}
-
-\item{meta}{a character vector}
 
 \item{regex}{logical (defaults to FALSE)}
 
@@ -122,10 +119,10 @@ A typical scenario is to combine the p-attributes "word" or "lemma" and "pos".
    }
 }
 }
+\seealso{
+To learn about the methods available for objects of the class partition, see
+\code{\link{partition_class}},
+}
 \author{
 Andreas Blaette
 }
-\seealso{
-\code{\link{partition-class}}
-}
-

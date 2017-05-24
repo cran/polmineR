@@ -22,7 +22,7 @@ setGeneric("mail", function(object, ...){standardGeneric("mail")})
   tabTempDir <- tempdir()
   if ("csv" %in% fileFormat) {
     tabFilenameCsv <- file.path(tabTempDir, paste(filename, ".csv", sep=""))
-    write.csv(tab[c(1:nrow),], file=tabFilenameCsv, fileEncoding="latin1")
+    write.csv(tab[c(1:nrow),], file=tabFilenameCsv, fileEncoding = "latin1")
     msg[[length(msg)+1]] <- sendmailR::mime_part(tabFilenameCsv)
   }
   if ("xlsx" %in% fileFormat) {
@@ -76,7 +76,7 @@ setMethod("mail", "partition", function(object, to=NULL, filename="drillerExport
 
 #' @rdname mail-method
 #' @docType methods
-setMethod("mail", "context", function(object, to=NULL, nrow=NULL, fileFormat=c("csv", "xlsx")){
+setMethod("mail", "cooccurrences", function(object, to=NULL, nrow=NULL, fileFormat=c("csv", "xlsx")){
   if (requireNamespace("sendmailR", quietly = TRUE)) {
     if(is.null(nrow)) nrow <- nrow(object@stat)
     msg <- list('Prepared and delivered by polmineR.\n')

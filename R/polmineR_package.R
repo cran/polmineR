@@ -14,7 +14,7 @@ NULL
 
 #' polmineR-package
 #' 
-#' Machinery for mining CWB corpora
+#' Tools for mining CWB corpora.
 #'
 #' The package provides functions for basic text statistics for corpora 
 #' that are managed by the Corpus Workbench (CWB). A core feature is to generate
@@ -50,7 +50,14 @@ NULL
 #' # examples in the manual rely in a sample corpus that can be install as follows:
 #' install.corpus("polmineR.sampleCorpus")
 #' }
-NULL
+#' @export polmineR
+polmineR <- function(){
+  if (requireNamespace("shiny", quietly = TRUE)){
+    shiny::runApp(system.file("shiny", package = "polmineR"))
+  } else {
+    stop("package 'shiny' required but not installed")
+  }
+}
 
 
 #' generic methods defined in the polmineR-package

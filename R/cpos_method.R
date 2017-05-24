@@ -39,9 +39,10 @@ setGeneric("cpos", function(.Object, ... ) standardGeneric("cpos"))
 #' @rdname cpos-method
 setMethod("cpos", "character", function(.Object, query, pAttribute = getOption("polmineR.pAttribute"), cqp = is.cqp, encoding = NULL, verbose = TRUE, ...){
   if (length(query) > 1) warning("query needs to be a character vector with length 1")
-  if (is.null(encoding)) encoding <- getEncoding(.Object) 
-  query <- adjustEncoding(query, encoding)
+  if (is.null(encoding)) encoding <- getEncoding(.Object) # get encoding of the corpus
+  query <- as.corpusEnc(query, corpusEnc = encoding)
   if (class(cqp) == "function") cqp <- cqp(query)
+  if (length(cqp) > 1) stop("length of cqp is larger than 1, but needs to be 1")
   if (cqp == FALSE) {
     if (grepl("[\\|]", query)) warning("Special character that may cause problems in query!")
     cpos <- try({
@@ -76,7 +77,7 @@ setMethod("cpos", "character", function(.Object, query, pAttribute = getOption("
   
 #' @rdname cpos-method
 setMethod("cpos", "partition", function(.Object, query, cqp=is.cqp, pAttribute=NULL, verbose=TRUE, ...){
-  hits <- cpos(.Object@corpus, query=query, cqp=cqp, pAttribute, encoding=.Object@encoding, verbose=verbose)
+  hits <- cpos(.Object@corpus, query=query, cqp=cqp, pAttribute, encoding = .Object@encoding, verbose=verbose)
   if (!is.null(hits) && length(.Object@sAttributes) > 0){
     sAttribute <- names(.Object@sAttributes)[length(.Object@sAttributes)]
     # corpus.sAttribute <- paste(.Object@corpus, ".", sAttribute, sep="")

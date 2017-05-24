@@ -13,6 +13,10 @@
 #' (\code{.libPaths{}[1]}). Another location can be used by stating the param 'lib'
 #' explicitly (see documentation for \code{\link{install.packages}}).
 #' 
+#' The function can also be used to install a corpus from a password protected repository. Further
+#' parameters are handed over to install.packages, so you might add 
+#' \code{method = "wget" extra = "--user donald --password duck"}.
+#' 
 #' See examples how to check whether the directory has been set correctly. 
 #' 
 #' An installed data package with a CWB corpus is assumed to include a directory
@@ -36,6 +40,7 @@
 #' RegistryFile$new(package = "plprbt.pvs2017")$getHome()
 #' }
 #' @importFrom utils available.packages contrib.url install.packages
+#' @rdname install.corpus
 install.corpus <- function(pkgs, repo = "http://polmine.sowi.uni-due.de/packages", ...){
   for (package in pkgs){
     if (package %in% utils::available.packages(utils::contrib.url(repos = repo))){
@@ -55,4 +60,28 @@ install.corpus <- function(pkgs, repo = "http://polmine.sowi.uni-due.de/packages
       stop("package ", package, " is not available")
     }
   }
+}
+
+#' @rdname install.corpus
+#' @export packaged.corpora
+packaged.corpora <- function(){
+  matrices <- lapply(
+    .libPaths(),
+    function(lib){
+      vectors <- lapply(
+        installed.packages(lib.loc = lib)[,"Package"],
+        function(package){
+          c(
+            package = package,
+            lib = lib,
+            registry = system.file(package = package, "extdata", "cwb", "registry")
+          )
+        }
+      )
+      do.call(rbind, vectors)
+    }
+  )
+  M <- data.table(do.call(rbind, matrices))
+  M <- M[which(nchar(M[["registry"]]) > 0)]
+  return(M)
 }

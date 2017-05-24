@@ -33,7 +33,6 @@
 #' @param name name of the new partition, defaults to "
 #' @param encoding encoding of the corpus (typically "LATIN1 or "(UTF-8)), if NULL, the encoding provided in the registry file of the corpus (charset="...") will be used b
 #' @param pAttribute the pAttribute(s) for which term frequencies shall be retrieved
-#' @param meta a character vector
 #' @param regex logical (defaults to FALSE)
 #' @param xml either 'flat' (default) or 'nested'
 #' @param id2str whether to turn token ids to strings (set FALSE to minimize object.size / memory consumption)
@@ -44,7 +43,8 @@
 #' @param ... parameters passed into the partition-method
 #' @return An object of the S4 class 'partition'
 #' @author Andreas Blaette
-#' @seealso \code{\link{partition-class}}
+#' @seealso To learn about the methods available for objects of the class partition, see
+#' \code{\link{partition_class}},
 #' @examples
 #' \dontrun{
 #'    use("polmineR.sampleCorpus")
@@ -89,7 +89,7 @@ setGeneric("partition", function(.Object, ...){standardGeneric("partition")})
 #' @rdname partition
 setMethod("partition", "character", function(
   .Object, def = NULL, name = "",
-  encoding = NULL, pAttribute = NULL, meta = NULL, regex = FALSE, xml = "flat",
+  encoding = NULL, pAttribute = NULL, regex = FALSE, xml = "flat",
   id2str = TRUE, type = NULL, mc = FALSE, verbose = TRUE, ...
 ) {
   corpus <- .Object
@@ -128,7 +128,7 @@ setMethod("partition", "character", function(
     Partition@encoding <- encoding
   }
   .verboseOutput(paste('get encoding:', Partition@encoding), verbose)
-  Partition@sAttributes <- lapply(def, function(x) adjustEncoding(x, Partition@encoding))
+  Partition@sAttributes <- lapply(def, function(x) as.corpusEnc(x, corpusEnc = Partition@encoding))
 
   .verboseOutput('get cpos and strucs', verbose)
   if(is.null(def)){
@@ -144,10 +144,6 @@ setMethod("partition", "character", function(
     if (!is.null(pAttribute)) {
       Partition <- enrich(Partition, pAttribute = pAttribute, verbose = verbose, id2str = id2str, mc = mc)
       # Partition <- sort(Partition, "count")
-    }
-    if (!is.null(meta)) {
-      .verboseOutput('get metadata', verbose)
-      Partition@metadata <- meta(Partition, sAttributes=meta)
     }
   } else {
     message("... setting up the partition failed (returning NULL object)")
@@ -203,7 +199,7 @@ setMethod("partition", "partition", function(.Object, def = NULL, name = "", reg
     stat = data.table()
     )
   .verboseOutput(paste('Setting up partition', name), verbose)
-  def <- lapply(def, function(x) adjustEncoding(x, .Object@encoding))  
+  def <- lapply(def, function(x) as.corpusEnc(x, corpusEnc = .Object@encoding))  
   newPartition@sAttributes <- c(.Object@sAttributes, def)
   newPartition@sAttributeStrucs <- names(newPartition@sAttributes)[length(newPartition@sAttributes)]
   

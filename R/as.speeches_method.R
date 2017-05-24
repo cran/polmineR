@@ -20,19 +20,19 @@ setGeneric("as.speeches", function(.Object, ...)standardGeneric("as.speeches"))
 #' @examples 
 #' \dontrun{
 #'   use("polmineR.sampleCorpus")
-#'   bt <- partition("PLPRBTTXT", text_year="2009")
-#'   speeches <- as.speeches(bt, sAttributeDates="text_date", sAttributeNames="text_name")
+#'   bt <- partition("PLPRBTTXT", text_year = "2009")
+#'   speeches <- as.speeches(bt, sAttributeDates = "text_date", sAttributeNames = "text_name")
 #'   
 #'   # step-by-step, not the fastest way
-#'   speeches <- enrich(speeches, pAttribute="word")
-#'   tdm <- as.TermDocumentMatrix(speeches, col="count")
+#'   speeches <- enrich(speeches, pAttribute = "word")
+#'   tdm <- as.TermDocumentMatrix(speeches, col = "count")
 #'   
 #'   # fast option (counts performed when assembling the sparse matrix)
-#'   tdm <- as.TermDocumentMatrix(speeches, pAttribute="word")
-#'   termsToDropList <- noise(tdm)
-#'   whatToDrop <- c("stopwords", "specialChars", "numbers", "minNchar")
-#'   termsToDrop <- unlist(lapply(whatToDrop, function(x) termsToDropList[[x]]))
-#'   tdm <- trim(tdm, termsToDrop = termsToDrop)
+#'   # tdm <- as.TermDocumentMatrix(speeches, pAttribute = "word")
+#'   # termsToDropList <- noise(tdm)
+#'   # whatToDrop <- c("stopwords", "specialChars", "numbers", "minNchar")
+#'   # termsToDrop <- unlist(lapply(whatToDrop, function(x) termsToDropList[[x]]))
+#'   # tdm <- trim(tdm, termsToDrop = termsToDrop)
 #' }
 #' @aliases as.speeches as.speeches,partition-method
 setMethod("as.speeches", "partition", function(.Object, sAttributeDates, sAttributeNames,  gap=500, mc=FALSE, verbose=TRUE, progress=TRUE){
@@ -41,8 +41,8 @@ setMethod("as.speeches", "partition", function(.Object, sAttributeDates, sAttrib
   if (verbose) message("... generating partitions by date")
   toIterate <- lapply(dates, function(x) setNames(x, sAttributeDates))
   partitionByDate <- blapply(
-    x=toIterate, .Object=.Object, f=partition, 
-    verbose=verbose, progress=progress, mc=mc
+    x = toIterate, .Object = .Object, f = partition, 
+    verbose = verbose, progress = progress, mc = mc
   )
   partitionByDate <- lapply(partitionByDate, function(x) as(x, "plprPartition"))
   if (verbose) message("... generating speeches")
@@ -51,15 +51,15 @@ setMethod("as.speeches", "partition", function(.Object, sAttributeDates, sAttrib
       sAttributes(datePartition, sAttributeNames),
       function(speakerName){
         beforeSplit <- partition(datePartition, setNames(list(speakerName), sAttributeNames), verbose=FALSE)
-        split(beforeSplit, gap=gap, verbose=FALSE)
+        split(beforeSplit, gap = gap, verbose=FALSE)
       }
     )
     unlist(lapply(c(1:length(nested)), function(i) nested[[i]]@objects))
   }
   speakerNestedList <- blapply(
-    x=partitionByDate, f=.splitFunction,
-    sAttributeNames=sAttributeNames, gap=gap,
-    mc=mc, progress=progress
+    x = partitionByDate, f = .splitFunction,
+    sAttributeNames = sAttributeNames, gap = gap,
+    mc = mc, progress = progress
   )
   speakerFlatList <- do.call(c, unlist(speakerNestedList, recursive=FALSE))
   if (verbose) message("... generating names")
@@ -68,5 +68,10 @@ setMethod("as.speeches", "partition", function(.Object, sAttributeDates, sAttrib
     function(x) paste(x@sAttributes[[sAttributeNames]], sAttributes(x, sAttributeDates), x@name, sep="_")
   )
   for (i in c(1:length(speakerFlatList))) name(speakerFlatList[[i]]) <- partitionNames[i]
+  
+  # at this stage, the list may contain partitions of size 0, that need to be dropped
+  toDrop <- which(sapply(speakerFlatList, function(x) size(x)) == 0)
+  if (length(toDrop) > 0) for (i in rev(toDrop)) speakerFlatList[[i]] <- NULL
+  
   as.bundle(speakerFlatList)
 })

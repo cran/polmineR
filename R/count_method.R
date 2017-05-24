@@ -8,9 +8,15 @@ NULL
 #' If .Object is a partitonBundle, the data.table returned will have the queries
 #' in the columns, and as many rows as there are in the partitionBundle.
 #' 
+#' If .Object is a character vector (length 1) and query is NULL, the count is performed
+#' for the whole partition. The method will check whether the \code{polmineR.Rcpp} package,
+#' or the \code{cwb-lexdecode} utilities are available, and use them resepectively for 
+#' performance reasons.
+#' 
 #' @seealso  For a metadata-based breakdown of counts
 #' (i.e. tabulation by s-attributes), see \code{"dispersion"}.
 #' 
+
 #' @param .Object a \code{"partition"} or \code{"partitionBundle"} object, or a
 #'   character vector (length 1) providing the name of a corpus
 #' @param query a character vector (one or multiple terms to be looked up), CQP
@@ -40,14 +46,18 @@ NULL
 #' \dontrun{
 #'   use("polmineR.sampleCorpus")
 #'   debates <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE)
-#'   x <- count(debates, "Arbeit") # get frequencies for one token
-#'   x <- count(debates, c("Arbeit", "Freizeit", "Zukunft")) # get frequencies for multiple tokens
-#'   x <- count("PLPRBTTXT", query = c("Migration", "Integration"), "word")
+#'   count(debates, query = "Arbeit") # get frequencies for one token
+#'   count(debates, c("Arbeit", "Freizeit", "Zukunft")) # get frequencies for multiple tokens
+#'   
+#'   count("PLPRBTTXT", query = c("Migration", "Integration"), pAttribute = "word")
 #' 
 #'   debates <- partitionBundle(
 #'     "PLPRBTTXT", sAttribute = "text_date", values = NULL,
 #'     regex = TRUE, mc = FALSE, verbose = FALSE
 #'   )
+#'   y <- count(debates, query = "Arbeit", pAttribute = "word")
+#'   y <- count(debates, query = c("Arbeit", "Migration", "Zukunft"), pAttribute = "word")
+#'   
 #' }
 setGeneric("count", function(.Object, ...){standardGeneric("count")})
 
@@ -62,7 +72,7 @@ setMethod("count", "partition", function(
     .getNumberOfHits <- function(query, partition, cqp, pAttribute, ...) {
       if (verbose) message("... processing query ", query)
       cposResult <- cpos(.Object = .Object, query = query, cqp = cqp, pAttribute = pAttribute, verbose = FALSE)
-      ifelse(is.null(cposResult), 0, nrow(cposResult))
+      if (is.null(cposResult)) return( 0 ) else return( nrow(cposResult) )
     }
     no <- as.integer(blapply(
       as.list(query),
@@ -70,11 +80,12 @@ setMethod("count", "partition", function(
       partition = .Object, cqp = cqp, pAttribute = pAttribute,
       mc = mc, verbose = verbose, progress = progress
     ))
-    data.table(query = query, count = no, freq = no/.Object@size)
+    return( data.table(query = query, count = no, freq = no/.Object@size) )
   } else {
     pAttr_id <- paste(pAttribute, "id", sep = "_")
     if (length(pAttribute) == 1){
       if (requireNamespace("polmineR.Rcpp", quietly = TRUE) && (getOption("polmineR.Rcpp") == TRUE)){
+        if (verbose) message("... using polmineR.Rcpp")
         countMatrix <- polmineR.Rcpp::regionsToCountMatrix(
           corpus = .Object@corpus, pAttribute = pAttribute,
           matrix = .Object@cpos
@@ -86,19 +97,20 @@ setMethod("count", "partition", function(
         TF <- count(cpos, .Object@corpus, pAttribute)
       }
     } else {
+      if (verbose) message("... using rcqp")
       cpos <- unlist(apply(.Object@cpos, 1, function(x) x[1]:x[2]))
       idList <- lapply(pAttribute, function(p) CQI$cpos2id(.Object@corpus, p, cpos))
       names(idList) <- paste(pAttribute, "id", sep = "_")
       ID <- as.data.table(idList)
       setkeyv(ID, cols = names(idList))
       TF <- ID[, .N, by = c(eval(names(idList))), with = TRUE]
-      setnames(TF, "V1", "count")
+      setnames(TF, "N", "count")
     }
     if (id2str){
       dummy <- lapply(
         c(1:length(pAttribute)),
         function(i){
-          str <- as.utf8(CQI$id2str(.Object@corpus, pAttribute[i], TF[[pAttr_id[i]]]), from = .Object@encoding)
+          str <- as.nativeEnc(CQI$id2str(.Object@corpus, pAttribute[i], TF[[pAttr_id[i]]]), from = .Object@encoding)
           TF[, eval(pAttribute[i]) := str , with = TRUE] 
         })
       setcolorder(TF, neworder = c(pAttribute, pAttr_id, "count"))
@@ -152,52 +164,78 @@ setMethod("count", "partitionBundle", function(.Object, query, pAttribute = NULL
 #' @rdname count-method
 setMethod("count", "character", function(.Object, query = NULL, cqp = is.cqp, pAttribute = getOption("polmineR.pAttribute"), sort = FALSE, id2str = TRUE, verbose = TRUE){
   if (is.null(query)){
-    if (requireNamespace("polmineR.Rcpp", quietly = TRUE) && getOption("polmineR.Rcpp") == TRUE){
-      if (verbose) message("... using polmineR.Rcpp for counting")
-      TF <- data.table(count = polmineR.Rcpp::getCountVector(corpus = .Object, pAttribute = pAttribute))
-      TF[, "id" := 0:(nrow(TF) - 1), with = TRUE]
-      setnames(TF, old = "id", new = paste(pAttribute, "id", sep = "_"))
-      if (id2str == FALSE){
-        setkeyv(TF, paste(pAttribute, "id", sep = "_"))
-        setcolorder(TF, c(paste(pAttribute, "id", sep = "_"), "count"))
-      } else {
-        TF[, "token" := as.utf8(CQI$id2str(.Object, pAttribute, 0:(nrow(TF) - 1))), with = TRUE]
+    if (length(pAttribute) == 1){
+      if (requireNamespace("polmineR.Rcpp", quietly = TRUE) && getOption("polmineR.Rcpp") == TRUE){
+        if (verbose) message("... using polmineR.Rcpp for counting")
+        TF <- data.table(count = polmineR.Rcpp::getCountVector(corpus = .Object, pAttribute = pAttribute))
+        TF[, "id" := 0:(nrow(TF) - 1), with = TRUE]
+        setnames(TF, old = "id", new = paste(pAttribute, "id", sep = "_"))
+        if (id2str == FALSE){
+          setkeyv(TF, paste(pAttribute, "id", sep = "_"))
+          setcolorder(TF, c(paste(pAttribute, "id", sep = "_"), "count"))
+        } else {
+          TF[, "token" := as.nativeEnc(CQI$id2str(.Object, pAttribute, 0:(nrow(TF) - 1)), from = getEncoding(.Object)), with = TRUE]
+          Encoding(TF[["token"]]) <- "unknown"
+          setnames(TF, old = "token", new = pAttribute)
+          setkeyv(TF, pAttribute)
+          setcolorder(TF, c(pAttribute, paste(pAttribute, "id", sep = "_"), "count"))
+          if (sort) setorderv(TF, cols = pAttribute)
+        }
+        return(TF)
+      } else if (getOption("polmineR.cwb-lexdecode")){
+        # cwb-lexdecode will be significantly faster than using rcqp
+        if (verbose) message("... using cwb-lexdecode for counting")
+        cmd <- paste(c("cwb-lexdecode", "-f", "-n", "-P", pAttribute, .Object), collapse = " ")
+        lexdecodeResult <- system(cmd, intern = TRUE)
+        Encoding(lexdecodeResult) <- getEncoding(.Object)
+        lexdecodeList <- strsplit(lexdecodeResult, "\t")
+        TF <- data.table(
+          token = sapply(lexdecodeList, function(x) x[3]),
+          id = sapply(lexdecodeList, function(x) x[1]),
+          count = as.integer(sapply(lexdecodeList, function(x) x[2]))
+        )
         Encoding(TF[["token"]]) <- "unknown"
-        setnames(TF, old = "token", new = pAttribute)
+        colnames(TF) <- c(pAttribute, paste(pAttribute, "id", sep = "_"), "count")
         setkeyv(TF, pAttribute)
-        setcolorder(TF, c(pAttribute, paste(pAttribute, "id", sep = "_"), "count"))
         if (sort) setorderv(TF, cols = pAttribute)
+        return(TF)
+      } else {
+        TF <- count(0:(size(.Object) - 1), .Object, pAttribute = pAttribute)
+        if (id2str){
+          TF[, "token" := CQI$id2str(.Object, pAttribute, TF[[paste(pAttribute, "id", sep = "_")]]), with = TRUE]
+          setnames(TF, old = "token", new = pAttribute)
+          setcolorder(TF, c(pAttribute, paste(pAttribute, "id", sep = "_"), "count"))
+        }
+        return(TF)
       }
-      return(TF)
-    } else if (getOption("polmineR.cwb-lexdecode")){
-      # cwb-lexdecode will be significantly faster than using rcqp
-      if (verbose) message("... using cwb-lexdecode for counting")
-      cmd <- paste(c("cwb-lexdecode", "-f", "-n", "-P", pAttribute, .Object), collapse = " ")
-      lexdecodeResult <- system(cmd, intern = TRUE)
-      Encoding(lexdecodeResult) <- getEncoding(.Object)
-      lexdecodeList <- strsplit(lexdecodeResult, "\t")
-      TF <- data.table(
-        token = sapply(lexdecodeList, function(x) x[3]),
-        id = sapply(lexdecodeList, function(x) x[1]),
-        count = as.integer(sapply(lexdecodeList, function(x) x[2]))
-      )
-      Encoding(TF[["token"]]) <- "unknown"
-      colnames(TF) <- c(pAttribute, paste(pAttribute, "id", sep = "_"), "count")
-      setkeyv(TF, pAttribute)
-      if (sort) setorderv(TF, cols = pAttribute)
-      return(TF)
     } else {
-      TF <- count(0:(size(.Object) - 1), .Object, pAttribute = pAttribute)
+      
+      tokenStreamDT <- as.data.table(
+        li <- lapply(
+          setNames(pAttribute, paste(pAttribute, "id", sep = "_")),
+          function(pAttr){
+            if (verbose) message("... getting token stream for p-attribute: ", pAttr)
+            CQI$cpos2id(.Object, pAttr, 0:(size(.Object) - 1))
+          }
+        )
+      )
+      if (verbose) message("... counting")
+      TF <- tokenStreamDT[, .N, by = c(eval(colnames(tokenStreamDT)))]
+      setnames(TF, old = "N", new = "count")
       if (id2str){
-        TF[, "token" := CQI$id2str(.Object, pAttribute, TF[[paste(pAttribute, "id", sep = "_")]]), with = TRUE]
-        setnames(TF, old = "token", new = pAttribute)
+        for (pAttr in pAttribute){
+          if (verbose) message("... id2str for p-attribute: ", pAttr)
+          TF[, eval(pAttr) := as.nativeEnc(CQI$id2str(.Object, pAttr, TF[[paste(pAttr, "id", sep = "_")]]), from = getEncoding(.Object)), with = TRUE]
+        }
         setcolorder(TF, c(pAttribute, paste(pAttribute, "id", sep = "_"), "count"))
       }
+      return(TF)
     }
   } else {
     stopifnot(.Object %in% CQI$list_corpora())
     total <- CQI$attribute_size(.Object, pAttribute, type = "p")
     if (class(cqp) == "function") cqp <- cqp(query)
+    if (length(cqp) > 1) stop("length of cqp is larger than 1, it needs to be 1")
     if (cqp == FALSE){
       count <- sapply(
         query,
@@ -208,23 +246,23 @@ setMethod("count", "character", function(.Object, query = NULL, cqp = is.cqp, pA
             CQI$str2id(.Object, pAttribute, query)
           )
       )
-      freq <- count/total
+      freq <- count / total
       return(data.table(query = query, count = count, freq = freq))
     } else if (cqp == TRUE){
-    count <- sapply(
-      query,
-      function(query){
-        cpos_matrix <- cpos(.Object, query, cqp = cqp, pAttribute = pAttribute, encoding = getEncoding(.Object))
-        if (!is.null(cpos_matrix)){
-          return( nrow(cpos_matrix) )
-        } else {
-          return( 0 )
+      count <- sapply(
+        query,
+        function(query){
+          cpos_matrix <- cpos(.Object, query, cqp = cqp, pAttribute = pAttribute, encoding = getEncoding(.Object))
+          if (!is.null(cpos_matrix)){
+            return( nrow(cpos_matrix) )
+          } else {
+            return( 0 )
+          }
+          
         }
-        
-      }
-      )
-    freq <- count/total
-    return(data.table(query = query, count = count, freq = freq))
+        )
+      freq <- count / total
+      return(data.table(query = query, count = count, freq = freq))
     }
   }
 })

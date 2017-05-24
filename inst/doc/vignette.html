@@ -4,7 +4,7 @@
 
 <head>
 
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 
@@ -12,7 +12,7 @@
 
 <meta name="author" content="Andreas Blätte (andreas.blaette@uni-due.de)" />
 
-<meta name="date" content="2017-03-23" />
+<meta name="date" content="2017-05-24" />
 
 <title>Introducing the polmineR-package</title>
 
@@ -52,7 +52,7 @@ code > span.er { color: #ff0000; font-weight: bold; }
 
 <h1 class="title toc-ignore">Introducing the ‘polmineR’-package</h1>
 <h4 class="author"><em>Andreas Blätte (<a href="mailto:andreas.blaette@uni-due.de">andreas.blaette@uni-due.de</a>)</em></h4>
-<h4 class="date"><em>2017-03-23</em></h4>
+<h4 class="date"><em>2017-05-24</em></h4>
 
 
 
@@ -155,8 +155,6 @@ code > span.er { color: #ff0000; font-weight: bold; }
 <pre><code>##     query count         freq
 ## 1: France  5517 0.0001399122</code></pre>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">count</span>(<span class="st">&quot;EUROPARL-EN&quot;</span>, <span class="kw">c</span>(<span class="st">&quot;France&quot;</span>, <span class="st">&quot;Germany&quot;</span>, <span class="st">&quot;Britain&quot;</span>, <span class="st">&quot;Spain&quot;</span>, <span class="st">&quot;Italy&quot;</span>, <span class="st">&quot;Denmark&quot;</span>, <span class="st">&quot;Poland&quot;</span>))</code></pre>
-<pre><code>## Warning in if (cqp == FALSE) {: Bedingung hat Länge &gt; 1 und nur das erste
-## Element wird benutzt</code></pre>
 <pre><code>##      query count         freq
 ## 1:  France  5517 1.399122e-04
 ## 2: Germany  4196 1.064114e-04
@@ -184,9 +182,9 @@ popRegex &lt;-<span class="st"> </span><span class="kw">dispersion</span>(<span 
 <pre class="sourceCode r"><code class="sourceCode r">br &lt;-<span class="st"> </span><span class="kw">cooccurrences</span>(<span class="st">&quot;EUROPARL-EN&quot;</span>, <span class="dt">query =</span> <span class="st">&quot;Brussels&quot;</span>)
 eu &lt;-<span class="st"> </span><span class="kw">cooccurrences</span>(<span class="st">&quot;EUROPARL-EN&quot;</span>, <span class="dt">query =</span> <span class="st">'&quot;European&quot; &quot;Union&quot;'</span>, <span class="dt">left =</span> <span class="dv">10</span>, <span class="dt">right =</span> <span class="dv">10</span>)
 <span class="kw">subset</span>(eu, rank_ll &lt;=<span class="st"> </span><span class="dv">100</span>)@stat[[<span class="st">&quot;word&quot;</span>]][<span class="dv">1</span>:<span class="dv">15</span>]</code></pre>
-<pre><code>##  [1] &quot;the&quot;       &quot;of&quot;        &quot;within&quot;    &quot;States&quot;    &quot;The&quot;      
-##  [6] &quot;its&quot;       &quot;countries&quot; &quot;in&quot;        &quot;between&quot;   &quot;Member&quot;   
-## [11] &quot;s&quot;         &quot;relations&quot; &quot;'s&quot;        &quot;policy&quot;    &quot;citizens&quot;</code></pre>
+<pre><code>##  [1] &quot;the&quot;       &quot;,&quot;         &quot;of&quot;        &quot;I&quot;         &quot;to&quot;       
+##  [6] &quot;.&quot;         &quot;within&quot;    &quot;States&quot;    &quot;The&quot;       &quot;its&quot;      
+## [11] &quot;countries&quot; &quot;in&quot;        &quot;we&quot;        &quot;this&quot;      &quot;that&quot;</code></pre>
 </div>
 </div>
 <div id="working-with-subcorpora---partitions" class="section level2">
@@ -217,15 +215,15 @@ terror &lt;-<span class="st"> </span><span class="kw">cooccurrences</span>(ep200
 <pre class="sourceCode r"><code class="sourceCode r">terror@stat[<span class="dv">1</span>:<span class="dv">10</span>,][,.(lemma, count_partition, rank_ll)]</code></pre>
 <pre><code>##             lemma count_partition rank_ll
 ##  1:         fight            1047       1
-##  2:        combat             623       2
-##  3:         crime             533       3
-##  4:      organise             441       4
-##  5:           war             449       5
-##  6:        threat             445       6
-##  7:   immigration             601       7
-##  8: international            1876       8
-##  9:         human            2733       9
-## 10:         right            5711      10</code></pre>
+##  2:       against            2822       2
+##  3:        combat             623       3
+##  4:         crime             533       4
+##  5:      organise             441       5
+##  6:           war             449       6
+##  7:        threat             445       7
+##  8:           and           84531       8
+##  9:   immigration             601       9
+## 10: international            1876      10</code></pre>
 </div>
 <div id="distribution-of-queries" class="section level2">
 <h2>Distribution of queries</h2>
@@ -290,8 +288,7 @@ m[<span class="kw">c</span>(<span class="st">&quot;Barroso&quot;</span>, <span c
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">install.packages</span>(<span class="st">&quot;rcqp&quot;</span>, <span class="dt">repos =</span> <span class="st">&quot;http://polmine.sowi.uni-due.de/packages&quot;</span>, <span class="dt">type =</span> <span class="st">&quot;win.binary&quot;</span>)</code></pre>
 <p>To explain: Compiling the C code in the rcqp package on a windows machine is not yet possible. The package we offer uses a cross-compilation of these C libraries, i.e. binaries that have been prepared for windows on a MacOS/Linux machine.</p>
 <p>Before proceeding to install polmineR, we install dependencies that are not installed automatically.</p>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">install.packages</span>(<span class="dt">pkgs =</span> <span class="kw">c</span>(<span class="st">&quot;htmltools&quot;</span>, <span class="st">&quot;htmlwidgets&quot;</span>, <span class="st">&quot;magrittr&quot;</span>, <span class="st">&quot;iterators&quot;</span>, <span class="st">&quot;NLP&quot;</span>))
-<span class="kw">install.packages</span>(<span class="st">&quot;rcqp&quot;</span>)</code></pre>
+<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">install.packages</span>(<span class="dt">pkgs =</span> <span class="kw">c</span>(<span class="st">&quot;htmltools&quot;</span>, <span class="st">&quot;htmlwidgets&quot;</span>, <span class="st">&quot;magrittr&quot;</span>, <span class="st">&quot;iterators&quot;</span>, <span class="st">&quot;NLP&quot;</span>))</code></pre>
 <p>The latest stable version of polmineR can now be installed from CRAN. Several other packages that polmineR depends on, or that dependencies depend on may be installed automatically.</p>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">install.packages</span>(<span class="st">&quot;polmineR&quot;</span>)</code></pre>
 <p>The development version of the package, which may include the most recent updates and features, can be installed from GitHub. The easiest way to do this is to use a mechanism offered by the package devtools.</p>
@@ -383,14 +380,11 @@ sudo apt-get install libcurl4-openssl-dev</code></pre>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">Sys.setenv</span>(CORPUS_REGISTRY <span class="st">&quot;/PATH/TO/YOUR/REGISTRY/DIRECTORY&quot;</span>)</code></pre>
 <p>To check whether and how the environment variable is set:</p>
 <pre class="sourceCode r"><code class="sourceCode r"><span class="kw">Sys.getenv</span>(<span class="st">&quot;CORPUS_REGISTRY&quot;</span>)</code></pre>
-<pre><code>## [1] &quot;/Library/Frameworks/R.framework/Versions/3.2/Resources/library/europarl.en/extdata/cwb/registry&quot;</code></pre>
+<pre><code>## [1] &quot;/Library/Frameworks/R.framework/Versions/3.4/Resources/library/europarl.en/extdata/cwb/registry&quot;</code></pre>
 <p>You can set the environment variable permanently to avoid having to set it each time before you want to use polmineR. A good way is to inlude the following line in the file .Renviron in your home directory:</p>
 <pre class="sourceCode r"><code class="sourceCode r">CORPUS_REGISTRY=<span class="st">&quot;/PATH/TO/YOUR/REGISTRY/DIRECTORY&quot;</span></code></pre>
 <p>There are a few other options to have environment variables set at every time you launch polmineR. To learn about these, use the help for the R startup procedure.</p>
 <pre class="sourceCode r"><code class="sourceCode r">?Startup </code></pre>
-<pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(polmineR)
-CQI &lt;-<span class="st"> </span>CQI.rcqp$<span class="kw">new</span>()
-<span class="kw">use</span>(<span class="st">&quot;polmineR.sampleCorpus&quot;</span>)</code></pre>
 </div>
 
 
@@ -400,7 +394,7 @@ CQI &lt;-<span class="st"> </span>CQI.rcqp$<span class="kw">new</span>()
   (function () {
     var script = document.createElement("script");
     script.type = "text/javascript";
-    script.src  = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
     document.getElementsByTagName("head")[0].appendChild(script);
   })();
 </script>
