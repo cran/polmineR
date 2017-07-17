@@ -156,11 +156,21 @@ subset(F, rank_chisquare <= 50)@stat[["word"]]
 ## ---- eval = runcode-----------------------------------------------------
 corpus()
 
-## ---- eval = FALSE-------------------------------------------------------
-#  install.packages("polmineR", repos = "http://polmine.sowi.uni-due.de", type = "binary")
+## ----mac_install_polmineR_cran, eval = FALSE-----------------------------
+#  install.packages("polmineR")
 
 ## ---- eval = FALSE-------------------------------------------------------
-#  install.packages(pkgs = c("RUnit", "devtools", "plyr", "tm“))
+#  install.packages("devtools") # unless devtools is already installed
+#  devtools::install_github("PolMine/polmineR", ref = "dev")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages("rcqp",
+#                   repos = "http://polmine.sowi.uni-due.de/packages",
+#                   type = "mac.binary"
+#                   )
+
+## ---- eval = FALSE-------------------------------------------------------
+#  install.packages(pkgs = c("RUnit", "devtools", "plyr", "tm"))
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages("rcqp")

@@ -15,6 +15,7 @@
 #'   only if token in positivelist is present. If positivelist is a character
 #'   vector, it is assumed to provide regex expressions (incredibly long if the
 #'   list is long) (relevant only if query is nut NULL)
+#' @param regex logical, whether stoplist/positivelist are dealt with as regular expressions
 #' @param method statistical test to use (defaults to "ll")
 #' @param verbose logical, whether to be verbose
 #' @param progress logical, whether to be verbose
@@ -42,7 +43,7 @@ setMethod("cooccurrences", "character", function(
   .Object, query = NULL, cqp = is.cqp,
   pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
-  stoplist = NULL, positivelist = NULL,
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
   keep = NULL, cpos = NULL, method = "ll",
   mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE
   ){
@@ -51,7 +52,7 @@ setMethod("cooccurrences", "character", function(
       .Object = .Object, query = query, cqp = is.cqp,
       pAttribute = pAttribute, sAttribute = sAttribute,
       left = left, right = right,
-      stoplist = stoplist, positivelist = positivelist,
+      stoplist = stoplist, positivelist = positivelist, regex = regex,
       count = TRUE, 
       mc = mc, verbose = verbose, progress = progress
     )
@@ -69,7 +70,7 @@ setMethod(
     pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL,
     stoplist = NULL, positivelist = NULL, keep = NULL,
     method = "ll",
-    mc = FALSE, progress = TRUE, verbose = FALSE, ...
+    mc = FALSE, progress = TRUE, verbose = FALSE
   ){
     C <- context(
       .Object = .Object, query = query, cqp = is.cqp,
@@ -80,11 +81,13 @@ setMethod(
       mc = mc, verbose = verbose, progress = progress
     )
     if (is.null(C)){
-      return(NULL)
+      retval <- NULL
     } else {
-      return( cooccurrences(C, method = method, verbose = verbose) )
+      retval <- cooccurrences(C, method = method, verbose = verbose)
     }
-  })
+    retval
+  }
+)
 
 #' @rdname cooccurrences
 setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose = FALSE){
@@ -154,7 +157,10 @@ setMethod("cooccurrences", "partitionBundle", function(.Object, query, mc = getO
     
   }
   names(bundle@objects) <- names(.Object@objects)
-  for (i in 1:length(bundle@objects)) bundle@objects[[i]]@name <- .Object@objects[[i]]@name
+  for (i in 1:length(bundle@objects)){
+    if (!is.null(bundle@objects[[i]])) bundle@objects[[i]]@name <- .Object@objects[[i]]@name
+  }
+  for (i in rev(which(sapply(bundle@objects, is.null)))) bundle@objects[[i]] <- NULL
   bundle
 })
 

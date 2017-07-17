@@ -1,13 +1,17 @@
 #' @include textstat_class.R features_class.R
 NULL
 
-#' S4 context class
+#' Context class.
 #' 
-#' class to organize information of context analysis
+#' Class to organize information of context analysis.
 #' 
-#' @slot query Object of class \code{"character"} node examined
+#' @details Objects of the class \code{context} include a \code{data.table} in the
+#' slot \code{cpos}. The \code{data.table} will at least include the columns "hit_no",
+#' "cpos" and "position".
+#' 
+#' @slot query Object of class \code{"character"}, the query/node examined
 #' @slot count Object of class \code{"numeric"} number of hits
-#' @slot partition Object of class \code{"partition"} the partition the analysis is based on
+#' @slot partition Object of class \code{"partition"}, the partition the context object is based on
 #' @slot partitionSize Object of class \code{"numeric"} the size of the partition
 #' @slot left Object of class \code{"numeric"} number of tokens to the left
 #' @slot right Object of class \code{"numeric"} number of tokens to the right
@@ -22,22 +26,41 @@ NULL
 #' @slot call Object of class \code{"character"} call that generated the object
 #'     
 #' @param .Object object
-#' @aliases show,context-method [,context-method [,context,ANY,ANY,ANY-method
+#' @param x a context object
+#' @param size integer indicating sample size
+#' @param object a context object
+#' @param progress logical, whether to show progress bar
+#' @aliases context_class show,context-method [,context-method [,context,ANY,ANY,ANY-method
 #'   [[,context-method summary,context-method head,context-method
 #'   as.DataTables,context-method
 #' @docType class
+#' @rdname context-class
 #' @exportClass context
 setClass("context",
-         representation(query = "character",
-                        count = "numeric",
-                        partition = "partition",
-                        partitionSize = "numeric",
-                        left = "numeric",
-                        right = "numeric",
-                        size = "numeric",
-                        sAttribute = "character",
-                        cpos = "data.table",
-                        call = "character"
+         slots = c(
+           query = "character",
+           count = "numeric",
+           partition = "partition",
+           partitionSize = "numeric",
+           left = "numeric",
+           right = "numeric",
+           size = "numeric",
+           sAttribute = "character",
+           cpos = "data.table",
+           call = "character"
          ),
          contains = c("features", "textstat")
 )
+
+#' @rdname context-class
+setMethod("sample", "context", function(x, size){
+  hits_unique <- unique(x@cpos[["hit_no"]])
+  if (size > length(hits_unique)){
+    warning("argument size exceeds number of hits, returning original object")
+    return(x)
+  }
+  x@cpos <- x@cpos[which(x@cpos[["hit_no"]] %in% sample(hits_unique, size = size))]
+  x@count <- size
+  x@size <- length(which(x@cpos[["position"]] != 0))
+  x
+})

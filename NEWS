@@ -1,3 +1,21 @@
+v0.7.4
+* applying stoplists and positivelists working again for context-method
+* matches-method to learn about matches for CQP queries replacing frequencies-method
+* Rework of enrich-method, including documentation.
+* param 'neighbor' dropped from kwic,context-method; params positivelist and negativelist offer equivalent functionality
+* highlight-method for (newly exported) kwic-method (for validation purposes)
+* performance improvement for partitionBundle,character-method
+* a new Labels class and label method for generating test data
+* bug removed for partitionBundle,character-class, and performance improved
+* Improved explanation of the installation procedure for Mac in the package vignette
+* for context-method: param sAttribute working again to check boundaries of match regions
+* sample-method for objects of class kwic and context
+* kwic, cpos, and context method will accept queries of length > 1
+* use-function and resetRegistry-function reworked
+* more explicit startup message to get info about version, registry and interface
+* encoding issues solved for size-method, hits-method and dispersion-method
+* use-function will now work for users working with polmineR.Rcpp as interface
+
 v0.7.3
 * new installed.corpora() convenience function to list all data packages with corpora
 * view-method and show-method for cooccurrences-objects now successfully redirect

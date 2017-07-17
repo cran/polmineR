@@ -7,7 +7,7 @@
 \alias{cpos,partition-method}
 \alias{cpos,tempcorpus-method}
 \alias{cpos,matrix-method}
-\title{Get corpus positions for (CQP) queries.}
+\title{Get corpus positions for a query or queries.}
 \usage{
 cpos(.Object, ...)
 
@@ -29,8 +29,7 @@ cpos(.Object, ...)
 
 \item{...}{further arguments}
 
-\item{query}{a character vector (length 1) providing a (single) query: either
-a single token to look up, or a CQP query.}
+\item{query}{a character vector providing one or multiple queries (token or CQP query)}
 
 \item{pAttribute}{the p-attribute to search. Needs to be stated only if query is not a CQP query. Defaults to NULL.}
 
