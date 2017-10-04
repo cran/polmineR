@@ -18,7 +18,7 @@ use("europarl.en")
 #  install.corpus("europarl.en", repo = "http://polmine.sowi.uni-due.de/packages")
 
 ## ---- eval = runcode-----------------------------------------------------
-class(CQI)
+class(polmineR:::CQI)
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
@@ -34,7 +34,6 @@ class(CQI)
 #  unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
 #  assign("CQI", CQI.Rcpp$new(), envir = getNamespace("polmineR"))
 #  lockBinding(env = getNamespace("polmineR"), sym = "CQI")
-#  }
 
 ## ---- eval = runcode, message = FALSE------------------------------------
 corpus()
@@ -164,10 +163,11 @@ corpus()
 #  devtools::install_github("PolMine/polmineR", ref = "dev")
 
 ## ---- eval = FALSE-------------------------------------------------------
-#  install.packages("rcqp",
-#                   repos = "http://polmine.sowi.uni-due.de/packages",
-#                   type = "mac.binary"
-#                   )
+#  install.packages(
+#    "rcqp",
+#    repos = "http://polmine.sowi.uni-due.de/packages",
+#    type = "mac.binary"
+#    )
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages(pkgs = c("RUnit", "devtools", "plyr", "tm"))
@@ -185,7 +185,10 @@ corpus()
 #  install.packages("polmineR")
 
 ## ---- eval = FALSE-------------------------------------------------------
-#  Sys.setenv(CORPUS_REGISTRY "/PATH/TO/YOUR/REGISTRY/DIRECTORY")
+#  Sys.setenv(CORPUS_REGISTRY = "/PATH/TO/YOUR/REGISTRY/DIRECTORY")
+#  
+#  # For example the path could look like this:
+#  # Sys.setenv(CORPUS_REGISTRY = "/Library/Frameworks/R.framework/Versions/3.3/Resources/library/plprbt/extdata/cwb/registry")
 
 ## ------------------------------------------------------------------------
 Sys.getenv("CORPUS_REGISTRY")

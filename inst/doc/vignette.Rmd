@@ -88,7 +88,7 @@ This package may serve as an example how CWB indexed corpora can be shared using
 The standard interface used by the polmineR package to extract information from CWB indexed corpora is the package 'rcqp'. The interface is defined in a class called 'CQI'. To check which interface is used:
 
 ```{r, eval = runcode}
-class(CQI)
+class(polmineR:::CQI)
 ```
 If you see "CQI.perl" leading the character vector that is returned, something went wrong. Accessing the corpora using perl scripts incurs an incredible performence loss. Reset the interface as follows:
 
@@ -113,7 +113,6 @@ To switch to the interface offered by polmineR.Rcpp, proceed as follows:
 unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
 assign("CQI", CQI.Rcpp$new(), envir = getNamespace("polmineR"))
 lockBinding(env = getNamespace("polmineR"), sym = "CQI")
-}
 ```
 
 The checks performed when submitting a package at CRAN issue a note when the 'unlockBinding' function appears in the source code of the package. This is why a function for reset the interface is not included in the package.
@@ -425,13 +424,13 @@ The following instructions for Mac users assume that R is installed on your syst
 
 #### Installing 'polmineR'
 
-The latest release of polmineR can be installed from CRAN using the usual \code{install.packages}-function.
+The latest release of polmineR can be installed from CRAN using the usual `install.packages`-function.
 
 ```{r mac_install_polmineR_cran, eval = FALSE}
 install.packages("polmineR")
 ```
 
-The development version of \code{polmineR} can be installed using devtools:
+The development version of *polmineR* can be installed using devtools:
 
 ```{r, eval = FALSE}
 install.packages("devtools") # unless devtools is already installed
@@ -441,24 +440,33 @@ devtools::install_github("PolMine/polmineR", ref = "dev")
 
 #### Installing 'rcqp'
 
-The default interface of the polmineR package to access CWB indexed corpora is the package 'rcqp'. Accessing corpora will not work before you have installed the interface. The easiest way to get rcqp for Mac is install a precompiled binary that is available at the PolMine server:
+The default interface of the polmineR package to access CWB indexed corpora is the package 'rcqp'. Accessing corpora will not work before you have installed the interface.
+
+##### Installing precompiled binary of rcqp from the PolMine server
+
+The easiest way to get rcqp for Mac is install a precompiled binary that is available at the PolMine server:
 
 ```{r, eval = FALSE}
-install.packages("rcqp",
-                 repos = "http://polmine.sowi.uni-due.de/packages",
-                 type = "mac.binary"
-                 )
+install.packages(
+  "rcqp",
+  repos = "http://polmine.sowi.uni-due.de/packages",
+  type = "mac.binary"
+  )
 ```
+
+##### Building rcqp from source
 
 If you want to get rcqp from CRAN and/or if you want to to compile the C code yourself, the procedure is as follows.
 
-First, you will need an installation of Xcode, which you can get it via the Mac App Store. You will also need the Command Line Tool for Xcode. It can be installed from a terminal with:
+First, you will need an installation of Xcode, which you can get it via the Mac App Store. You will also need the Command Line Tools for Xcode. It can be installed from a terminal with:
 
 ```{sh, eval = FALSE}
-xcode-select -- install
+xcode-select --install
 ```
 
 To compile the C code in the rcqp package, there are system requirements that need to be fulfilled. Using a package manager such as Homebrew or Macports makes things considerably easier.
+
+*Option 1: Using Homebrew*
 
 We recommend to use 'Homebrew'. To install Homebrew, follow the instructions on the [Homebrew Homepage](https://brew.sh/index_de.html). The following commands will install the C libraries the rcqp package relies on:
 
@@ -469,7 +477,9 @@ brew -v install pcre --universal
 brew -v install readline
 ```
 
-If you are more comfortable with using Macports, get it from https://www.macports.org/. After installing Macports, it is necessary to restart the computer. Next, an update of Macports is necessary.
+*Option 2: Using Macports*
+
+If you prefer using Macports, get it from https://www.macports.org/. After installing Macports, it is necessary to restart the computer. Next, an update of Macports is necessary.
 
 ```{sh, eval = FALSE}
 sudo port -v selfupdate
@@ -482,6 +492,8 @@ sudo port install glib2
 sudo port install pkgconfig
 sudo port install pcre
 ```
+
+*Install dependencies and rcqp*
 
 Once the system requirements are there, the next steps can be done from R.  Before installing rcqp, and then polmineR, we install a few packages. In the R console:
 
@@ -524,12 +536,15 @@ install.packages("polmineR")
 
 ## Annex II: CWB corpora and the CORPUS_REGISTRY environment variable
 
-Indexed corpora can be stored in two different locations. The conventional way is to keep CWB corpora in a directory with two subdirectories, a 'registry' directory, and an 'indexed_corpora' directory. The files in the registry directory ('registry' in short) describe the main features of a corpus, and where it is stored. It is necessary to inform rcqp, the package used by polmineR to access corpora, about the registry directory. That is done using the CORPUS_REGISTRY environment variable. It needs be defined before loading rcqp and polmineR.
+Indexed corpora can be stored in two different locations. The conventional way is to keep CWB corpora in a directory with two subdirectories, a 'registry' directory, and an 'indexed_corpora' directory. The files in the registry directory ('registry' in short) describe the main features of a corpus, and where it is stored. It is necessary to inform rcqp, the package used by polmineR to access corpora, about the registry directory. That is done using the CORPUS_REGISTRY environment variable. It needs be defined before loading rcqp and polmineR. Note that you need to set the environment to the 'registry' folder, not the files that are located in this directory.
 
 The CORPUS_REGISTRY environment variable can be set manually from the R console:
 
 ```{r, eval = FALSE}
-Sys.setenv(CORPUS_REGISTRY "/PATH/TO/YOUR/REGISTRY/DIRECTORY")
+Sys.setenv(CORPUS_REGISTRY = "/PATH/TO/YOUR/REGISTRY/DIRECTORY")
+
+# For example the path could look like this:
+# Sys.setenv(CORPUS_REGISTRY = "/Library/Frameworks/R.framework/Versions/3.3/Resources/library/plprbt/extdata/cwb/registry")
 ```
 
 To check whether and how the environment variable is set:
