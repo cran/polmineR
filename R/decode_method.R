@@ -2,9 +2,20 @@
 setGeneric("decode", function(.Object, ...) standardGeneric("decode"))
 
 
-#' Decode corpus or s-attribute.
+#' Decode Structural Attribute or Entire Corpus.
 #' 
-#' Decode either a corpus, or a s-attribute.
+#' If a \code{s_attribute} is a character vector providing one or several structural attributes,
+#' the return value is a \code{data.table} with the left and right corpus positions in the first
+#' and second columns ("cpos_left" and "cpos_right"). Values of further columns are the decoded
+#' s-attributes. The name of the s-attribute is the column name. An error is thrown if the
+#' lengths of structural attributes differ (i.e. if there is a nested data structure).
+#' 
+#' If \code{s_attribute} is NULL, the token stream is decoded for all positional attributes that
+#' are present. Structural attributes are reported in additional columns. Decoding the entire
+#' corpus may be useful to make a transition to processing data following the 'tidy' approach,
+#' or to manipulate the corpus data and to re-encode the corpus.
+#' 
+#' The return value is a \code{data.table}. 
 #' 
 #' @param .Object the corpus to decode (character vector)
 #' @param verbose logical
@@ -13,54 +24,58 @@ setGeneric("decode", function(.Object, ...) standardGeneric("decode"))
 #' @return a \code{data.table}
 #' @rdname decode
 #' @examples
-#' \dontrun{
-#' use("polmineR.sampleCorpus")
+#' use("polmineR")
 #' 
-#' # Scenario 1: Decode one s-attribute
-#' dt <- decode("PLPRBTTXT", sAttribute = "text_date")
+#' # Scenario 1: Decode one or two s-attributes
+#' dt <- decode("GERMAPARLMINI", sAttribute = "date")
+#' dt <- decode("GERMAPARLMINI", sAttribute = c("date", "speaker"))
 #' 
 #' # Scenario 2: Decode corpus entirely
-#' dt <- decode("PLPRBTTXT")
-#' 
-#' }
+#' dt <- decode("GERMAPARLMINI")
 #' @exportMethod decode
-#' @seealso \code{\link{encode}}
+#' @importFrom data.table fread
+#' @importFrom RcppCWB get_region_matrix
 setMethod("decode", "character", function(.Object, sAttribute = NULL, verbose = TRUE){
   
-  stopifnot(.Object %in% CQI$list_corpora()) # check that corpus is available
+  stopifnot(
+    length(.Object) == 1, # cannot process more than one corpus
+    .Object %in% CQI$list_corpora() # make that corpus is available
+    ) 
   
   if (!is.null(sAttribute)){
     
-    stopifnot(sAttribute %in% sAttributes(.Object)) # check that s-attribute is available
+    stopifnot(
+      sAttribute %in% sAttributes(.Object) # s-attribute needs to be available
+      ) 
+
+    regions <- get_region_matrix(
+      .Object, s_attribute = sAttribute[1],
+      strucs = 0L:(CQI$attribute_size(.Object, sAttribute[1]) - 1L),
+      registry = Sys.getenv("CORPUS_REGISTRY")
+    )
+    y <- data.table(regions)
+    colnames(y) <- c("cpos_left", "cpos_right")
     
-    if (getOption("polmineR.cwb-s-decode")){
-      
-      cmd <- c(
-        "cwb-s-decode",
-        "-r", Sys.getenv("CORPUS_REGISTRY"), .Object,
-        "-S", sAttribute
+    if (sAttribute[1] %in% colnames(y)) sAttribute <- sAttribute[-1]
+    for (sAttr in sAttribute){
+      .message("decoding s-attribute: ", sAttr)
+      sAttrMax <- CQI$attribute_size(.Object, sAttr)
+      if (sAttrMax != nrow(y)) stop(
+        "s-attribute", sAttr, " has ", sAttrMax, " values, but s-sattribute ",
+        sAttr, " has only ", nrow(y), " - decode will only work for flat XML with strucs with identical length"
       )
-      cmd <- paste(cmd, collapse = " ", sep = " ")
-      if (verbose) message(cmd)
-      raw <- system(cmd, intern = TRUE)
-      Encoding(raw) <- getEncoding(.Object)
-      raw2 <- as.nativeEnc(x = raw, from = getEncoding(.Object))
-      y <- as.data.table(do.call(rbind, strsplit(raw2, "\\t")), stringsAsFactors = FALSE)
-      y[[1]] <- as.integer(y[[1]])
-      y[[2]] <- as.integer(y[[2]])
-      colnames(y) <- c("cpos_left", "cpos_right", sAttribute)
-      
-    } else {
-      stop("cwb-s-decode utility required to be present for decoding a s-attribute")
+      y[[sAttr]] <- sAttributes(.Object, sAttribute = sAttr, unique = FALSE)
     }
+    
+    return( y )
     
   } else {
     
-    maxCpos <- CQI$attribute_size(.Object, "word", type = "p") - 1
+    maxCpos <- CQI$attribute_size(.Object, "word", type = "p") - 1L
     pAttributeList <- lapply(
       pAttributes(.Object),
       function(x){
-        if (verbose) message("... decoding pAttribute ", x)
+        .message("decoding p-attribute:", x, verbose = verbose)
         tokens <- getTokenStream(.Object, pAttribute = x)
         Encoding(tokens) <- getEncoding(.Object)
         as.nativeEnc(tokens, from = getEncoding(.Object))
@@ -71,8 +86,8 @@ setMethod("decode", "character", function(.Object, sAttribute = NULL, verbose = 
     sAttributeList <- lapply(
       sAttributes(.Object),
       function(x){
-        if (verbose) message("... decoding sAttribute ", x)
-        struc <- CQI$cpos2struc(.Object, x, 0:maxCpos)
+        .message("decoding sAttribute:", x, verbose = verbose)
+        struc <- CQI$cpos2struc(.Object, x, 0L:maxCpos)
         str <- CQI$struc2str(.Object, x, struc)
         Encoding(str) <- getEncoding(.Object)
         as.nativeEnc(str, from = getEncoding(.Object))
@@ -81,9 +96,9 @@ setMethod("decode", "character", function(.Object, sAttribute = NULL, verbose = 
     names(sAttributeList) <- sAttributes(.Object)
     
     
-    if (verbose) message("... assembling data.table")
+    .message("assembling data.table", verbose = verbose)
     combinedList <- c(
-      list(cpos = 0:maxCpos),
+      list(cpos = 0L:maxCpos),
       pAttributeList,
       sAttributeList
     )

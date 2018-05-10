@@ -37,20 +37,18 @@ NULL
 #' settings for polmineR from that file. Second, templates are restored.
 #' 
 #' @author Andreas Blaette (andreas.blaette@@uni-due.de)
-#' @references http://polmine.sowi.uni-due.de
 #' @keywords package
 #' @docType package
 #' @rdname polmineR-package
 #' @name polmineR-package
 #' @references 
-#' Jockers, Matthew L. (2014): Text Analysis with R for Students of Literature.
-#' Cham: Springer.
-#' @examples
-#' \donttest{
-#' # examples in the manual rely in a sample corpus that can be install as follows:
-#' install.corpus("polmineR.sampleCorpus")
-#' }
+#' Jockers, Matthew L. (2014): \emph{Text Analysis with R for Students of Literature}.
+#' Cham et al: Springer.
+#' 
+#' Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum.
 #' @export polmineR
+#' @importFrom RcppCWB cqp_initialize cqp_is_initialized
+#' @importFrom parallel detectCores
 polmineR <- function(){
   if (requireNamespace("shiny", quietly = TRUE)){
     shiny::runApp(system.file("shiny", package = "polmineR"))

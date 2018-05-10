@@ -27,22 +27,14 @@ setGeneric("dispersion", function(.Object, ...){standardGeneric("dispersion")})
 #' @seealso \code{crosstab-class}
 #' @exportMethod dispersion
 #' @examples
-#' \dontrun{
-#'   use("polmineR.sampleCorpus")
-#'   test <- partition("PLPRBTTXT", text_year = "2009", pAttribute = NULL)
-#'   integration <- dispersion(
-#'     test, query = "Integration",
-#'     pAttribute = "word", sAttribute = "text_date"
-#'     )
-#'   integration <- dispersion(
-#'     test, "Integration",
-#'     sAttribute = c("text_date", "text_party")
-#'     )
-#'   integration <- dispersion(
-#'     test, '"Integration.*"',
-#'     sAttribute = "text_year", cqp = TRUE
-#'     )
-#' }
+#' use("polmineR")
+#' test <- partition("GERMAPARLMINI", date = ".*", pAttribute = NULL, regex = TRUE)
+#' integration <- dispersion(
+#'   test, query = "Integration",
+#'   pAttribute = "word", sAttribute = "date"
+#' )
+#' integration <- dispersion(test, "Integration", sAttribute = c("date", "party"))
+#' integration <- dispersion(test, '"Integration.*"', sAttribute = "date", cqp = TRUE)
 #' @seealso count
 #' @author Andreas Blaette
 #' @docType methods
@@ -76,16 +68,16 @@ setMethod("dispersion", "character", function(.Object, query, sAttribute, cqp = 
 setMethod("dispersion", "hits", function(.Object, sAttribute, freq = FALSE, verbose = TRUE){
   if (length(sAttribute) == 2){
     retval <- data.table::dcast.data.table(
-      .Object@dt, formula(paste(sAttribute, collapse="~")),
+      .Object@stat, formula(paste(sAttribute, collapse = "~")),
       value.var = if (freq) "freq" else "count", fun.aggregate = sum, fill = 0
       )  
   } else if (length(sAttribute) == 1){
     if (freq == FALSE){
       sumup <- function(.SD) sum(.SD[["count"]])
-      retval <- .Object@dt[, sumup(.SD), by = c(sAttribute), with = TRUE]
+      retval <- .Object@stat[, sumup(.SD), by = c(sAttribute), with = TRUE]
       data.table::setnames(retval, old = "V1", new = "count")
     } else {
-      retval <- .Object@dt
+      retval <- .Object@stat
     }
   } else {
     warning("length(sAttribute) needs to be 1 or 2")

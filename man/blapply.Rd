@@ -41,17 +41,9 @@ The purpose of the method is to supply a uniform und convenient parallel
 backend for the polmineR package. In particular, progress bars are supported
 (the naming of the method is derived from bla bla).
 }
-\details{
-Parallel backend supported so far are the parallel package (mclapply), and 
-doMC, doParallel and doSNOW in combination with foreach. The parallel backend
-to be used is taken from the option 'polmineR.backend' (getOption("polmineR.backend")),
-the number of cores from the option 'polmineR.cores' (getOption("polmineR.cores")).
-}
 \examples{
-\dontrun{
-  use("polmineR.sampleCorpus")
-  bt <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE)
-  speeches <- as.speeches(bt, sAttributeDates="text_date", sAttributeNames="text_name")
+  use("polmineR")
+  bt <- partition("GERMAPARLMINI", date = ".*", regex=TRUE)
+  speeches <- as.speeches(bt, sAttributeDates = "date", sAttributeNames = "speaker")
   foo <- blapply(speeches, function(x, ...) slot(x, "cpos"))
-}
 }

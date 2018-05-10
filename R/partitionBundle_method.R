@@ -23,14 +23,12 @@ NULL
 #' @docType methods
 #' @rdname partitionBundle-method
 #' @examples
-#' \dontrun{
-#'   use("polmineR.sampleCorpus")
-#'   bt2009 <- partition("PLPRBTTXT", text_year = "2009")
-#'   pBundle <- partitionBundle(bt2009, sAttribute = "text_date", progress = TRUE, pAttribute = "word")
+#'   use("polmineR")
+#'   bt2009 <- partition("GERMAPARLMINI", date = "2009-.*", regex = TRUE)
+#'   pBundle <- partitionBundle(bt2009, sAttribute = "date", progress = TRUE, pAttribute = "word")
 #'   dtm <- as.DocumentTermMatrix(pBundle, col = "count")
 #'   summary(pBundle)
-#'   btBundle <- partitionBundle("PLPRBTTXT", sAttribute = "text_date")
-#' }
+#'   btBundle <- partitionBundle("GERMAPARLMINI", sAttribute = "date")
 #' @seealso \code{\link{partition}} and \code{\link{bundle-class}}
 setGeneric("partitionBundle", function(.Object, ...) standardGeneric("partitionBundle"))
 
@@ -46,9 +44,9 @@ setMethod("partitionBundle", "partition", function(
     encoding = .Object@encoding, call = deparse(match.call())
   )
   if (is.null(values)){
-    if (verbose) message('... getting values for s-attribute ', sAttribute)
+    .message('getting values for s-attribute ', sAttribute, verbose = verbose)
     values <- sAttributes(.Object, sAttribute)
-    if (verbose) message('... number of partitions to be generated: ', length(values))
+    .message('number of partitions to be generated: ', length(values), verbose = verbose)
   }
   bundle@objects <- blapply(
     lapply(setNames(values, rep(sAttribute, times = length(values))), function(x) setNames(x, sAttribute)),
@@ -69,10 +67,10 @@ setMethod("partitionBundle", "character", function(
 ) {
   bundle <- new(
     "partitionBundle",
-    corpus = .Object, encoding = RegistryFile$new(.Object)$getEncoding(),
+    corpus = .Object, encoding = registry_get_encoding(.Object),
     call = deparse(match.call())
   )
-  strucs <- 0:(CQI$attribute_size(.Object, sAttribute, "s") - 1)
+  strucs <- 0L:(CQI$attribute_size(.Object, sAttribute, "s") - 1L)
   names(strucs) <- CQI$struc2str(.Object, sAttribute, strucs)
   if (!is.null(values)) {
     valuesToKeep <- values[which(values %in% names(strucs))]
@@ -80,29 +78,26 @@ setMethod("partitionBundle", "character", function(
   }
 
   values <- names(strucs)
+  Encoding(values) <- bundle@encoding
   strucs <- unname(strucs)
   
-  if (verbose) message("... getting matrix with regions for s-attribute: ", sAttribute)
-  if (require("polmineR.Rcpp", quietly = TRUE)){
-    cposMatrix <- polmineR.Rcpp::get_region_matrix(
-      corpus = .Object, s_attribute = sAttribute, strucs = strucs,
-      registry = Sys.getenv("CORPUS_REGISTRY")
-      )
-  } else {
-    cposMatrix <- do.call(rbind, lapply(strucs, function(x) CQI$struc2cpos(.Object, sAttribute, x)))
-  }
+  .message("getting matrix with regions for s-attribute: ", sAttribute, verbose = verbose)
+  cposMatrix <- RcppCWB::get_region_matrix(
+    corpus = .Object, s_attribute = sAttribute, strucs = strucs,
+    registry = Sys.getenv("CORPUS_REGISTRY")
+  )
   
   cposList <- split(cposMatrix, f = values)
   cposList <- lapply(cposList, function(x) matrix(x, ncol = 2))
   
-  if (verbose) message("... generating the partitions")
+  .message("generating the partitions", verbose = verbose)
   .makeNewPartition <- function(i, corpus, encoding, sAttribute, cposList, xml, ...){
     newPartition <- new(
       "partition",
       corpus = corpus, encoding = encoding,
       stat = data.table(),
       cpos = cposList[[i]],
-      size = sum(apply(cposList[[i]], 1, function(row) row[2] - row[1] + 1)),
+      size = sum(apply(cposList[[i]], 1, function(row) row[2] - row[1] + 1L)),
       name = names(cposList)[i],
       sAttributes = setNames(list(names(cposList)[i]), sAttribute),
       sAttributeStrucs = sAttribute,
@@ -111,7 +106,7 @@ setMethod("partitionBundle", "character", function(
     )
   }
   bundle@objects <- blapply(
-    setNames(as.list(1:length(cposList)), names(cposList)),
+    setNames(as.list(1L:length(cposList)), names(cposList)),
     f = .makeNewPartition,
     corpus = .Object, encoding = bundle@encoding, sAttribute = sAttribute, cposList, xml = xml,
     mc = mc, progress = progress, verbose = verbose, ...

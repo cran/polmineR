@@ -78,16 +78,23 @@ in one S4 object.
 }}
 
 \examples{
-\dontrun{
-use("europarl.en")
+parties <- sAttributes("GERMAPARLMINI", "party")
+parties <- parties[-which(parties == "NA")]
+party_bundle <- partitionBundle("GERMAPARLMINI", sAttribute = "party")
+length(party_bundle)
+names(party_bundle)
+party_bundle <- enrich(party_bundle, pAttribute = "word")
+summary(party_bundle)
+parties_big <- party_bundle[[c("CDU_CSU", "SPD")]]
+summary(parties_big)
+use("polmineR")
 Ps <- partitionBundle(
-  "EUROPARL-EN", sAttribute = "text_year",
-  values = sAttributes("EUROPARL-EN", "text_year")
+  "REUTERS", sAttribute = "id",
+  values = sAttributes("REUTERS", "id")
 )
-Cs <- cooccurrences(Ps, query = "Europe", cqp = FALSE, verbose = FALSE, progress = TRUE)
+Cs <- cooccurrences(Ps, query = "oil", cqp = FALSE, verbose = FALSE, progress = TRUE)
 dt <- as.data.table(Cs, col = "ll")
 m <- as.matrix(Cs, col = "ll")
-}
 }
 \author{
 Andreas Blaette

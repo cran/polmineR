@@ -1,13 +1,15 @@
 #' Interfaces for accessing the CWB
 #' 
-#' The package offers three different interfaces to the Corpus
-#' Workbench (CWB): The package 'rcqp', via cqpserver, and by
-#' calling Perl scripts. An object called 'CQI' will be instantiated
-#' in the environment of the polmineR package; the class will 
+#' The package offers two different interfaces to the Corpus Workbench (CWB):
+#' The package 'RcppCWB', or via cqpserver. An object called 'CQI' will be
+#' instantiated in the environment of the polmineR package; the class will
 #' provide the functionality to access CWB corpora.
 #' @rdname CQI
 #' @export CQI.super
 #' @importFrom R6 R6Class
+#' @importFrom RcppCWB cl_attribute_size cl_lexicon_size cl_cpos2struc cl_cpos2id cl_struc2cpos cl_id2str cl_struc2str
+#' @importFrom RcppCWB cl_id2str cl_struc2str cl_regex2id cl_str2id cl_cpos2str cl_id2freq cl_id2cpos cl_cpos2lbound cl_cpos2rbound
+#' @importFrom RcppCWB cqp_query cqp_dump_subcorpus
 #' @aliases CQI
 CQI.super <- R6Class(
   "CQI.super",
@@ -17,78 +19,14 @@ CQI.super <- R6Class(
 )
 
 
-#' @export CQI.rcqp
-#' @rdname CQI
-CQI.rcqp <- R6Class(
-  
-  "CQI.rcqp",
-  inherit = CQI.super,
-  
-  public = list(
-    
-    list_corpora = function()
-      rcqp::cqi_list_corpora(),
-    
-    attributes = function(corpus, type)
-      rcqp::cqi_attributes(corpus, type),
-    
-    attribute_size = function(corpus, attribute, type = NULL)
-      rcqp::cqi_attribute_size(paste(corpus, attribute, sep=".")),
-    
-    lexicon_size = function(corpus, pAttribute)
-      rcqp::cqi_lexicon_size(paste(corpus, pAttribute, sep=".")),
-    
-    cpos2struc = function(corpus, pAttribute, cpos)
-      rcqp::cqi_cpos2struc(paste(corpus, pAttribute, sep="."), cpos),
-    
-    cpos2str = function(corpus, pAttribute, cpos)
-      rcqp::cqi_cpos2str(paste(corpus, pAttribute, sep="."), cpos),
-    
-    cpos2id = function(corpus, pAttribute, cpos)
-      rcqp::cqi_cpos2id(paste(corpus, pAttribute, sep="."), cpos),
-    
-    struc2cpos = function(corpus, sAttribute, struc)
-      rcqp::cqi_struc2cpos(paste(corpus, sAttribute, sep="."), struc),
-    
-    id2str = function(corpus, pAttribute, id)
-      rcqp::cqi_id2str(paste(corpus, pAttribute, sep="."), id),
-    
-    struc2str = function(corpus, sAttribute, struc)
-      rcqp::cqi_struc2str(paste(corpus, sAttribute, sep = "."), struc),
-    
-    regex2id = function(corpus, pAttribute, regex)
-      rcqp::cqi_regex2id(paste(corpus, pAttribute, sep="."), regex),
-    
-    str2id = function(corpus, pAttribute, str)
-      rcqp::cqi_str2id(paste(corpus, pAttribute, sep="."), str),
-    
-    id2freq = function(corpus, pAttribute, id)
-      rcqp::cqi_id2freq(paste(corpus, pAttribute, sep="."), id),
-    
-    id2cpos = function(corpus, pAttribute, id)
-      rcqp::cqi_id2cpos(paste(corpus, pAttribute, sep="."), id),
-    
-    cpos2lbound = function(corpus, sAttribute, cpos)
-      rcqp::cqi_cpos2rbound(paste(corpus, sAttribute, sep="."), cpos),
-    
-    cpos2rbound = function(corpus, sAttribute, cpos)
-      rcqp::cqi_cpos2rbound(paste(corpus, sAttribute, sep="."), cpos),
-    
-    query = function(corpus, query)
-      rcqp::cqi_query(corpus, "Hits", query),
-    
-    dump_subcorpus = function(corpus){
-      rcqp::cqi_dump_subcorpus(paste(corpus, "Hits", sep=":"))
-    }
-    
-  )
-)
 
-#' @export CQI.Rcpp
+
+#' @export CQI.RcppCWB
 #' @rdname CQI
-CQI.Rcpp <- R6Class(
+#' @importFrom RcppCWB cqp_is_initialized cqp_initialize
+CQI.RcppCWB <- R6Class(
   
-  "CQI.Rcpp",
+  "CQI.RcppCWB",
   
   inherit = CQI.super,
   
@@ -101,203 +39,67 @@ CQI.Rcpp <- R6Class(
     
     attributes = function(corpus, type){
       if (type == "p"){
-        return( RegistryFile$new(corpus)$getPAttributes() )
+        return( registry_get_p_attributes(corpus) )
       } else if (type == "s"){
-        return( RegistryFile$new(corpus)$getSAttributes() )
+        return( registry_get_s_attributes(corpus) )
       }
     },
     
-    attribute_size = function(corpus, attribute, type){
-      polmineR.Rcpp::attribute_size(corpus = corpus, attribute = attribute, attribute_type = type, registry = Sys.getenv("CORPUS_REGISTRY"))
+    attribute_size = function(corpus, attribute, type = "s")
+      cl_attribute_size(corpus = corpus, attribute = attribute, attribute_type = type, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    lexicon_size = function(corpus, pAttribute)
+      cl_lexicon_size(corpus = corpus, p_attribute = pAttribute, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    cpos2struc = function(corpus, sAttribute, cpos)
+      cl_cpos2struc(corpus = corpus, s_attribute = sAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    cpos2str = function(corpus, pAttribute, cpos)
+      cl_cpos2str(corpus = corpus, p_attribute = pAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    cpos2id = function(corpus, pAttribute, cpos)
+      cl_cpos2id(corpus = corpus, p_attribute = pAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    struc2cpos = function(corpus, sAttribute, struc)
+      cl_struc2cpos(corpus = corpus, s_attribute = sAttribute, struc = struc, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    id2str = function(corpus, pAttribute, id)
+      cl_id2str(corpus = corpus, p_attribute = pAttribute, id = id, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    struc2str = function(corpus, sAttribute, struc)
+      cl_struc2str(corpus = corpus, s_attribute = sAttribute, struc = struc, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    regex2id = function(corpus, pAttribute, regex)
+      cl_regex2id(corpus = corpus, p_attribute = pAttribute, regex = regex, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    str2id = function(corpus, pAttribute, str)
+      cl_str2id(corpus = corpus, p_attribute = pAttribute, str = str, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    id2freq = function(corpus, pAttribute, id)
+      cl_id2freq(corpus = corpus, p_attribute = pAttribute, id = id, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    id2cpos = function(corpus, pAttribute, id)
+      cl_id2cpos(corpus = corpus, p_attribute = pAttribute, id = id, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    cpos2lbound = function(corpus, sAttribute, cpos)
+      cl_cpos2lbound(corpus = corpus, s_attribute = sAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    cpos2rbound = function(corpus, sAttribute, cpos)
+      cl_cpos2rbound(corpus = corpus, s_attribute = sAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY")),
+    
+    query = function(corpus, query){
+      if (!RcppCWB::cqp_is_initialized()) cqp_initialize()
+      cqp_query(corpus = corpus, query = query)
     },
     
-    lexicon_size = function(corpus, pAttribute){
-      polmineR.Rcpp::lexicon_size(corpus = corpus, p_attribute = pAttribute, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    cpos2struc = function(corpus, pAttribute, cpos){
-      polmineR.Rcpp::cpos2struc(corpus = corpus, p_attribute = pAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    cpos2str = function(corpus, pAttribute, cpos){
-      polmineR.Rcpp::cpos2str(corpus = corpus, p_attribute = pAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    cpos2id = function(corpus, pAttribute, cpos){
-      polmineR.Rcpp::cpos2id(corpus = corpus, p_attribute = pAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    struc2cpos = function(corpus, sAttribute, struc){
-      polmineR.Rcpp::struc2cpos(corpus = corpus, s_attribute = sAttribute, struc = struc, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    id2str = function(corpus, pAttribute, id){
-      polmineR.Rcpp::id2str(corpus = corpus, p_attribute = pAttribute, id = id, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    struc2str = function(corpus, sAttribute, struc){
-      polmineR.Rcpp::struc2str(corpus = corpus, s_attribute = sAttribute, struc = struc, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    regex2id = function(corpus, pAttribute, regex){
-      polmineR.Rcpp::regex2id(corpus = corpus, p_attribute = pAttribute, regex = regex, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    str2id = function(corpus, pAttribute, str){
-      polmineR.Rcpp::str2id(corpus = corpus, p_attribute = pAttribute, str = str, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    id2freq = function(corpus, pAttribute, id){
-      polmineR.Rcpp::id2freq(corpus = corpus, p_attribute = pAttribute, id = id, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    id2cpos = function(corpus, pAttribute, id){
-      polmineR.Rcpp::id2cpos(corpus = corpus, p_attribute = pAttribute, id = id, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    cpos2lbound = function(corpus, sAttribute, cpos){
-      polmineR.Rcpp::cpos2lbound(corpus = corpus, s_attribute = sAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    cpos2rbound = function(corpus, sAttribute, cpos){
-      polmineR.Rcpp::cpos2rbound(corpus = corpus, s_attribute = sAttribute, cpos = cpos, registry = Sys.getenv("CORPUS_REGISTRY"))
-    },
-    
-    query = function(corpus, query)
-      stop("Not possible to implement this with Rcpp/CL!"),
-    
-    dump_subcorpus = function(corpus){
-      stop("Not possible to implement this with Rcpp/CL!")
-    }
+    dump_subcorpus = function(corpus)
+      cqp_dump_subcorpus(corpus = corpus)
     
   )
   
 )
 
-#' @rdname CQI
-#' @export CQI.perl
-CQI.perl <- R6Class(
-  
-  "CQI.perl",
-  inherit = CQI.super,
-  public = list(
-    
-    as.cmd = function(cmd) paste("perl -e '", paste(cmd, collapse = " "), "'", sep=""),
-    
-    list_corpora = function() stop("list_corpora not implemented for perl interface"),
-    
-    attribute_size = function(corpus, attribute, type = NULL){
-      as.integer(system(sprintf(self$as.cmd(.cqi_perl[["attribute_size"]]), corpus, attribute), intern=TRUE))
-    },
-    
-    lexicon_size = function(corpus, pAttribute){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["lexicon_size"]]), corpus, pAttribute),
-          intern=TRUE
-        )
-      )
-    },
-    
-    cpos2struc = function(corpus, pAttribute, cpos){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["cpos2struc"]]), corpus, pAttribute, paste(as.character(cpos), collapse=",")),
-          intern=TRUE)
-      )
-    },
-    
-    cpos2str = function(corpus, pAttribute, cpos){
-      system(
-        sprintf(self$as.cmd(.cqi_perl[["cpos2str"]]), corpus, pAttribute, paste(as.character(cpos), collapse=",")),
-        intern=TRUE
-      )
-    },
-    
-    cpos2id = function(corpus, pAttribute, cpos){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["cpos2id"]]), corpus, pAttribute, paste(as.character(cpos), collapse=",")),
-          intern=TRUE)
-      )
-    },
-    
-    struc2cpos = function(corpus, sAttribute, struc){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["struc2cpos"]]), corpus, sAttribute, struc),
-          intern=TRUE)
-      )
-    },
-    
-    id2str = function(corpus, pAttribute, id){
-      system(
-        sprintf(self$as.cmd(.cqi_perl[["id2str"]]), corpus, pAttribute, paste(as.character(id), collapse=",")),
-        intern=TRUE
-      )
-    },
-    
-    struc2str = function(corpus, sAttribute, struc){
-      system(
-        sprintf(
-          self$as.cmd(.cqi_perl[["struc2str"]]), corpus, sAttribute, paste(as.character(struc), collapse=",")),
-        intern=TRUE
-      )
-    },
-    
-    regex2id= function(corpus, pAttribute, regex){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["regex2id"]]), corpus, pAttribute, regex),
-          intern=TRUE
-        )
-      )
-    },
-    
-    str2id = function(corpus, pAttribute, str){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["str2id"]]), corpus, pAttribute, paste('"', str, '"', sep="", collapse=",")),
-          intern=TRUE
-        )
-      )
-    },
-    
-    id2freq = function(corpus, pAttribute, id){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["id2freq"]]), corpus, pAttribute, paste(id, collapse=",")),
-          intern=TRUE
-        )
-      )
-    },
-    
-    id2cpos = function(corpus, pAttribute, id){
-      as.integer(
-        system(
-          sprintf(self$as.cmd(.cqi_perl[["id2cpos"]]), corpus, pAttribute, paste(id, collapse=",")),
-          intern=TRUE
-        )
-      )
-    },
-    
-    cpos2lbound = function(corpus, sAttribute, cpos){
-      message("cpos2lbound not implemented in the Perl-CL-Package")
-    },
-    
-    cpos2rbound = function(corpus, sAttribute, cpos){
-      message("cpos2rbound not implemented in the Perl-CL-Package")
-    },
-    
-    query = function(){
-      message("query not yet implemented")
-    },
-    
-    dump_subcorpus = function(){
-      message("dump_subcorpus not yet implemented")
-    }
-  )
-)
+
 
 #' @rdname CQI
 #' @export CQI.cqpserver
@@ -312,7 +114,7 @@ CQI.cqpserver <- R6Class(
   public = list(
     connection = NULL,
     
-    authenticate = function(host="localhost", port="4877", user="anonymous", pw=""){
+    authenticate = function(host = "localhost", port = "4877", user = "anonymous", pw = ""){
       self$connection <- socketConnection(host, port, open="wb")
       self$send_word(.cqiCmd[["CQI_CTRL_CONNECT"]])
       self$send_string(user)
@@ -578,12 +380,4 @@ CQI.cqpserver <- R6Class(
     }
     
   )
-)
-
-CQI <- switch(
-  Sys.getenv("POLMINER_INTERFACE"),
-  "rcqp" = CQI.rcqp$new(),
-  "perl" = CQI.cqpserver$new(),
-  "cqpserver" = CQI.cqpserver$new(),
-  if (requireNamespace("rcqp", quietly = TRUE)) CQI.rcqp$new() else CQI.perl$new()
 )

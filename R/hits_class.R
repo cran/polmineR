@@ -9,9 +9,12 @@
 #' include the subsets of the partition/corpus with no hits (query is NA,
 #' count is 0).
 #' 
-#' @slot dt a \code{"data.table"}
+#' @slot stat a \code{"data.table"}
 #' @slot corpus a \code{"character"} vector
 #' @slot query Object of class \code{"character"}
+#' @slot pAttribute p-attribute that has been queried
+#' @slot encoding encoding of the corpus
+#' @slot name name of the object
 #' @param query a (optionally named, see datails) character vector with one or more queries
 #' @param cqp either logical (TRUE if query is a CQP query), or a
 #'   function to check whether query is a CQP query or not
@@ -27,12 +30,10 @@
 #' @param ... further parameters
 #' @exportClass hits
 #' @rdname hits
-setClass("hits",
-         representation(
-           dt = "data.table",
-           corpus = "character",
-           query = "character"
-         )
+setClass(
+  "hits",
+  representation(query = "character"),
+  contains = "textstat"
 )
 
 
@@ -80,20 +81,20 @@ setMethod("hits", "character", function(.Object, query, cqp = FALSE, sAttribute 
     
     if (freq) size <- TRUE
     if (size){
-      if (verbose) message("... getting sizes")
+      .message("getting sizes", verbose = verbose)
       SIZE <- size(.Object, sAttribute = sAttribute)
       setkeyv(TF, cols = sAttribute)
       TF <- TF[SIZE]
       TF <- TF[is.na(TF[["query"]]) == FALSE]
       if (freq == TRUE){
-        if (verbose) message("... frequencies")
+        .message("frequencies", verbose = verbose)
         TF[, freq := count / size]
       }
     }
   } else {
     TF <- DT
   }
-  new("hits", dt = TF, corpus = .Object, query = query)
+  new("hits", stat = TF, corpus = .Object, query = query)
 })
 
 
@@ -102,7 +103,7 @@ setMethod("hits", "partition", function(.Object, query, cqp = FALSE, sAttribute 
   stopifnot(all(sAttribute %in% sAttributes(.Object@corpus)))
   if (freq) size <- TRUE
   
-  DT <- hits(.Object@corpus, query = query, cqp = cqp, sAttribute = NULL, pAttribute = pAttribute, mc = mc, progress = progress)@dt
+  DT <- hits(.Object@corpus, query = query, cqp = cqp, sAttribute = NULL, pAttribute = pAttribute, mc = mc, progress = progress)@stat
   DT[, "struc" := CQI$cpos2struc(.Object@corpus, .Object@sAttributeStrucs, DT[["cpos_left"]]), with = TRUE]
   DT <- subset(DT, DT[["struc"]] %in% .Object@strucs)
   
@@ -124,13 +125,13 @@ setMethod("hits", "partition", function(.Object, query, cqp = FALSE, sAttribute 
   } else {
     TF <- DT
   }
-  new("hits", dt = TF, corpus = .Object@corpus, query = query)
+  new("hits", stat = TF, corpus = .Object@corpus, query = query)
 })
 
 
 #' @rdname hits
 setMethod("hits", "partitionBundle", function(
-  .Object, query, pAttribute = getOption("polmineR.pAttribute"), size = TRUE, freq = FALSE,
+  .Object, query, cqp = FALSE, pAttribute = getOption("polmineR.pAttribute"), size = TRUE, freq = FALSE,
   mc = getOption("polmineR.mc"), progress = FALSE, verbose = TRUE
 ){
   corpus <- unique(unlist(lapply(.Object@objects, function(x) x@corpus)))
@@ -139,7 +140,7 @@ setMethod("hits", "partitionBundle", function(
   sAttributeStrucs <- unique(unlist(lapply(.Object@objects, function(x) x@sAttributeStrucs)))
   stopifnot(length(sAttributeStrucs) == 1)
   # combine strucs and partition names into an overall data.table
-  if (verbose) message("... preparing struc table")
+  .message("preparing struc table", verbose = verbose)
   strucDT <- data.table(
     struc = unlist(lapply(.Object@objects, function(x) x@strucs)),
     partition = unlist(lapply(.Object@objects, function(x) rep(x@name, times = length(x@strucs))))
@@ -147,10 +148,10 @@ setMethod("hits", "partitionBundle", function(
   setkey(strucDT, cols = "struc")
   # perform counts
   
-  if (verbose) message("... now performing counts")
+  .message("now performing counts", verbose = verbose)
   if (any(is.na(query))) stop("Please check your queries - there is an NA among them!")
   .query <- function(toFind, corpus, encoding, ...) {
-    cposMatrix <- cpos(.Object = corpus, query = toFind, encoding = encoding, verbose = verbose)
+    cposMatrix <- cpos(.Object = corpus, query = toFind, cqp = cqp, encoding = encoding, verbose = verbose)
     if (!is.null(cposMatrix)){
       dt <- data.table(cposMatrix)
       dt[, query := toFind]
@@ -165,7 +166,7 @@ setMethod("hits", "partitionBundle", function(
     mc = mc, progress = progress, verbose = F
   )
   countDT <- rbindlist(countDTlist)
-  if (verbose) message("... matching data.tables")
+  .message("matching data.tables", verbose = verbose)
   countDT[, "struc" := CQI$cpos2struc(corpus, sAttributeStrucs, countDT[["V1"]]), with = TRUE]
   countDT[, "V1" := NULL, with = TRUE][, "V2" := NULL, with = TRUE]
   setkeyv(countDT, cols = "struc")
@@ -180,18 +181,18 @@ setMethod("hits", "partitionBundle", function(
     TF[, size := sapply(.Object@objects, function(x) x@size)[TF[["partition"]]]]
   }
   if (freq == TRUE) TF[, freq := count / size]
-  new("hits", dt = TF, corpus = corpus)
+  new("hits", stat = TF, corpus = corpus)
 })
 
 #' @rdname hits
 setMethod("sample", "hits", function(x, size){
-  if (size > nrow(x@dt)){
+  if (size > nrow(x@stat)){
     warning("size exceeds nrow of the data.table of the hits object")
-    size <- nrow(x@dt)
+    size <- nrow(x@stat)
   }
   new(
     "hits",
-    dt = x@dt[sample(c(1:nrow(x@dt)), size = size)],
+    dt = x@stat[sample(1L:nrow(x@stat), size = size)],
     corpus = x@corpus, query = x@query
   )
 })
@@ -200,7 +201,7 @@ setMethod("sample", "hits", function(x, size){
 setMethod("hits", "context", function(.Object, sAttribute = NULL, verbose = TRUE){
   ctxtMin <- .Object@cpos[which(.Object@cpos[["position"]] == 0)]
   
-  if (verbose) message("... compressing data.table")
+  .message("compressing data.table", verbose = verbose)
   .makeCpos <- function(.SD){
     list(
       cpos_left = min(.SD[["cpos"]]),
@@ -209,12 +210,12 @@ setMethod("hits", "context", function(.Object, sAttribute = NULL, verbose = TRUE
   }
   DT <- ctxtMin[, .makeCpos(.SD), by = "hit_no"]
   
-  if (verbose) message("... adding sAttributes")
+  .message("adding sAttributes", verbose = verbose)
   for (x in sAttribute){
     strucs <- CQI$cpos2struc(.Object@corpus, x, DT[["cpos_left"]])
     str <- CQI$struc2str(.Object@corpus, x, strucs)
     DT[, eval(x) := str]
   }
   
-  new("hits", dt = DT, corpus = .Object@corpus, query = .Object@query)
+  new("hits", stat = DT, corpus = .Object@corpus, query = .Object@query)
 })

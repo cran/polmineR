@@ -5,10 +5,6 @@
 #' backend for the polmineR package. In particular, progress bars are supported
 #' (the naming of the method is derived from bla bla).
 #' 
-#' Parallel backend supported so far are the parallel package (mclapply), and 
-#' doMC, doParallel and doSNOW in combination with foreach. The parallel backend
-#' to be used is taken from the option 'polmineR.backend' (getOption("polmineR.backend")),
-#' the number of cores from the option 'polmineR.cores' (getOption("polmineR.cores")).
 #' @param x a list or a bundle object
 #' @param f a function that can be applied to each object contained in the
 #'   bundle, note that it should swallow the parameters mc, verbose and progress
@@ -22,12 +18,10 @@
 #' @exportMethod blapply
 #' @rdname blapply
 #' @examples
-#' \dontrun{
-#'   use("polmineR.sampleCorpus")
-#'   bt <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE)
-#'   speeches <- as.speeches(bt, sAttributeDates="text_date", sAttributeNames="text_name")
+#'   use("polmineR")
+#'   bt <- partition("GERMAPARLMINI", date = ".*", regex=TRUE)
+#'   speeches <- as.speeches(bt, sAttributeDates = "date", sAttributeNames = "speaker")
 #'   foo <- blapply(speeches, function(x, ...) slot(x, "cpos"))
-#' }
 #' @importFrom pbapply pblapply
 setGeneric("blapply", function(x, ...) standardGeneric("blapply"))
 

@@ -21,19 +21,16 @@ setGeneric("enrich", function(.Object, ...){standardGeneric("enrich")})
 
 #' @param size logical
 #' @param mc logical or, if numeric, providing the number of cores
-#' @param id2str logical
+#' @param decode logical
 #' @exportMethod enrich
 #' @docType methods
 #' @rdname partition_class
-setMethod("enrich", "partition", function(.Object, size = FALSE, pAttribute = NULL, id2str = TRUE, verbose = TRUE, mc = FALSE, ...){
+setMethod("enrich", "partition", function(.Object, size = FALSE, pAttribute = NULL, decode = TRUE, verbose = TRUE, mc = FALSE, ...){
   if (size) .Object@size <- size(.Object)
   if (!is.null(pAttribute)) {
     stopifnot(is.character(pAttribute) == TRUE, length(pAttribute) <= 2, all(pAttribute %in% pAttributes(.Object)))
-    .verboseOutput(
-      message = paste('getting counts for p-attribute(s):', paste(pAttribute, collapse = ", "), sep = " "),
-      verbose = verbose
-      )  
-    .Object@stat <- count(.Object = .Object, pAttribute = pAttribute, id2str = id2str, mc = mc, verbose = verbose)
+    .message('getting counts for p-attribute(s):', paste(pAttribute, collapse = ", "), verbose = verbose)  
+    .Object@stat <- count(.Object = .Object, pAttribute = pAttribute, decode = decode, mc = mc, verbose = verbose)
     .Object@pAttribute <- pAttribute
   }
   .Object
@@ -90,32 +87,32 @@ setMethod("enrich", "kwic", function(.Object, meta = NULL, table = FALSE){
 #' @rdname context-class
 #' @param sAttribute s-attribute(s) to add to data.table in cpos-slot
 #' @param pAttribute p-attribute(s) to add to data.table in cpos-slot
-#' @param id2str logical, whether to convert integer ids to expressive strings
+#' @param decode logical, whether to convert integer ids to expressive strings
 #' @param verbose logical, whether to be talkative
-setMethod("enrich", "context", function(.Object, sAttribute = NULL, pAttribute = NULL, id2str = FALSE, verbose = TRUE){
+setMethod("enrich", "context", function(.Object, sAttribute = NULL, pAttribute = NULL, decode = FALSE, verbose = TRUE){
   # .Object2 <- .Object
   # .Object2@cpos <- copy(.Object@cpos)
   # .Object2@stat <- copy(.Object@stat)
   if (!is.null(sAttribute)){
     # check that all s-attributes are available
-    if (verbose) message("... checking that all s-attributes are available")
+    .message("checking that all s-attributes are available", verbose = verbose)
     stopifnot( all(sAttribute %in% CQI$attributes(.Object@corpus, type = "s")) )
     
     for (sAttr in sAttribute){
-      if (verbose) message("... get struc for s-attribute: ", sAttr)
+      .message("get struc for s-attribute:", sAttr, verbose = verbose)
       strucs <- CQI$cpos2struc(.Object@corpus, sAttr, .Object@cpos[["cpos"]])
-      if (id2str == FALSE){
+      if (decode == FALSE){
         colname_struc <- paste(sAttr, "int", sep = "_")
         if (colname_struc %in% colnames(.Object@cpos)){
-          if (verbose) message("... already present, skipping assignment of column: ", colname_struc)
+          .message("already present, skipping assignment of column:", colname_struc, verbose = verbose)
         } else {
           .Object@cpos[[colname_struc]] <- strucs
         }
       } else {
         if (sAttr %in% colnames(.Object@cpos)){
-          if (verbose) message("... already present, skipping assignment of column: ", sAttr)
+          .message("already present, skipping assignment of column:", sAttr, verbose = verbose)
         } else {
-          if (verbose) message("... get string for s-attribute: ", sAttr)
+          .message("get string for s-attribute:", sAttr, verbose = verbose)
           strings <- CQI$struc2str(.Object@corpus, sAttr, strucs)
           .Object@cpos[[sAttr]] <- as.nativeEnc(strings, from = .Object@encoding)
         }
@@ -124,29 +121,29 @@ setMethod("enrich", "context", function(.Object, sAttribute = NULL, pAttribute =
   }
   if (!is.null(pAttribute)){
     # check that all p-attributes are available
-    if (verbose) message("... checking that all p-attributes are available")
+    .message("checking that all p-attributes are available", verbose = verbose)
     stopifnot( all(pAttribute %in% CQI$attributes(.Object@corpus, type = "p")) )
     
     # add ids
     for (pAttr in pAttribute){
       colname <- paste(pAttr, "id", sep = "_")
       if (colname %in% colnames(.Object@cpos)){
-        if (verbose) message("... already present - skip getting ids for p-attribute: ", pAttr)
+        .message("already present - skip getting ids for p-attribute:", pAttr, verbose = verbose)
       } else {
-        if (verbose) message("... getting token id for p-attribute: ", pAttr)
+        .message("getting token id for p-attribute:", pAttr, verbose = verbose)
         ids <- CQI$cpos2id(.Object@corpus, pAttr, .Object@cpos[["cpos"]])
-        if (verbose) message("... assigning to data.table")
+        .message("assigning to data.table", verbose = verbose)
         .Object@cpos[[colname]] <- ids
       }
     }
     
     # add 
-    if (id2str){
+    if (decode){
       for (pAttr in pAttribute){
         if (pAttr %in% colnames(.Object@cpos)){
-          if (verbose) message("... already present - skip getting strings for p-attribute: ", pAttr)
+          .message("already present - skip getting strings for p-attribute:", pAttr, verbose = verbose)
         } else {
-          if (verbose) message("... id2str for p-attribute: ", pAttr)
+          .message("decode p-attribute:", pAttr, verbose = verbose)
           decoded <- CQI$id2str(.Object@corpus, pAttr, .Object@cpos[[paste(pAttr, "id", sep = "_")]])
           .Object@cpos[[pAttr]] <- as.nativeEnc(decoded, from = .Object@encoding)
           .Object@cpos[[paste(pAttr, "id", sep = "_")]] <- NULL

@@ -1,7 +1,7 @@
 #' @include partition_class.R context_class.R
 NULL 
 
-#' KWIC output / concordances
+#' KWIC/concordance output.
 #' 
 #' Prepare and show concordances / keyword-in-context (kwic). The same result can be achieved by 
 #' applying the kwic method on either a partition or a context object.
@@ -27,24 +27,21 @@ NULL
 #' @rdname kwic
 #' @docType methods
 #' @seealso To read the whole text, see the \code{\link{read}}-method.
+#' @references 
+#' Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, pp. 71-93 (ch. 4).
+#'
+#' Jockers, Matthew L. (2014): \emph{Text Analysis with R for Students of Literature}.
+#' Cham et al: Springer, pp. 73-87 (chs. 8 & 9).
 #' @examples
-#' \dontrun{
-#' if (require(polmineR.sampleCorpus) && require(rcqp)){
-#'   use("polmineR.sampleCorpus")
-#'   bt <- partition("PLPRBTTXT", def=list(text_date=".*"), regex=TRUE)
-#'   kwic(bt, "Integration")
-#'   kwic(
-#'     bt, "Integration",
-#'     left=20, right=20,
-#'     meta=c("text_date", "text_name", "text_party")
-#'   )
-#'   kwic(
-#'     bt, '"Integration" [] "(Menschen|Migrant.*|Personen)"',
-#'     left=20, right=20,
-#'     meta=c("text_date", "text_name", "text_party")
-#'   ) 
-#' }
-#' }
+#' use("polmineR")
+#' bt <- partition("GERMAPARLMINI", def = list(date = ".*"), regex=TRUE)
+#' kwic(bt, "Integration")
+#' kwic(bt, "Integration", left = 20, right = 20, meta = c("date", "speaker", "party"))
+#' kwic(
+#'   bt, '"Integration" [] "(Menschen|Migrant.*|Personen)"',
+#'   left = 20, right = 20,
+#'   meta = c("date", "speaker", "party")
+#' ) 
 #' @exportMethod kwic
 setGeneric("kwic", function(.Object, ...){standardGeneric("kwic")})
 
@@ -103,7 +100,7 @@ setMethod("kwic", "partition", function(
   )
   if (is.null(ctxt)){
     message("... no occurrence of query")
-    return(NULL)
+    return(invisible(NULL))
     }
   retval <- kwic(.Object = ctxt, meta = meta, cpos = cpos)
   if (!is.null(positivelist)){
@@ -120,10 +117,14 @@ setMethod("kwic", "character", function(
   right = getOption("polmineR.right"),
   meta = getOption("polmineR.meta"),
   pAttribute = "word", sAttribute = NULL, cpos = TRUE,
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
   verbose = TRUE
 ){
   hits <- cpos(.Object, query = query, cqp = cqp, pAttribute = pAttribute, verbose = FALSE)
-  if (is.null(hits)) { message("sorry, not hits"); return(NULL)}
+  if (is.null(hits)){
+      message("sorry, not hits")
+      return(invisible(NULL))
+  }
   cposMax <- CQI$attribute_size(.Object, pAttribute, type = "p")
   cposList <- apply(
     hits, 1,
@@ -160,8 +161,13 @@ setMethod("kwic", "character", function(
     corpus = .Object, left = left, right = right, 
     cpos = DT,
     pAttribute = pAttribute,
-    encoding = RegistryFile$new(.Object)$getEncoding()
+    encoding = registry_get_encoding(.Object)
     )
+  
+  # generate positivelist/stoplist with ids and apply it
+  if (!is.null(positivelist)) ctxt <- trim(ctxt, positivelist = positivelist, regex = regex, verbose = verbose)
+  if (!is.null(stoplist)) ctxt <- trim(ctxt, stoplist = stoplist, regex = regex, verbose = verbose)
+  
   if (!is.null(sAttribute)) ctxt@sAttribute <- sAttribute
   kwic(.Object = ctxt, meta = meta, cpos = cpos)
 })

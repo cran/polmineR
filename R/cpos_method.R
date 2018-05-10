@@ -1,4 +1,4 @@
-#' @include tempcorpus.R
+#' @include tempcorpus.R hits_class.R
 NULL
 
 #' Get corpus positions for a query or queries.
@@ -12,8 +12,10 @@ NULL
 #' syntax can be used. The encoding of the query is adjusted to conform to the
 #' encoding of the CWB corpus.
 #' 
-#' If the cpos-method is called on a \code{"matrix"} object,  the cpos
-#' matrix is unfolded. 
+#' If the cpos-method is called on a \code{matrix} object,  the cpos
+#' matrix is unfolded, the return value is an integer vector with the individual
+#' corpus positions. Equally, if \code{.Object} is a \code{hits} object,
+#' an integer vector is returned with the individual corpus positions.
 #' 
 #' @param .Object a \code{"character"} vector indicating a CWB corpus, a
 #'   \code{"partition"} object, a \code{"tempcorpus"} object, or a
@@ -33,6 +35,7 @@ NULL
 #' @exportMethod cpos
 #' @rdname cpos-method
 #' @name cpos
+#' @importFrom data.table fread
 setGeneric("cpos", function(.Object, ... ) standardGeneric("cpos"))
 
 #' @rdname cpos-method
@@ -49,7 +52,7 @@ setMethod("cpos", "character", function(.Object, query, pAttribute = getOption("
         cpos <- try({
           id <- CQI$str2id(.Object, pAttribute, Q)
           if (id == -1){ # CQP will return -1 if there are no matches
-            if (verbose) message("no hits for query: ", Q)
+            .message("no hits for query: ", Q, verbose = verbose)
             cpos <- NULL
           } else {
             cpos <- CQI$id2cpos(.Object, pAttribute, id)
@@ -59,27 +62,27 @@ setMethod("cpos", "character", function(.Object, query, pAttribute = getOption("
       }
     )
     hits <- do.call(rbind, hitList)
-  } else if (cqp == TRUE) {
+  } else if (cqp) {
     hitList <- lapply(
       query,
       function(Q){
         CQI$query(.Object, Q)
         cpos <- try(CQI$dump_subcorpus(.Object), silent = TRUE)
         if (is(cpos)[1] == "try-error"){
-          if (verbose) message("no hits for query: ", Q)
+          .message("no hits for query: ", Q, verbose = verbose)
           hits <- NULL
         } else if (!is.null(cpos)) {
           hits <- matrix(cpos[,1:2], ncol = 2)
         } else {
-          if (verbose) message("no hits for query: ", Q)
+          .message("no hits for query: ", Q, verbose = verbose)
           hits <- NULL
         }
-        hits
+        return(hits)
       }
     )
     hits <- do.call(rbind, hitList)
   }
-  hits
+  if (nrow(hits) == 0) invisible(NULL) else hits
 })
   
 #' @rdname cpos-method
@@ -100,7 +103,7 @@ setMethod("cpos", "partition", function(.Object, query, cqp = is.cqp, pAttribute
 #'   the tempcorpus will be shifted so that they match the positions of the
 #'   corpus from which the tempcorpus was generated
 #' @rdname cpos-method
-setMethod("cpos", "tempcorpus", function(.Object, query, shift=TRUE){
+setMethod("cpos", "tempcorpus", function(.Object, query, shift = TRUE){
   cqpBatchCmds <- paste(paste(c(
     "TMPCORPUS",
     paste("FOO = ", query, sep=""),
@@ -113,12 +116,19 @@ setMethod("cpos", "tempcorpus", function(.Object, query, shift=TRUE){
   ), collapse=" ")
   cpos <- system(cqpCmd, intern=TRUE)
   cposMatrix <- do.call(rbind, lapply(strsplit(cpos, "\t"), as.integer))
-  cposMatrix <- cposMatrix[,c(1:2)]
-  if (shift == TRUE) cposMatrix <- apply(cposMatrix, 2, function(x) x + .Object@cpos[1,1])
+  cposMatrix <- cposMatrix[,1:2]
+  if (shift) cposMatrix <- apply(cposMatrix, 2, function(x) x + .Object@cpos[1,1])
   cposMatrix
 })
 
 #' @rdname cpos-method
-setMethod("cpos", "matrix", function(.Object){
-  as.vector(unlist(apply(.Object, 1, function(row) c(row[1]:row[2]))))  
-})
+setMethod("cpos", "matrix", function(.Object)
+  as.vector(unlist(apply(.Object, 1, function(row) row[1]:row[2])))  
+)
+
+#' @rdname cpos-method
+setMethod("cpos", "hits", function(.Object)
+  cpos(as.matrix(.Object@stat[, c("cpos_left", "cpos_right")]))
+)
+
+

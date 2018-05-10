@@ -6,7 +6,7 @@
 \alias{kwic,context-method}
 \alias{kwic,partition-method}
 \alias{kwic,character-method}
-\title{KWIC output / concordances}
+\title{KWIC/concordance output.}
 \usage{
 kwic(.Object, ...)
 
@@ -22,7 +22,8 @@ kwic(.Object, ...)
 \S4method{kwic}{character}(.Object, query, cqp = is.cqp,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   meta = getOption("polmineR.meta"), pAttribute = "word",
-  sAttribute = NULL, cpos = TRUE, verbose = TRUE)
+  sAttribute = NULL, cpos = TRUE, stoplist = NULL, positivelist = NULL,
+  regex = FALSE, verbose = TRUE)
 }
 \arguments{
 \item{.Object}{a \code{partition} or \code{context} object}
@@ -63,23 +64,21 @@ applying the kwic method on either a partition or a context object.
 If a positivelist ist supplied, the tokens will be highlighted.
 }
 \examples{
-\dontrun{
-if (require(polmineR.sampleCorpus) && require(rcqp)){
-  use("polmineR.sampleCorpus")
-  bt <- partition("PLPRBTTXT", def=list(text_date=".*"), regex=TRUE)
-  kwic(bt, "Integration")
-  kwic(
-    bt, "Integration",
-    left=20, right=20,
-    meta=c("text_date", "text_name", "text_party")
-  )
-  kwic(
-    bt, '"Integration" [] "(Menschen|Migrant.*|Personen)"',
-    left=20, right=20,
-    meta=c("text_date", "text_name", "text_party")
-  ) 
+use("polmineR")
+bt <- partition("GERMAPARLMINI", def = list(date = ".*"), regex=TRUE)
+kwic(bt, "Integration")
+kwic(bt, "Integration", left = 20, right = 20, meta = c("date", "speaker", "party"))
+kwic(
+  bt, '"Integration" [] "(Menschen|Migrant.*|Personen)"',
+  left = 20, right = 20,
+  meta = c("date", "speaker", "party")
+) 
 }
-}
+\references{
+Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, pp. 71-93 (ch. 4).
+
+Jockers, Matthew L. (2014): \emph{Text Analysis with R for Students of Literature}.
+Cham et al: Springer, pp. 73-87 (chs. 8 & 9).
 }
 \seealso{
 To read the whole text, see the \code{\link{read}}-method.

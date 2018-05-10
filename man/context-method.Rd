@@ -20,8 +20,11 @@
   stoplist = NULL, positivelist = NULL, regex = FALSE, count = TRUE,
   mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE)
 
-\S4method{context}{character}(.Object, query,
-  pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL, ...)
+\S4method{context}{character}(.Object, query, cqp = is.cqp,
+  pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL,
+  left = getOption("polmineR.left"), right = getOption("polmineR.right"),
+  stoplist = NULL, positivelist = NULL, regex = FALSE, count = TRUE,
+  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE)
 
 \S4method{context}{partitionBundle}(.Object, query, verbose = TRUE, ...)
 
@@ -82,16 +85,14 @@ For formulating the query, CPQ syntax may be used (see
 examples). Statistical tests available are log-likelihood, t-test, pmi.
 }
 \examples{
-\dontrun{
-  use("polmineR.sampleCorpus")
-  p <- partition("PLPRBTTXT", list(text_type="speech"))
+  use("polmineR")
+  p <- partition("GERMAPARLMINI", interjection = "speech")
   y <- context(p, query = "Integration", pAttribute = "word")
   y <- context(p, query = "Integration", pAttribute = "word", positivelist = "Bildung")
   y <- context(
     p, query = "Integration", pAttribute = "word",
     positivelist = c("[aA]rbeit.*", "Ausbildung"), regex = TRUE
     )
-}
 }
 \author{
 Andreas Blaette

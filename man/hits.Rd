@@ -21,7 +21,7 @@ hits(.Object, ...)
   pAttribute = "word", size = FALSE, freq = FALSE, mc = FALSE,
   progress = FALSE, verbose = TRUE)
 
-\S4method{hits}{partitionBundle}(.Object, query,
+\S4method{hits}{partitionBundle}(.Object, query, cqp = FALSE,
   pAttribute = getOption("polmineR.pAttribute"), size = TRUE,
   freq = FALSE, mc = getOption("polmineR.mc"), progress = FALSE,
   verbose = TRUE)
@@ -70,10 +70,16 @@ count is 0).
 \section{Slots}{
 
 \describe{
-\item{\code{dt}}{a \code{"data.table"}}
+\item{\code{stat}}{a \code{"data.table"}}
 
 \item{\code{corpus}}{a \code{"character"} vector}
 
 \item{\code{query}}{Object of class \code{"character"}}
+
+\item{\code{pAttribute}}{p-attribute that has been queried}
+
+\item{\code{encoding}}{encoding of the corpus}
+
+\item{\code{name}}{name of the object}
 }}
 

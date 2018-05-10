@@ -1,7 +1,7 @@
 #' @include partition_class.R TermDocumentMatrix_methods.R
 NULL
 
-#' Get number of tokens.
+#' Get Number of Tokens.
 #' 
 #' The method will get the number of tokens in a corpus or partition,
 #' or the dispersion across one or more s-attributes.
@@ -19,23 +19,21 @@ NULL
 #' @seealso See \code{\link{dispersion}}-method for counts of hits. The \code{\link{hits}}
 #' method calls the \code{size}-method to get sizes of subcorpora.
 #' @examples
-#' \dontrun{
-#' use("polmineR.sampleCorpus")
-#' size("PLPRBTTXT")
-#' size("PLPRBTTXT", sAttribute = "text_date")
-#' size("PLPRBTTXT", sAttribute = c("text_date", "text_party"))
+#' use("polmineR")
+#' size("GERMAPARLMINI")
+#' size("GERMAPARLMINI", sAttribute = "date")
+#' size("GERMAPARLMINI", sAttribute = c("date", "party"))
 #' 
-#' P <- partition("PLPRBTTXT", text_date = "2009-11-11")
-#' size(P, sAttribute = "text_name")
-#' size(P, sAttribute = "text_party")
-#' size(P, sAttribute = c("text_name", "text_party"))
-#' }
+#' P <- partition("GERMAPARLMINI", date = "2009-11-11")
+#' size(P, sAttribute = "speaker")
+#' size(P, sAttribute = "party")
+#' size(P, sAttribute = c("speaker", "party"))
 setGeneric("size", function(x, ...) UseMethod("size"))
 
 #' @rdname size-method
 setMethod("size", "character", function(x, sAttribute = NULL, verbose = TRUE){
   if (is.null(sAttribute)){
-    return(CQI$attribute_size(x, "word", type = "p"))
+    return( CQI$attribute_size(x, "word", type = "p") )
   } else {
     stopifnot(all(sAttribute %in% sAttributes(x)))
     dt <- as.data.table(
@@ -47,28 +45,13 @@ setMethod("size", "character", function(x, sAttribute = NULL, verbose = TRUE){
         }
       )
     )
-    if (requireNamespace("polmineR.Rcpp", quietly = TRUE) && (getOption("polmineR.Rcpp") == TRUE)){
-      if (verbose) message ("... polmineR.Rcpp available, going to use it")
-      cpos_matrix <- polmineR.Rcpp::getRegionMatrix(
-        corpus = x, sAttribute = sAttribute[1],
-        strucs = 0:(CQI$attribute_size(x, sAttribute[1], "s") - 1),
-        registry = Sys.getenv("CORPUS_REGISTRY")
-        )
-    } else if (system("cwb-s-decode -h", intern = FALSE, ignore.stderr =  TRUE) == 1){
-      if (verbose) message ("... cwb-s-decode utility available, going to use it")
-      cmd <- c("cwb-s-decode", "-v", "-r", Sys.getenv("CORPUS_REGISTRY"), x, "-S", sAttribute[1])
-      decode_result <- system(paste(cmd, collapse = " "), intern = TRUE)
-      cpos_matrix <- do.call(rbind, lapply(strsplit(decode_result, "\\t"), as.integer))
-    } else {
-      cpos_matrix <- do.call(
-        rbind,
-        lapply(
-          c(0:(CQI$attribute_size(x, sAttribute[1], type = "s") - 1)),
-          function(x) CQI$struc2cpos(x, sAttribute[1], x))
-      )
-    }
-  
-    dt[, size := cpos_matrix[,2] - cpos_matrix[,1] + 1]
+    cpos_matrix <- RcppCWB::get_region_matrix(
+      corpus = x, s_attribute = sAttribute[1],
+      strucs = 0L:(CQI$attribute_size(x, sAttribute[1], "s") - 1L),
+      registry = Sys.getenv("CORPUS_REGISTRY")
+    )
+    
+    dt[, size := cpos_matrix[,2] - cpos_matrix[,1] + 1L]
     y <- dt[, sum(size), by = eval(sAttribute), with = TRUE]
     setnames(y, old = "V1", new = "size")
     setkeyv(y, cols = sAttribute)
@@ -80,7 +63,7 @@ setMethod("size", "character", function(x, sAttribute = NULL, verbose = TRUE){
 #' @exportMethod size
 setMethod("size", "partition", function(x, sAttribute = NULL){
   if (is.null(sAttribute)){
-    return( sum(x@cpos[,2] - x@cpos[,1] + 1) )
+    return( sum(as.integer(x@cpos[,2]) - as.integer(x@cpos[,1]) + 1L) )
   } else {
     stopifnot(all(sAttribute %in% sAttributes(x)))
     dt <- as.data.table(
@@ -89,11 +72,11 @@ setMethod("size", "partition", function(x, sAttribute = NULL){
         function(sAttr) as.nativeEnc(CQI$struc2str(x@corpus, sAttr, x@strucs), from = x@encoding)
       )
     )
-    dt[, size := x@cpos[,2] - x@cpos[,1] + 1]
+    dt[, size := x@cpos[,2] - x@cpos[,1] + 1L]
     y <- dt[, sum(size), by = eval(sAttribute), with = TRUE]
     setnames(y, old = "V1", new = "size")
     setkeyv(y, cols = sAttribute)
-    return(y)
+    return( y )
   }
   })
 
@@ -105,5 +88,5 @@ setMethod("size", "DocumentTermMatrix", function(x){
 
 #' @rdname TermDocumentMatrix
 setMethod("size", "TermDocumentMatrix", function(x){
-  setNames(tapply(x$v, INDEX=x$j, sum), x[["dimnames"]][["Docs"]])
+  setNames(tapply(x$v, INDEX = x$j, sum), x[["dimnames"]][["Docs"]])
 })

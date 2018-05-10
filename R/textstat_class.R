@@ -12,7 +12,7 @@ NULL
 #' 
 #' @slot pAttribute Object of class \code{"character"} p-attribute of the query
 #' @slot corpus Object of class \code{"character"}
-#' @slot stat Object of class \code{"data.frame"} statistics of the analysis
+#' @slot stat Object of class \code{"data.table"} statistics of the analysis
 #' @slot name name of the object
 #' @slot encoding Object of class \code{"character"} encoding of the corpus
 #' @param .Object an object
@@ -31,9 +31,8 @@ NULL
 #' @docType class
 #' @exportClass textstat
 #' @examples
-#' \dontrun{
-#' use("polmineR.sampleCorpus")
-#' P <- partition("PLPRBTTXT", text_year = "2009", pAttribute = "word")
+#' use("polmineR")
+#' P <- partition("GERMAPARLMINI", date = ".*", pAttribute = "word", regex = TRUE)
 #' y <- cooccurrences(P, query = "Arbeit")
 #' y[1:25]
 #' y[,c("word", "ll")]
@@ -41,7 +40,6 @@ NULL
 #' y[1:25][["word"]]
 #' y[which(y[["word"]] %in% c("Arbeit", "Sozial"))]
 #' y[ y[["word"]] %in% c("Arbeit", "Sozial") ]
-#' }
 setClass("textstat",
          representation(
            corpus = "character",

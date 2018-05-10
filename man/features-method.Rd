@@ -4,12 +4,16 @@
 \name{features,partition-method}
 \alias{features,partition-method}
 \alias{features}
+\alias{features,count-method}
 \alias{features,partitionBundle-method}
 \alias{features,ngrams-method}
 \title{Get features by comparison.}
 \usage{
 \S4method{features}{partition}(x, y, included = FALSE, method = "chisquare",
   verbose = FALSE)
+
+\S4method{features}{count}(x, y, by = NULL, included = FALSE,
+  method = "chisquare", verbose = TRUE)
 
 \S4method{features}{partitionBundle}(x, y, included = FALSE,
   method = "chisquare", verbose = TRUE, mc = getOption("polmineR.mc"),
@@ -30,79 +34,53 @@ ref}
 
 \item{verbose}{logical, defaults to TRUE}
 
+\item{by}{the columns used for merging, if NULL (default), the pAttribute of
+x will be used}
+
 \item{mc}{logical, whether to use multicore}
 
 \item{progress}{logical}
 
 \item{...}{further parameters}
 }
-\value{
-The function returns a data frame with the following structure:
-- absolute frequencies in the first row
-- ...
-}
 \description{
 The features of two objects, usually a partition defining a corpus of 
 interest, and a partition defining a reference corpus are compared. 
 The most important purpose is term extraction.
-
-#' @rdname features-method
-setMethod("features", "cooccurrences", function(x, y, included = FALSE, method = "ll", mc = TRUE, verbose = TRUE){
-  newObject <- new(
-    'compCooccurrences',
-    encoding = x@encoding, included = included, corpus = x@corpus, sizeCoi = x@partitionSize,
-    sizeRef = ifelse(included == FALSE, y@partitionSize, y@partitionSize - x@partitionSize),
-    stat = data.table()
-  )
-  if (identical(x@pAttribute, y@pAttribute) == FALSE) {
-    warning("BEWARE: cooccurrences objects are not based on the same pAttribute!")
-  } else {
-    newObject@pAttribute <- x@pAttribute
-  }
-  if (verbose == TRUE) message("... preparing tabs for matching")
-  keys <- unlist(lapply(c("a", "b"), function(ab) paste(ab, x@pAttribute, sep="_"))) 
-  setkeyv(x@stat, keys)
-  setkeyv(y@stat, keys)
-  MATCH <- y@stat[x@stat]
-  
-  # remove columns not needed
-  colsToDrop <- c(
-    "ll", "i.ll", "exp_window", "i.exp_window", "rank_ll", "i.rank_ll",
-    "size_window", "i.size_window", "count_a", "i.count_a", "count_b", "i.count_b",
-    "exp_partition", "i.exp_partition"
-    )
-  for (drop in colsToDrop) MATCH[, eval(drop) := NULL, with=TRUE]
-  setnames(MATCH, old=c("count_ab", "i.count_ab"), new=c("count_ref", "count_coi"))
-  
-  if (included == TRUE) MATCH[, "count_ref" := MATCH[["count_ref"]] - MATCH[["count_coi"]] ]
-  
-  newObject@stat <- MATCH
-  for (how in method){
-    if (verbose == TRUE) message("... statistical test: ", how)
-    newObject <- do.call(how, args = list(.Object = newObject))
-  }
-  newObject
-})
 }
 \examples{
-\dontrun{
-  use("polmineR.sampleCorpus")
-  kauder <- partition("PLPRBTTXT", text_name="Volker Kauder", pAttribute="word")
-  all <- partition("PLPRBTTXT", text_date=".*", regex=TRUE, pAttribute="word")
-  terms_kauder <- features(x = kauder, y = all, included = TRUE)
-  top100 <- subset(terms_kauder, rank_chisquare <= 100)
-}
-\dontrun{
-  use("polmineR.sampleCorpus")
-  byName <- partitionBundle("PLPRBTTXT", sAttribute="text_name")
-  byName <- enrich(byName, pAttribute="word")
-  all <- partition("PLPRBTTXT", text_date=".*", regex=TRUE, pAttribute="word")
-  result <- features(byName, all, included=TRUE, progress=TRUE)
-  dtm <- as.DocumentTermMatrix(result, col="chisquare")
-}
+use("polmineR")
+
+kauder <- partition(
+  "GERMAPARLMINI",
+  speaker = "Volker Kauder", interjection = "speech",
+  pAttribute="word"
+  )
+all <- partition("GERMAPARLMINI", interjection = "speech", pAttribute = "word")
+
+terms_kauder <- features(x = kauder, y = all, included = TRUE)
+top100 <- subset(terms_kauder, rank_chisquare <= 100)
+head(top100)
+
+# a different way is to compare count objects
+kauder_count <- as(kauder, "count")
+all_count <- as(all, "count")
+terms_kauder <- features(kauder_count, all_count, included = TRUE)
+top100 <- subset(terms_kauder, rank_chisquare <= 100)
+head(top100)
+
+speakers <- partitionBundle("GERMAPARLMINI", sAttribute = "speaker")
+speakers <- enrich(speakers, pAttribute = "word")
+speaker_terms <- features(speakers[[1:5]], all, included = TRUE, progress = TRUE)
+dtm <- as.DocumentTermMatrix(speaker_terms, col = "chisquare")
 }
 \references{
 Manning / Schuetze ...
+
+Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, p. 121-149 (ch. 6).
+
+Manning, Christopher D.; Schuetze, Hinrich (1999): \emph{Foundations of Statistical Natural Language
+Processing}. MIT Press: Cambridge, Mass., pp. 151-189 (ch. 5).
 }
 \author{
 Andreas Blaette

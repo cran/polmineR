@@ -24,34 +24,212 @@ polmineR
 Core Functions
 --------------
 
--   *partition*: Set up a partition (i.e. subcorpus);
--   *count*: Count features
--   *dispersion*: Analyse the dispersion of a query across one or two dimensions (absolute and relative frequencies);
--   *cooccurrences*: Analyse the context of a query (including some statistics);
--   *features*: Compare partitions to identify features / keywords (using statistical tests such as chi square).
+``` r
+library(polmineR)
+#> polmineR 0.7.6
+#> registry:  /Users/blaette/Data/cwb/registry
+#> interface: CQI.rcqp
+```
+
+### install.corpus (and use packaged corpus)
+
+Indexed corpora wrapped into R data packages can be installed from a (private) package repository.
+
+``` r
+install.corpus("GermaParl")
+install.corpus("europarl.en")
+```
+
+Calling the use function is necessary activate a corpus included in a data package.
+
+``` r
+use("europarl.en") # activate the corpus in the europarl-en package
+#> ... resetting CORPUS_REGISTRY environment variable:
+#> ... setting registry: /Library/Frameworks/R.framework/Versions/3.4/Resources/library/europarl.en/extdata/cwb/registry
+#> ... unloading rcqp library
+#> ... reloading rcqp library
+#> ... ... status: OK
+```
+
+An advantage of keeping corpora in data packages are the versioning and documentation mechanisms that are the hallmark of packages. Of course, polmineR will work with the library of CWB indexed corpora stored on your machine. To assist the preparation of corpora, consider the ctk package (corpus toolkit) as a companion package to polmineR.
+
+### partition (and partitionBundle)
+
+All methods can be applied to a whole corpus, are to partitions (i.e. subcorpora). Use the metadata of a corpus (so-called s-attributes) to define a subcorpus.
+
+``` r
+ep2005 <- partition("EUROPARL-EN", text_year = "2006")
+#> ... Setting up partition
+#> ... get encoding: latin1
+#> ... get cpos and strucs
+#> ... get partition size
+size(ep2005)
+#> [1] 3100529
+```
+
+``` r
+barroso <- partition("EUROPARL-EN", speaker_name = "Barroso", regex = TRUE)
+#> ... Setting up partition
+#> ... get encoding: latin1
+#> ... get cpos and strucs
+#> ... get partition size
+size(barroso)
+#> [1] 98142
+```
+
+Partitions can be bundled into partitionBundle objects, and most methods can be applied to a whole corpus, a partition, or a partitionBundle object alike. Consult the package vignette to learn more.
+
+### count (using CQP syntax)
+
+Counting occurrences of a feature in a corpus, a partition or in the partitions of a partitionBundle is a basic operation. By offering access to the query syntax of the Corpus Query Processor (CQP), the polmineR package makes accessible a query syntax that goes far beyond regular expressions. See the [CQP documentation](http://www.ims.uni-stuttgart.de/forschung/projekte/CorpusWorkbench/CQPTutorial/cqp-tutorial.2up.pdf) to learn more.
+
+``` r
+count("EUROPARL-EN", "France")
+#>     query count         freq
+#> 1: France  5517 0.0001399122
+count("EUROPARL-EN", c("France", "Germany", "Britain", "Spain", "Italy", "Denmark", "Poland"))
+#>      query count         freq
+#> 1:  France  5517 1.399122e-04
+#> 2: Germany  4196 1.064114e-04
+#> 3: Britain  1708 4.331523e-05
+#> 4:   Spain  3378 8.566676e-05
+#> 5:   Italy  3209 8.138089e-05
+#> 6: Denmark  1615 4.095673e-05
+#> 7:  Poland  1820 4.615557e-05
+count("EUROPARL-EN", '"[pP]opulism"')
+#>            query count         freq
+#> 1: "[pP]opulism"   107 2.713542e-06
+```
+
+### dispersion (across one or two dimensions)
+
+The dispersion method is there to analyse the dispersion of a query, or a set of queries across one or two dimensions (absolute and relative frequencies). The CQP syntax can be used.
+
+``` r
+populism <- dispersion("EUROPARL-EN", "populism", sAttribute = "text_year", progress = FALSE)
+popRegex <- dispersion("EUROPARL-EN", '"[pP]opulism"', sAttribute = "text_year", cqp = TRUE, progress = FALSE)
+```
+
+### cooccurrences (to analyse collocations)
+
+The cooccurrences method is used to analyse the context of a query (including some statistics).
+
+``` r
+islam <- cooccurrences("EUROPARL-EN", query = 'Islam', left = 10, right = 10)
+islam <- subset(islam, rank_ll <= 100)
+dotplot(islam)
+islam
+```
+
+[![cooccurrences()](http://polmine.sowi.uni-due.de/gallery/cooccurrences.png)](http://polmine.sowi.uni-due.de/gallery/cooccurrences.png)
+
+### features (keyword extraction)
+
+Compare partitions to identify features / keywords (using statistical tests such as chi square).
+
+``` r
+ep2002 <- partition("EUROPARL-EN", text_year = "2002", pAttribute = "word")
+epPre911 <- partition("EUROPARL-EN", text_year = as.character(1997:2001), pAttribute = "word")
+y <- features(ep2002, epPre911, included = FALSE)
+```
+
+### kwic (also known as concordances)
+
+So what happens in the context of a word, or a CQP query? To attain valid research results, reading will often be necessary. The kwic method will help, and uses the conveniences of DataTables, outputted in the Viewer pane of RStudio.
+
+``` r
+kwic("EUROPARL-EN", "Islam", meta = c("text_date", "speaker_name"))
+```
 
 [![kwic()](http://polmine.sowi.uni-due.de/gallery/kwic.png)](http://polmine.sowi.uni-due.de/gallery/kwic.png)
+
+### read (the full text)
+
+Corpus analysis involves moving from text to numbers, and back again. Use the read method, to inspect the full text of a partition (a speech given by chancellor Angela Merkel in this case).
+
+``` r
+use("GermaParl")
+merkel <- partition("GERMAPARL", text_speaker = "Angela Merkel", text_date = "2013-09-03")
+read(merkel)
+```
+
+[![read()](http://polmine.sowi.uni-due.de/gallery/read.png)](http://polmine.sowi.uni-due.de/gallery/read.png)
+
+### as.TermDocumentMatrix (for text mining purposes)
+
+Many advanced methods in text mining require term document matrices as input. Based on the metadata of a corpus, these data structures can be obtained in a fast and flexible manner, for performing topic modelling, machine learning etc.
+
+``` r
+use("europarl.en")
+speakers <- partitionBundle(
+  "EUROPARL-EN", sAttribute = "speaker_id",
+  progress = FALSE, verbose = FALSE
+)
+speakers <- enrich(speakers, pAttribute = "word")
+tdm <- as.TermDocumentMatrix(speakers, col = "count")
+dim(tdm)
+```
 
 Installation
 ------------
 
-### Windows (32 bit / i386)
+### Windows
 
-At this stage, an easy way to install polmineR is available only for 32bit R. Usually, an R installation will include both 32bit and 64bit R. So if you want to keep things simple, make sure that you work with 32bit version. If you work with RStudio (highly recommended), the menu Tools &gt; Global Options will open a dialogue where you can choose 32bit R.
+The following instructions assume that you have installed R. If not, install it from[CRAN](https://cran.r-project.org/bin/windows/base/). An installation of [RStudio](https://www.rstudio.com/products/rstudio/download/#download) is highly recommended.
 
-Before installing polmineR, the package 'rcqp' needs to be installed. In turn, rcqp requires plyr, which should be installed first.
+#### Windows (64 bit)
+
+For 64bit Windows, an interface included in the package polmineR.Rcpp is offered. It can be installed from the R package repository on the Webserver of the PolMine project as follows.
+
+``` r
+install.packages(
+  "polmineR.Rcpp",
+  repos = "http://polmine.sowi.uni-due.de/packages",
+  type = "win.binary"
+  )
+```
+
+Now the official CRAN version of polmineR can be installed.
+
+``` r
+install.packages("polmineR")
+```
+
+To install the most recent development version that is hosted in a GitHub repository, use the convenient installation mechanism offered by the devtools package.
+
+``` r
+install.packages("devtools")
+devtools::install_github("PolMine/polmineR", ref = "dev")
+```
+
+To have access to the syntax of CQP when forming queries, an installation of the CWB needs to be on your system. The install.cwb-function of polmineR will download the CWB binaries and puts it into a subfolder of the polmineR package.
+
+``` r
+library(polmineR)
+install.cwb()
+```
+
+During the download and installation, you may see the following message: "Please make sure that 'D:' is in your 'path' so you can call CWB programs from the command prompt!" Adding this path to the PATH environment variable is actually not necessary, because functions in the polmineR package will know where to look for the CWB.
+
+Finally, as a basic test whether the REUTERS corpus included in the polmineR package (for testing and demonstration purposes) is available, run:
+
+``` r
+corpus()
+```
+
+#### Windows (32 bit / i386)
+
+If you work with a 32bit Windows machine, the rcqp package can be used to access CWB indexed corpora. rcqp requires plyr, which should be installed first.
 
 ``` r
 install.packages("plyr")
 ```
 
-To avoid compiling C code in a package, packages with compiled binaries are very handy. Windows binaries for the rcqp package are not available at CRAN, but can be installed from a repository of packages entertained at the server of the PolMine project:
+Windows binaries for the rcqp package are not available at CRAN. A cross-compilation can be installed from a repository of packages hosted at the server of the PolMine project:
 
 ``` r
 install.packages("rcqp", repos = "http://polmine.sowi.uni-due.de/packages", type = "win.binary")
 ```
-
-To explain: Compiling the C code in the rcqp package on a windows machine is not yet possible. The package we offer uses a cross-compilation of these C libraries, i.e. binaries that have been prepared for windows on a MacOS/Linux machine.
 
 Before proceeding to install polmineR, we install dependencies that are not installed automatically.
 
@@ -59,7 +237,7 @@ Before proceeding to install polmineR, we install dependencies that are not inst
 install.packages(pkgs = c("htmltools", "htmlwidgets", "magrittr", "iterators", "NLP"))
 ```
 
-The latest stable version of polmineR can now be installed from CRAN. Several other packages that polmineR depends on, or that dependencies depend on may be installed automatically.
+The latest stable version of polmineR can now be installed from CRAN. Several other packages that polmineR depends on will be installed automatically.
 
 ``` r
 install.packages("polmineR")
@@ -78,22 +256,6 @@ The installation may throw warnings. There are three warnings you can ignore at 
 -   The environment variable CORPUS\_REGISTRY is not defined.
 -   package 'rcqp' is not installed for 'arch = x64'.
 
-The configure script is for Linux/MacOS installation, its sole purpose is to pass tests for uploading the package to CRAN. As mentioned, windows binaries are not yet available for 64bit R at present, so that can be ignored. The environment variable "CORPUS\_REGISTRY" can be set as follows in R:
-
-``` r
-Sys.setenv(CORPUS_REGISTRY = "C:/PATH/TO/YOUR/REGISTRY")
-```
-
-To set the environment variable CORPUS\_REGISTRY permanently, see the instructions R offer how to find the file '.Renviron' or '.Renviron.site' when calling the help for the startup process(`?Startup`).
-
-Two important notes concerning problems with the CORPUS\_REGISTRY environment variable that may cause serious headaches:
-
--   The path can not be processed, if there is any whitespace in the path pointing to the registry. Whitespace may occur in the user name ("C:/Users/Donald Duck/Documents"), for instance. We do not yet know any workaround to make rcqp/CWB process whitespace. The recommendation is to create a directory at a path without whitespace to keep the registry and the indexed\_corpora (a directory such as "C:/cwb").
-
--   If you keep data on another volume than your system files, your R packages etc. (eg. volume 'C:' for system files, and 'D:' for data and user files), make sure to set the working directory (`setwd()`) is set to any directory on the volume with the directory defined via CORPUS\_REGISTRY. CWB/rcqp will assume that the CORPUS\_REGISTRY directory is on the same volume as the current working directory (which can be identified by calling `getwd()`).
-
-Finally: polmineR if optimized for working with RStudio. It you work with 32bit R, you may have to check in the settings of RStudio that it will call 32bit R. To be sure, check the startup message.
-
 If everything works, check whether polmineR can be loaded.
 
 ``` r
@@ -101,44 +263,25 @@ library(polmineR)
 corpus() # to see corpora available at your system
 ```
 
-### Windows (64 bit / x86)
+#### Setting the CORPUS\_REGISTRY environment variable
 
-At this stage, 64 bit support is still experimental. Apart from an installation of 64 bit R, you will need to install Rtools, available [here](https://cran.r-project.org/bin/windows/Rtools/). Rtools is a collection of tools necessary to build and compile R packages on a Windows machine.
-
-To interface to a core C library of the Corpus Workbench (CWB), you will need an installation of a 64 bit AND a 32 bit version of the CWB.
-
-The "official" 32 bit version of the CWB is available [here](https://sourceforge.net/projects/cwb/files/cwb/cwb-3.4-beta/). Installation instructions are available at the [CWB Website](http://cwb.sourceforge.net/beta.php). The 32 bit version should be installed in the directory "C:Files", with admin rights.
-
-The 64 bit version, prepared by Andreas Blaette, is available [here](http://polmine.sowi.uni-due.de/public/?dir=CWB). Install this 64 bit CWB version to "C:Files (x86)". In the unzipped downloaded zip file, you will find a bat file that will do the installation. Take care that you run the file with administrator rights. Without these rights, no files will be copied.
-
-The interface to the Corpus Workbench is the package polmineR.Rcpp, [available at GitHub](https://www.github.com/PolMine/polminer.Rcpp). If you use git, you can clone that repository, otherwise, you can download a zip file.
-
-The downloaded zip file needs to be unzipped again. Then, in the directory with the 'polmineR.Rcpp'-directory, run:
-
-``` sh
-R CMD build polmineR.Rcpp
-R CMD INSTALL polmineR.Rcpp_0.1.0.tar.gz
-```
-
-If you read closely what is going on during the compilation, you will see a few warnings that libraries are not found. If creating the package is not aborted, nothing is wrong. R CMD build will look for the 64 bit files in the directory with the 32 bit dlls first and discover that they do not work for 64 bit, only then will it move to the correct location.
-
-One polmineR.Rcpp is installed, proceed with the instructions for installing polmineR in a 32 bit context. Future binary releases of the polmineR.Rcpp package may make things easier. Anyway, the proof of concept is there that polmineR will work on a 64 bit Windows machine too.
-
-Finally, you need to make sure that polmineR will interface to CWB indexed corpora using polmineR.Rcpp, and not with rcqp (the default). To set the interface accordingly:
+The environment variable "CORPUS\_REGISTRY" can be set as follows in R:
 
 ``` r
-setCorpusWorkbenchInterface("Rcpp")
+Sys.setenv(CORPUS_REGISTRY = "C:/PATH/TO/YOUR/REGISTRY")
 ```
 
-To test whether corpora are available:
+To set the environment variable CORPUS\_REGISTRY permanently, see the instructions R offer how to find the file '.Renviron' or '.Renviron.site' when calling the help for the startup process(`?Startup`).
 
-``` r
-corpus()
-```
+Two important notes concerning problems with the CORPUS\_REGISTRY environment variable that may cause serious headaches on Windows machines:
+
+-   The path can not be processed, if there is any whitespace in the path pointing to the registry. Whitespace may occur in the user name ("C:/Users/Donald Duck/Documents"), for instance. There is no known workaround to make rcqp/CWB process whitespace. The recommendation is to create a directory at a path without whitespace to keep the registry and the indexed\_corpora (a directory such as "C:/cwb").
+
+-   If you keep data on another volume than your system files, your R packages etc. (eg. volume 'C:' for system files, and 'D:' for data and user files), make sure to set the working directory (`setwd()`) is set to any directory on the volume with the directory defined via CORPUS\_REGISTRY. CWB/rcqp will assume that the CORPUS\_REGISTRY directory is on the same volume as the current working directory (which can be identified by calling `getwd()`).
 
 ### MacOS
 
-The following instructions for Mac users assume that R is installed on your system. Binaries are available from the [Homepage of the R Project](https://cran.r-project.org/bin/macosx/). An installation of RStudio is highly recommended. The Open Source License version of [RStudio Desktop](https://www.rstudio.com/products/rstudio/download/) is what you need.
+The following instructions for Mac users assume that R is installed on your system. Binaries are available from the [Homepage of the R Project](https://cran.r-project.org/bin/macosx/). An installation of RStudio is highly recommended. Get the Open Source License version of [RStudio Desktop](https://www.rstudio.com/products/rstudio/download/).
 
 #### Installing 'polmineR'
 
@@ -161,7 +304,7 @@ The default interface of the polmineR package to access CWB indexed corpora is t
 
 ##### Installing precompiled binary of rcqp from the PolMine server
 
-The easiest way to get rcqp for Mac is install a precompiled binary that is available at the PolMine server:
+The easiest way to get rcqp for Mac is install a precompiled binary that is available at the PolMine server. The precompiled package includes the C library 'rcqp.so' and compilations of all dependencies.
 
 ``` r
 install.packages(
@@ -181,11 +324,11 @@ First, you will need an installation of Xcode, which you can get it via the Mac 
 xcode-select --install
 ```
 
-To compile the C code in the rcqp package, there are system requirements that need to be fulfilled. Using a package manager such as Homebrew or Macports makes things considerably easier.
+Please make sure that you agree to the license.
 
-*Option 1: Using Homebrew*
+Second, an installation of XQuartz is required, it can be obtained from [www.xquartz.org](https://www.xquartz.org/).
 
-We recommend to use 'Homebrew'. To install Homebrew, follow the instructions on the [Homebrew Homepage](https://brew.sh/index_de.html). The following commands will install the C libraries the rcqp package relies on:
+Third, to compile the C code in the rcqp package, there are system requirements that need to be fulfilled. Using a package manager makes things considerably easier. We recommend using 'Homebrew'. To install Homebrew, follow the instructions on the [Homebrew Homepage](https://brew.sh/index_de.html). The following commands then need to be executed from a terminal window. They will install the C libraries that the rcqp package relies on:
 
 ``` sh
 brew -v install pkg-config
@@ -194,57 +337,96 @@ brew -v install pcre --universal
 brew -v install readline
 ```
 
-*Option 2: Using Macports*
-
-If you prefer using Macports, get it from <https://www.macports.org/>. After installing Macports, it is necessary to restart the computer. Next, an update of Macports is necessary.
-
-``` sh
-sudo port -v selfupdate
-```
-
-Now we can install the libraries rcqp will require. Again, from the terminal.
-
-``` sh
-sudo port install glib2
-sudo port install pkgconfig
-sudo port install pcre
-```
-
-*Install dependencies and rcqp*
-
-Once the system requirements are there, the next steps can be done from R. Before installing rcqp, and then polmineR, we install a few packages. In the R console:
+Fourth, install dependencies of rcqp, and finally rcqp. That can be done from within R.
 
 ``` r
 install.packages(pkgs = c("RUnit", "devtools", "plyr", "tm"))
-```
-
-Now rcqp can be installed, and then polmineR:
-
-``` r
 install.packages("rcqp")
-install.packages("polmineR")
 ```
 
-If you like to work with the development version, that can be installed from GitHub.
+A quick check that polmineR is installed correctly is to load the library, and to check which corpora are available.
 
 ``` r
-devtools::install_github("PolMine/polmineR", ref = "dev")
+library(polmineR)
+corpus()
 ```
 
-### Linux
+You should see a message that rcqp is the interface used, and that the REUTERS corpus is on your system.
 
-The pcre, glib and pkg-config libraries can be installed using apt-get.
+### Linux (Ubuntu)
+
+#### Installing R
+
+If you have not yet installed R on your Ubuntu machine, there is a good instruction at [ubuntuuser](https://wiki.ubuntuusers.de/R/). To install base R, enter in the terminal.
 
 ``` sh
-sudo apt-get install libglib2.0-dev
-sudo apt-get install libssl-dev
-sudo apt-get install libcurl4-openssl-dev
+sudo apt-get install r-base r-recommended
+```
+
+Make sure that you have installed the latest version of R. The following commands will add the R repository to the package sources and run an update. The second line assumes that you are using Ubuntu 16.04.
+
+``` sh
+sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com E084DAB9
+sudo add-apt-repository 'deb http://ftp5.gwdg.de/pub/misc/cran/bin/linux/ubuntu xenial/'
+sudo apt-get update
+sudo apt-get upgrade
+```
+
+#### Installing RStudio
+
+It is highly recommended to install [RStudio](https://www.rstudio.com/products/rstudio/download/#download), a powerful IDE for R. Output of polmineR methods is generally optimized to be displayed using RStudio facilities. If you are working on a remote server, running RStudio Server may be an interesting option to consider.
+
+#### Base Installation of polmineR
+
+The Corpus Workbench will require the pcre, glib and pkg-config libraries. They can be installed as follows. In addition libxml2 is installed, a dependency of the R package xml2 that is used for manipulating html output.
+
+``` sh
+sudo apt-get install libglib2.0-dev libssl-dev libcurl4-openssl-dev
+sudo apt-get install libxml2-dev
+sudo apt-get install libprotobuf-dev
 ```
 
 The system requirements will now be fulfilled. From R, install dependencies for rcqp/polmineR first, and then rcqp and polmineR.
 
 ``` r
-install.packages("RUnit", "devtools", "plyr", "tm")
+install.packages(pkgs = c("RUnit", "devtools", "plyr", "tm"))
 install.packages("rcqp")
 install.packages("polmineR")
+```
+
+Use devtools to install the development version of polmineR from GitHub.
+
+``` r
+install.packages("devtools")
+devtools::install_github("PolMine/polmineR", ref = "dev")
+```
+
+You may want to install packaged corpora to run examples in the vignette, and the man packages.
+
+``` r
+library(polmineR)
+install.corpus("polmineR.sampleCorpus")
+install.corpus("europarl.en")
+```
+
+#### polmineR - Full installation
+
+To have access to all package functions and to run all package tests, the installation of further system requirements and packages is required. The xlsx dependency requires that rJava is installed and configured for R. That is done on the shell:
+
+``` sh
+sudo apt-get install openjdk-8-jre
+sudo R CMD javareconf
+```
+
+To run package tests including (re-)building the manual and vignettes, a working installation of Latex is required, too. Be aware that this may be a time-consuming operation.
+
+``` sh
+sudo apt-get install texlive-full texlive-xetex 
+```
+
+Now install the remaining packages from within R.
+
+``` r
+devtools::install_github("PolMine/polmineR.Rcpp")
+install.packages(pkgs = c("rJava", "xlsx", "tidytext"))
 ```

@@ -8,23 +8,27 @@
 \alias{count,partitionBundle-method}
 \alias{count,character-method}
 \alias{count,vector-method}
+\alias{count,Corpus-method}
 \title{Get counts.}
 \usage{
 count(.Object, ...)
 
 \S4method{count}{partition}(.Object, query = NULL, cqp = is.cqp,
-  id2str = TRUE, pAttribute = getOption("polmineR.pAttribute"),
+  breakdown = FALSE, decode = TRUE,
+  pAttribute = getOption("polmineR.pAttribute"),
   mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE)
 
-\S4method{count}{partitionBundle}(.Object, query, pAttribute = NULL,
-  freq = FALSE, total = TRUE, mc = FALSE, progress = TRUE,
-  verbose = FALSE)
+\S4method{count}{partitionBundle}(.Object, query, cqp = FALSE,
+  pAttribute = NULL, freq = FALSE, total = TRUE, mc = FALSE,
+  progress = TRUE, verbose = FALSE)
 
 \S4method{count}{character}(.Object, query = NULL, cqp = is.cqp,
-  pAttribute = getOption("polmineR.pAttribute"), sort = FALSE,
-  id2str = TRUE, verbose = TRUE)
+  pAttribute = getOption("polmineR.pAttribute"), breakdown = FALSE,
+  sort = FALSE, decode = TRUE, verbose = TRUE)
 
 \S4method{count}{vector}(.Object, corpus, pAttribute)
+
+\S4method{count}{Corpus}(.Object, query = NULL, pAttribute)
 }
 \arguments{
 \item{.Object}{a \code{"partition"} or \code{"partitionBundle"} object, or a
@@ -39,7 +43,9 @@ syntax can be used.}
 function to check whether query is a CQP query or not (defaults to is.query
 auxiliary function)}
 
-\item{id2str}{logical, whether to add rownames (only if query is NULL)}
+\item{breakdown}{logical, whether to count occurrences for different matches for a query}
+
+\item{decode}{logical, whether to add rownames (only if query is NULL)}
 
 \item{pAttribute}{the p-attribute(s) to use}
 
@@ -62,34 +68,41 @@ TOTAL) will be amended to the data.table that is returned}
 a \code{"data.table"}
 }
 \description{
-Count all tokens, or number of occurrences of a query (CQP syntax may be used).
+Count all tokens, or number of occurrences of a query (CQP syntax may be
+used), or matches for the query.
 }
 \details{
-If .Object is a partitonBundle, the data.table returned will have the queries
-in the columns, and as many rows as there are in the partitionBundle.
+If .Object is a \code{partitonBundle}, the data.table returned will have the
+queries in the columns, and as many rows as there are in the partitionBundle.
 
-If .Object is a character vector (length 1) and query is NULL, the count is performed
-for the whole partition. The method will check whether the \code{polmineR.Rcpp} package,
-or the \code{cwb-lexdecode} utilities are available, and use them resepectively for 
-performance reasons.
+If .Object is a character vector (length 1) and query is NULL, the count is
+performed for the whole partition. If \code{breakdown} is \code{TRUE} and one
+query is supplied, the function returns a frequency breakdown of the results
+of the query. If several queries are supplied, frequencies for the individual
+queries are retrieved.
 }
 \examples{
-\dontrun{
-  use("polmineR.sampleCorpus")
-  debates <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE)
+  use("polmineR")
+  debates <- partition("GERMAPARLMINI", date = ".*", regex=TRUE)
   count(debates, query = "Arbeit") # get frequencies for one token
   count(debates, c("Arbeit", "Freizeit", "Zukunft")) # get frequencies for multiple tokens
   
-  count("PLPRBTTXT", query = c("Migration", "Integration"), pAttribute = "word")
+  count("GERMAPARLMINI", query = c("Migration", "Integration"), pAttribute = "word")
 
   debates <- partitionBundle(
-    "PLPRBTTXT", sAttribute = "text_date", values = NULL,
+    "GERMAPARLMINI", sAttribute = "date", values = NULL,
     regex = TRUE, mc = FALSE, verbose = FALSE
   )
   y <- count(debates, query = "Arbeit", pAttribute = "word")
   y <- count(debates, query = c("Arbeit", "Migration", "Zukunft"), pAttribute = "word")
   
+  count("GERMAPARLMINI", '"Integration.*"', breakdown = TRUE)
+
+  P <- partition("GERMAPARLMINI", date = "2009-11-11")
+  count(P, '"Integration.*"', breakdown = TRUE)
 }
+\references{
+Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, p. 47-69 (ch. 3).
 }
 \seealso{
 For a metadata-based breakdown of counts

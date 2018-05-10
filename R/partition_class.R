@@ -1,4 +1,4 @@
-#' @include polmineR_package.R textstat_class.R generics.R
+#' @include polmineR_package.R textstat_class.R count_class.R generics.R
 NULL
 
 
@@ -33,10 +33,6 @@ NULL
 #' @param x a partition object
 #' @param verbose logical
 #' @param cpos ...
-#' @param html ...
-#' @param highlight ... 
-#' @param cqp ...
-#' @param tooltips ...
 #' @param meta ...
 #' @param cutoff maximum number of tokens to decode
 #' @param ... further parameters
@@ -60,14 +56,14 @@ setClass(
     cpos = "matrix",
     pos = "list",
     annotations = "list",
-    size = "numeric",
+    size = "integer",
     metadata = "data.frame",
     strucs = "numeric",
     xml = "character",
     sAttributeStrucs = "character",
     call = "character"
   ),
-  contains = "textstat"
+  contains = c("count", "textstat")
 )
 
 
@@ -105,14 +101,11 @@ setMethod("show", "partition",
               if (length(s)>1) {for (i in length(s)){cat(sprintf("%-20s", " "), s[i], '\n')}}
             } 
             cat(sprintf("%-21s", "cpos:"))
-            if (nrow(object@cpos)==0) {cat("not available\n")}
-            else {cat(nrow(object@cpos), "pairs of corpus positions\n")}
+            if (nrow(object@cpos) == 0) cat("not available\n") else cat(nrow(object@cpos), "pairs of corpus positions\n")
             cat(sprintf("%-21s", "size:"))
-            if (is.null(object@size)) {cat("not available\n")}
-            else {cat(object@size, "tokens\n")}
+            if (is.null(object@size)) cat("not available\n") else cat(object@size, "tokens\n")
             cat(sprintf("%-21s", "count:"))
-            if (length(object@pAttribute) == 0) {cat("not available\n")}
-            else {cat("available for ", object@pAttribute, "\n")}
+            if (length(object@pAttribute) == 0) cat("not available\n") else cat("available for ", object@pAttribute, "\n")
           })
 
 
@@ -136,7 +129,6 @@ setMethod("show", "partition",
 #' @exportMethod split
 #' @docType methods
 setMethod("split", "partition", function(x, gap, drop = FALSE, ...){
-  # if (length(x@metadata) == 0) warning("no metadata, method potentially fails -> please check what happens")
   cpos <- x@cpos
   if (nrow(cpos) > 1){
     distance <- cpos[,1][2:nrow(cpos)] - cpos[,2][1:(nrow(cpos)-1)]
@@ -162,7 +154,7 @@ setMethod("split", "partition", function(x, gap, drop = FALSE, ...){
           corpus = x@corpus, encoding = x@encoding,
           sAttributes = x@sAttributes,
           xml = x@xml, sAttributeStrucs = x@sAttributeStrucs,
-          explanation = c("partition results from split, sAttributes do not necessarily define partition"),
+          explanation = "partition results from split, sAttributes do not necessarily define partition",
           name = paste(x@name, i, collapse = "_", sep = ""),
           stat = data.table()
         )
@@ -175,6 +167,7 @@ setMethod("split", "partition", function(x, gap, drop = FALSE, ...){
         p
       })
   } else {
+    x@name <- paste(x@name, 1, collapse = "_", sep = "")
     bundleRaw <- list(x)
   }
   names(bundleRaw) <- unlist(lapply(bundleRaw, function(y) y@name))
@@ -200,6 +193,45 @@ setMethod("length", "partition", function(x) x@size)
 
 
 setAs("partition", "data.table", function(from) data.table(count(from)) )
+
+setAs(from = "partition", to = "count", def = function(from){
+  if (nrow(from@stat) == 0){
+    stop("The input partiton does not include a data.table in its slot 'stat' - aborting.")
+  }
+  new(
+    "count",
+    stat = from@stat,
+    pAttribute = from@pAttribute,
+    corpus = from@corpus,
+    encoding = from@encoding,
+    size = from@size,
+    name = from@name
+  )
+})
+
+#' @importFrom jsonlite fromJSON
+setAs(
+  from = "json", to = "partition",
+  def = function(from){
+    slotsToMake <- getSlots("partition")
+    slotsToMake <- slotsToMake[-which(names(slotsToMake) %in% c("stat", "metadata", "call"))]
+    partitionList <- fromJSON(from)
+    newPartition <- new("partition")
+    for (x in names(slotsToMake)){
+      slot(newPartition, x) <- as(partitionList[[x]], slotsToMake[x])
+    }
+    newPartition
+  }
+)
+
+#' @importFrom jsonlite toJSON
+setAs(
+  from = "partition", to = "json",
+  def = function(from){
+    slotsToGet <- slotNames("partition")[-which(slotNames("partition") %in% c("stat", "metadata", "call"))]
+    toJSON(lapply(setNames(slotsToGet, slotsToGet), function(x) slot(from, x)))
+  }
+)
 
 
 #' @exportMethod hist

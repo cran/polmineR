@@ -12,6 +12,12 @@
 #' @param ... further arguments
 #' @rdname as.markdown
 #' @exportMethod as.markdown
+#' @examples
+#' use("polmineR")
+#' P <- partition("REUTERS", places = "argentina")
+#' as.markdown(P)
+#' as.markdown(P, meta = c("id", "places"))
+#' if (interactive()) read(P, meta = c("id", "places"))
 setGeneric("as.markdown", function(.Object, ...) standardGeneric("as.markdown"))
 
 # vectorized sprintf is considerably faster than shiny::span,
@@ -27,7 +33,7 @@ setGeneric("as.markdown", function(.Object, ...) standardGeneric("as.markdown"))
 
 #' @rdname as.markdown
 setMethod("as.markdown", "numeric", function(.Object, corpus, meta = NULL, cpos = FALSE, cutoff = NULL, ...){
-  corpusEncoding <- RegistryFile$new(corpus)$getEncoding()
+  corpusEncoding <- registry_get_encoding(corpus)
   
   # generate metainformation
   documentStruc <- CQI$cpos2struc(corpus, getTemplate(corpus)[["document"]][["sAttribute"]], .Object[1])
@@ -49,7 +55,7 @@ setMethod("as.markdown", "numeric", function(.Object, corpus, meta = NULL, cpos 
     sep = ""
     )
   
-  cposSeries <- c(.Object[1]:.Object[2])
+  cposSeries <- .Object[1]:.Object[2]
   pStrucs <- CQI$cpos2struc(corpus, getTemplate(corpus)[["paragraphs"]][["sAttribute"]], cposSeries)
   chunks <- split(cposSeries, pStrucs)
   pTypes <- CQI$struc2str(corpus, getTemplate(corpus)[["paragraphs"]][["sAttribute"]], as.numeric(names(chunks)))
@@ -85,26 +91,34 @@ setMethod(
     cpos = TRUE, cutoff = NULL, verbose = FALSE,
     ...
   ){
-    if (verbose) message("... as.markdown")
+    .message("as.markdown", verbose = verbose)
     # ensure that template requested is available
     if (is.null(template)){
       stop("template needed for formatting a partition of corpus ", .Object@corpus , " is missing, use setTemplate()")
     }
     if (is.null(template[["paragraphs"]])){
-      if (verbose) message("... generating paragraphs (no template)")
+      .message("generating paragraphs (no template)", verbose = verbose)
       tokens <- getTokenStream(.Object, pAttribute = "word", cpos = cpos, cutoff = cutoff, ...)
       tokens <- .tagTokens(tokens)
       tokens <- paste(tokens, collapse = " ")
       rawTxt <- paste(tokens, sep = "\n")
       txt <- gsub("(.)\\s([,.:!?])", "\\1\\2", rawTxt)
     } else {
-      if (verbose) message("... generating paragraphs (template for paras)")
+      .message("generating paragraphs (template for paras)", verbose = verbose)
       articles <- apply(
         .Object@cpos, 1,
         function(row) as.markdown(row, corpus = .Object@corpus, meta = meta, cutoff = cutoff, ...)
         )
-      txt <- paste(c("\n", unlist(articles)), collapse='\n* * *\n')
+      txt <- paste(c("\n", unlist(articles)), collapse = '\n* * *\n')
     }
+    txt
+    metaInfo <- paste(
+      sapply(meta, function(x) sprintf("%s: %s", x, paste(sAttributes(.Object, x), collapse = "|"))),
+      collapse = " // "
+    )
+    corpusInfo <- paste("## Corpus: ", .Object@corpus, "\n\n", sep = "")
+    header <- paste(corpusInfo, paste("### ", metaInfo), "\n\n", sep = "")
+    txt <- paste(header, txt, '\n', collapse = "\n")
     txt
   })
 
@@ -117,10 +131,10 @@ setMethod("as.markdown", "plprPartition", function(.Object, meta = NULL, templat
     if (maxNoStrucs != length(.Object@strucs)){
       .Object@strucs <- .Object@strucs[1]:.Object@strucs[length(.Object@strucs)]
       # fill regions matrix to include interjections
-      if (requireNamespace("polmineR.Rcpp", quietly = TRUE)){
-        .Object@cpos <- polmineR.Rcpp::get_region_matrix(
+      if (requireNamespace("RcppCWB", quietly = TRUE)){
+        .Object@cpos <- RcppCWB::get_region_matrix(
           corpus = .Object@corpus, s_attribute = .Object@sAttributeStrucs,
-          registry = Sys.getenv("CORPUS_REGISTRY"), struc = .Object@strucs
+          registry = Sys.getenv("CORPUS_REGISTRY"), strucs = .Object@strucs
         )
         
       } else {

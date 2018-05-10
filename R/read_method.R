@@ -1,54 +1,62 @@
 #' @include regions_class.R
 NULL
 
-#' Display and read full text
+#' Display full text.
 #' 
 #' Generate text (i.e. html) and read it in the viewer pane of RStudio. If called on
 #' a \code{"partitionBundle"}-object, skip through the partitions contained in the
-#' bundle.
+#' bundle. 
+#' 
+#' To prepare the html output, the method \code{read} will call \code{html} and
+#' \code{as.markdown} subsequently, the latter method being the actual worker. Consult
+#' these methods to understand how preparing the output works.
+#' 
+#' The param \code{highlight} can be used to highlight terms. It is expected to be a
+#' named list of character vectors, the names providing the colors, and the vectors
+#' the terms to be highlighted. To add tooltips, use the param \code{tooltips}.
+#' 
+#' The method \code{read} is a high-level function that calls the aforementioned methods.
+#' Results obtained through \code{read} can also be obtained through combining these
+#' methods in a pipe using the package \code{magrittr}. That may offer more flexibility,
+#' e.g. to highlight matches for CQP queries. See examples and the documentation for the
+#' different methods to learn more.
 #' 
 #' @param .Object an object to be read (\code{"partition" or "partitionBundle"})
 #' @param meta a character vector supplying s-attributes for the metainformation
-#'   to be printed, if not stated explicitly, session settings will be used
-#' @param highlight a list
-#' @param tooltips a list
+#'   to be printed; if not stated explicitly, session settings will be used
+#' @param template template to format output
+#' @param highlight a named list of character vectors (see details)
+#' @param tooltips a named list (names are colors, vectors are tooltips)
 #' @param verbose logical
-#' @param cpos logical
-#' @param col column
+#' @param cpos logical, if TRUE, corpus positions will be assigned (invisibly) to a cpos
+#' tag of a html element surrounding the tokens
+#' @param col column of \code{data.table} with terms to be highlighted
 #' @param partitionBundle a partitionBundle object
-#' @param def ...
-#' @param i ...
-#' @param type ...
-#' @param cqp a list of character vectors with regular expressions to
-#'   highlight relevant terms or expressions; the names of the list provide the
-#'   colors
+#' @param def a named list used to define a partition (names are s-attributes, vectors are
+#' values of s-attributes)
+#' @param i if \code{.Object} is an object of the classes \code{kwic} or \code{hits},
+#' the ith kwic line or hit to derive a partition to be inspected from
+#' @param type the partition type, see documentation for \code{partition}-method
 #' @param cutoff maximum number of tokens to display
 #' @param ... further parameters passed into read
 #' @exportMethod read
 #' @rdname read-method
 #' @examples
 #' \donttest{
-#' use("polmineR.sampleCorpus")
-#' options("polmineR.meta" = "text_date")
+#' use("polmineR")
+#' template <- jsonlite::fromJSON(system.file(package = "polmineR", "templates", "plpr.template.json"))
+#' options(polmineR.templates = list("GERMAPARLMINI" = template))
 #' merkel <- partition(
-#'   "PLPRBTTXT",
-#'    text_date="2009-11-10", text_name="Angela Dorothea Merkel",
-#'    type="plpr"
+#'   "GERMAPARLMINI",
+#'    date = "2009-11-10", speaker = "Angela Dorothea Merkel",
+#'    type = "plpr"
 #'  )
-#'  read(merkel, meta=c("text_name", "text_date"))
+#'  read(merkel, meta = c("speaker", "date"))
 #'  read(
 #'    merkel,
-#'    highlight = list(yellow=c("Deutschland", "Bundesrepublik"), lightgreen="Regierung"),
-#'    meta = c("text_name", "text_date")
+#'    highlight = list(yellow = c("Deutschland", "Bundesrepublik"), lightgreen = "Regierung"),
+#'    meta = c("speaker", "date")
 #' )
-#' 
-#' all <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE, type="plpr")
-#' speeches <- as.speeches(
-#'   all, sAttributeDates = "text_date", sAttributeNames = "text_name", gap = 500
-#' )
-#' read(speeches, meta = c("text_date", "text_name"))
-#' migVocab <- count(speeches, query=c("Migration", "Integration", "Zuwanderung"))
-#' read(migVocab, col="Integration", partitionBundle=speeches)
 #' }
 #' @seealso For concordances / a keword-in-context display, see \code{\link{kwic}}.
 setGeneric("read", function(.Object, ...) standardGeneric("read"))
@@ -58,55 +66,61 @@ setMethod(
   "read", "partition",
   function(
     .Object, meta = NULL,
-    highlight = list(), cqp = FALSE, tooltips = NULL,
-    verbose = TRUE, cpos = FALSE, cutoff = getOption("polmineR.cutoff"), ...
-    ){
-  if (is.null(meta)) meta <- getOption("polmineR.templates")[[.Object@corpus]][["metadata"]]
-  stopifnot(all(meta %in% sAttributes(.Object@corpus)))
-  if (any(cqp) == TRUE) cpos <- TRUE
-  fulltextHtml <- html(
-    .Object, meta = meta, highlight = highlight, cqp = cqp, cpos = cpos, tooltips = tooltips, cutoff = cutoff, ...)
-  if(require("htmltools", quietly = TRUE)){
-    htmltools::html_print(fulltextHtml)  
-  } else {
-    warning("package htmltools required, but not available")
-  }
-})
+    highlight = list(), tooltips = list(),
+    verbose = TRUE, cpos = TRUE, cutoff = getOption("polmineR.cutoff"), 
+    template = getTemplate(.Object),
+    ...
+  ){
+    if (is.null(meta)){
+      templateMeta <- getOption("polmineR.templates")[[.Object@corpus]][["metadata"]]
+      meta <- if (is.null(templateMeta)) names(.Object@sAttributes) else templateMeta
+    }
+    stopifnot(all(meta %in% sAttributes(.Object@corpus)))
+    doc <- html(.Object, meta = meta,  cpos = cpos, cutoff = cutoff,  template = template, ...)
+    
+    if (length(highlight) > 0) {
+      doc <- highlight(doc, highlight = highlight)
+      if (length(tooltips) > 0){
+        doc <- tooltips(doc, tooltips = tooltips)
+      }
+    }
+    doc
+  })
 
 #' @rdname read-method
-setMethod("read", "partitionBundle", function(.Object, highlight = list(), cqp = FALSE, cpos = FALSE, ...){
+setMethod("read", "partitionBundle", function(.Object, highlight = list(), cpos = TRUE, ...){
   for (i in 1:length(.Object@objects)){
-    read(.Object@objects[[i]], highlight = highlight, cqp = cqp, cpos = cpos, ...)
+    read(.Object@objects[[i]], highlight = highlight, cpos = cpos, ...)
     key <- readline("Enter 'q' to quit, any other key to continue. ")
     if (key == "q") break
   }
 })
 
 #' @rdname read-method
-setMethod("read", "data.table", function(.Object, col, partitionBundle, cqp = FALSE, highlight=list(), cpos=FALSE, ...){
+setMethod("read", "data.table", function(.Object, col, partitionBundle, highlight = list(), cpos = FALSE, ...){
   stopifnot(col %in% colnames(.Object))
   DT <- .Object[which(.Object[[col]] > 0)]
   partitionsToGet <- DT[["partition"]]
   if (col == "TOTAL") col <- colnames(.Object)[2:(ncol(.Object)-1)]
   toRead <- as.bundle(lapply(partitionsToGet, function(x) partitionBundle@objects[[x]]))
-  read(toRead, highlight=list(yellow=col), cqp=cqp, ...)
+  read(toRead, highlight = list(yellow = col), ...)
 })
 
 #' @rdname read-method
-setMethod("read", "hits", function(.Object, def, i=NULL, ...){
+setMethod("read", "hits", function(.Object, def, i = NULL, ...){
   if (is.null(i)){
-    for (i in c(1:nrow(.Object@dt))){
-      sAttrs <- lapply(setNames(def, def), function(x) .Object@dt[[x]][i])
-      read(partition(.Object@corpus, def=sAttrs, ...))
+    for (i in 1:nrow(.Object@stat)){
+      sAttrs <- lapply(setNames(def, def), function(x) .Object@stat[[x]][i])
+      read(partition(.Object@corpus, def = sAttrs, ...))
       readline(">> ")
     }
   }
 })
 
 #' @rdname read-method
-setMethod("read", "kwic", function(.Object, i, type=NULL){
-  fulltext <- html(.Object, i=i, type=type)
-  htmltools::html_print(fulltext)
+setMethod("read", "kwic", function(.Object, i, type = NULL){
+  fulltext <- html(.Object, i = i, type = type)
+  if (interactive()) htmltools::html_print(fulltext)
 })
 
 #' @rdname read-method

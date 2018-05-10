@@ -44,16 +44,14 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 #'   context,partitionBundle-method context,cooccurrences-method
 #'   context,cooccurrences-method
 #' @examples
-#' \dontrun{
-#'   use("polmineR.sampleCorpus")
-#'   p <- partition("PLPRBTTXT", list(text_type="speech"))
+#'   use("polmineR")
+#'   p <- partition("GERMAPARLMINI", interjection = "speech")
 #'   y <- context(p, query = "Integration", pAttribute = "word")
 #'   y <- context(p, query = "Integration", pAttribute = "word", positivelist = "Bildung")
 #'   y <- context(
 #'     p, query = "Integration", pAttribute = "word",
 #'     positivelist = c("[aA]rbeit.*", "Ausbildung"), regex = TRUE
 #'     )
-#' }
 #' @import data.table
 #' @exportMethod context
 #' @rdname context-method
@@ -97,13 +95,18 @@ setMethod("context", "partition", function(
     # ctxt@call <- deparse(match.call()) # kept seperate for debugging purposes
     
     # getting counts of query in partition
-    .verboseOutput(message = "getting corpus positions", verbose = verbose)
+    .message("getting corpus positions", verbose = verbose)
     hits <- cpos(.Object, query, pAttribute[1], cqp = cqp)
     if (is.null(hits)){
       warning('No hits for query ', query, ' (returning NULL)')
-      return(NULL)
+      return(invisible(NULL))
     } else {
-      if (verbose) message("... number of hits: ", nrow(hits))
+      if (nrow(hits) == 0){
+        warning('No hits for query ', query, ' (returning NULL)')
+        return(invisible(NULL))
+      } else {
+        .message("number of hits:", nrow(hits), verbose = verbose)
+      }
     }
     colnames(hits) <- c("hit_cpos_left", "hit_cpos_right")
     
@@ -124,49 +127,13 @@ setMethod("context", "partition", function(
     setnames(ctxt@cpos, old = c("V2", "V3"), new = c("cpos", "position"))
     
     # add decoded tokens (ids at this stage)
-    ctxt <- enrich(ctxt, pAttribute = pAttribute, id2str = FALSE, verbose = verbose)
+    ctxt <- enrich(ctxt, pAttribute = pAttribute, decode = FALSE, verbose = verbose)
 
     # generate positivelist/stoplist with ids and apply it
-    if (!is.null(positivelist)){
-      if (verbose) message("... filtering by positivelist")
-      before <- length(unique(ctxt@cpos[["hit_no"]]))
-      positivelistIds <- .token2id(corpus = .Object@corpus, pAttribute = pAttribute, token = positivelist, regex = regex)
-      .keepPositives <- function(.SD){
-        pAttr <- paste(pAttribute[1], "id", sep = "_")
-        positives <- which(.SD[[pAttr]] %in% positivelistIds)
-        positives <- positives[ -which(.SD[["position"]] == 0) ] # exclude node
-        if (any(positives)) return( .SD ) else return( NULL )
-      }
-      ctxt@cpos <- ctxt@cpos[, .keepPositives(.SD), by = "hit_no", with = TRUE]
-      after <- length(unique(ctxt@cpos[["hit_no"]]))
-      if (verbose) message("... number of hits droped due to positivelist: ", before - after)
-      if (nrow(ctxt@cpos) == 0) {
-        warning("no remaining hits after applying positivelist, returning NULL object")
-        return( NULL )
-      }
-    }
-    
-    if (!is.null(stoplist)){
-      if (verbose) message("... applying stoplist")
-      before <- length(unique(ctxt@cpos[["hit_no"]]))
-      stoplistIds <- .token2id(corpus = .Object@corpus, pAttribute = pAttribute, token = stoplist, regex = regex)
-      .dropNegatives <- function(.SD){
-        pAttr <- paste(pAttribute[1], "id", sep = "_")
-        negatives <- which(.SD[[pAttr]] %in% stoplistIds)
-        negatives <- negatives[ -which(.SD[["position"]] == 0) ] # exclude node
-        if (any(negatives)) return( NULL ) else return( .SD ) # this is the only difference
-      }
-      ctxt@cpos <- ctxt@cpos[, .dropNegatives(.SD), by = "hit_no", with = TRUE]
-      after <- length(unique(ctxt@cpos[["hit_no"]]))
-      if (verbose) message("... number of hits droped due to stoplist: ", before - after)
-      if (nrow(ctxt@cpos) == 0) {
-        warning("no remaining hits after applying stoplist, returning NULL object")
-        return( NULL )
-      }
-      
-    }
+    if (!is.null(positivelist)) ctxt <- trim(ctxt, positivelist = positivelist, regex = regex, verbose = verbose)
+    if (!is.null(stoplist)) ctxt <- trim(ctxt, stoplist = stoplist, regex = regex, verbose = verbose)
 
-    .verboseOutput(message = "generating contexts", verbose = verbose)
+    .message("generating contexts", verbose = verbose)
     
     ctxt@size <- nrow(ctxt@cpos)
     ctxt@sizeCoi <- as.integer(ctxt@size)
@@ -174,13 +141,13 @@ setMethod("context", "partition", function(
     ctxt@count <- length(unique(ctxt@cpos[["hit_no"]]))
     
     # check that windows do not transgress s-attribute
-    if (verbose) message("... checking that context positions to not transgress regions")
+    .message("checking that context positions to not transgress regions", verbose = verbose)
     ctxt <- enrich(ctxt, sAttribute = sAttribute, verbose = verbose)
     ctxt <- trim(ctxt, sAttribute = sAttribute, verbose = verbose, progress = progress)
     
     # put together raw stat table
     if (count){
-      .verboseOutput(message = "counting tokens", verbose = verbose)
+      .message("counting tokens", verbose = verbose)
       
       setkeyv(ctxt@cpos, paste(pAttribute, "id", sep = "_"))
       ctxt@stat <- ctxt@cpos[which(ctxt@cpos[["position"]] != 0)][, .N, by = c(eval(paste(pAttribute, "id", sep = "_"))), with = TRUE]
@@ -246,16 +213,28 @@ setMethod("context", "partition", function(
 
 
 #' @rdname context-method
-setMethod("context", "character", function(.Object, query, pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL, ...){
+setMethod("context", "character", function(
+  .Object, query, cqp = is.cqp,
+  pAttribute = getOption("polmineR.pAttribute"), sAttribute = NULL,
+  left = getOption("polmineR.left"), right = getOption("polmineR.right"),
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
+  count = TRUE,
+  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE
+  ){
   C <- Corpus$new(.Object)
-  C$count(pAttribute, id2str = FALSE)
-  context(C$as.partition(), query = query, pAttribute = pAttribute, sAttribute = NULL, ...)
+  C$count(pAttribute, decode = FALSE)
+  context(
+    C$as.partition(), query = query, cqp = is.cqp,
+    pAttribute = pAttribute, sAttribute = sAttribute,
+    stoplist = stoplist, positivelist = positivelist, regex = regex,
+    count = count, mc = mc, verbose = verbose, progress = progress
+    )
 })
 
 
 #' @docType methods
 #' @rdname context-method
-setMethod("context", "partitionBundle", function(.Object, query, verbose=TRUE, ...){
+setMethod("context", "partitionBundle", function(.Object, query, verbose = TRUE, ...){
   contextBundle <- new("contextBundle", query=query, pAttribute=pAttribute)
   if (!is.numeric(positivelist)){
     # corpus.pAttribute <- paste(
@@ -269,7 +248,7 @@ setMethod("context", "partitionBundle", function(.Object, query, verbose=TRUE, .
   contextBundle@objects <- sapply(
     .Object@objects,
     function(x) {
-      if (verbose == TRUE) message("... proceeding to partition ", x@name)
+      .message("proceeding to partition ", x@name, verbose = verbose)
       context(x, query, ...)
       },
     simplify = TRUE,
@@ -308,7 +287,7 @@ setMethod("context", "cooccurrences", function(.Object, query, complete = FALSE)
       newObject@query,
       get(newObject@partition, ".GlobalEnv"),
       pAttribute=newObject@pAttribute,
-      verbose=FALSE
+      verbose = FALSE
       )
     newObject@size <- nrow(hits)
     hits <- cbind(hits, CQI$cpos2struc(newObject@corpus, sAttribute, hits[,1]))

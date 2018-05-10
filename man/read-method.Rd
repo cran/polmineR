@@ -9,19 +9,20 @@
 \alias{read,hits-method}
 \alias{read,kwic-method}
 \alias{read,regions-method}
-\title{Display and read full text}
+\title{Display full text.}
 \usage{
 read(.Object, ...)
 
 \S4method{read}{partition}(.Object, meta = NULL, highlight = list(),
-  cqp = FALSE, tooltips = NULL, verbose = TRUE, cpos = FALSE,
-  cutoff = getOption("polmineR.cutoff"), ...)
+  tooltips = list(), verbose = TRUE, cpos = TRUE,
+  cutoff = getOption("polmineR.cutoff"), template = getTemplate(.Object),
+  ...)
 
-\S4method{read}{partitionBundle}(.Object, highlight = list(), cqp = FALSE,
+\S4method{read}{partitionBundle}(.Object, highlight = list(), cpos = TRUE,
+  ...)
+
+\S4method{read}{data.table}(.Object, col, partitionBundle, highlight = list(),
   cpos = FALSE, ...)
-
-\S4method{read}{data.table}(.Object, col, partitionBundle, cqp = FALSE,
-  highlight = list(), cpos = FALSE, ...)
 
 \S4method{read}{hits}(.Object, def, i = NULL, ...)
 
@@ -35,60 +36,69 @@ read(.Object, ...)
 \item{...}{further parameters passed into read}
 
 \item{meta}{a character vector supplying s-attributes for the metainformation
-to be printed, if not stated explicitly, session settings will be used}
+to be printed; if not stated explicitly, session settings will be used}
 
-\item{highlight}{a list}
+\item{highlight}{a named list of character vectors (see details)}
 
-\item{cqp}{a list of character vectors with regular expressions to
-highlight relevant terms or expressions; the names of the list provide the
-colors}
-
-\item{tooltips}{a list}
+\item{tooltips}{a named list (names are colors, vectors are tooltips)}
 
 \item{verbose}{logical}
 
-\item{cpos}{logical}
+\item{cpos}{logical, if TRUE, corpus positions will be assigned (invisibly) to a cpos
+tag of a html element surrounding the tokens}
 
 \item{cutoff}{maximum number of tokens to display}
 
-\item{col}{column}
+\item{template}{template to format output}
+
+\item{col}{column of \code{data.table} with terms to be highlighted}
 
 \item{partitionBundle}{a partitionBundle object}
 
-\item{def}{...}
+\item{def}{a named list used to define a partition (names are s-attributes, vectors are
+values of s-attributes)}
 
-\item{i}{...}
+\item{i}{if \code{.Object} is an object of the classes \code{kwic} or \code{hits},
+the ith kwic line or hit to derive a partition to be inspected from}
 
-\item{type}{...}
+\item{type}{the partition type, see documentation for \code{partition}-method}
 }
 \description{
 Generate text (i.e. html) and read it in the viewer pane of RStudio. If called on
 a \code{"partitionBundle"}-object, skip through the partitions contained in the
 bundle.
 }
+\details{
+To prepare the html output, the method \code{read} will call \code{html} and
+\code{as.markdown} subsequently, the latter method being the actual worker. Consult
+these methods to understand how preparing the output works.
+
+The param \code{highlight} can be used to highlight terms. It is expected to be a
+named list of character vectors, the names providing the colors, and the vectors
+the terms to be highlighted. To add tooltips, use the param \code{tooltips}.
+
+The method \code{read} is a high-level function that calls the aforementioned methods.
+Results obtained through \code{read} can also be obtained through combining these
+methods in a pipe using the package \code{magrittr}. That may offer more flexibility,
+e.g. to highlight matches for CQP queries. See examples and the documentation for the
+different methods to learn more.
+}
 \examples{
 \donttest{
-use("polmineR.sampleCorpus")
-options("polmineR.meta" = "text_date")
+use("polmineR")
+template <- jsonlite::fromJSON(system.file(package = "polmineR", "templates", "plpr.template.json"))
+options(polmineR.templates = list("GERMAPARLMINI" = template))
 merkel <- partition(
-  "PLPRBTTXT",
-   text_date="2009-11-10", text_name="Angela Dorothea Merkel",
-   type="plpr"
+  "GERMAPARLMINI",
+   date = "2009-11-10", speaker = "Angela Dorothea Merkel",
+   type = "plpr"
  )
- read(merkel, meta=c("text_name", "text_date"))
+ read(merkel, meta = c("speaker", "date"))
  read(
    merkel,
-   highlight = list(yellow=c("Deutschland", "Bundesrepublik"), lightgreen="Regierung"),
-   meta = c("text_name", "text_date")
+   highlight = list(yellow = c("Deutschland", "Bundesrepublik"), lightgreen = "Regierung"),
+   meta = c("speaker", "date")
 )
-
-all <- partition("PLPRBTTXT", list(text_id=".*"), regex=TRUE, type="plpr")
-speeches <- as.speeches(
-  all, sAttributeDates = "text_date", sAttributeNames = "text_name", gap = 500
-)
-read(speeches, meta = c("text_date", "text_name"))
-migVocab <- count(speeches, query=c("Migration", "Integration", "Zuwanderung"))
-read(migVocab, col="Integration", partitionBundle=speeches)
 }
 }
 \seealso{

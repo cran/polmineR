@@ -1,3 +1,55 @@
+# v0.7.7 
+* removed depracated classes: dispersion, Textstat (reference class), Partition (reference class)
+* divide-methode moved to package polmineR.misc
+* bug removed: size of ngrams object was always 1
+* dotplot-method added for featuresNgrams
+* sample corpus GermaParlMini added to the package (replacing suggested package polmineR.sampleCorpus)
+* configuration mechanism added to set path to data directory in registry file upon installation 
+* class hits now inherits from class 'textstat', exposing a set of generic functions (such as dim, nrow etc.); slot 'dt' changed to 'stat' for this purpose
+* count,partitionBundle and hits,partitionBundle: cqp parameter added
+* RegistryFile class replaced by a set of leightweight-functions (corpus_...)
+* encode-method moved to cwbtools package
+* getTerms,character-method and terms,partition-method merged
+* examples using EUROPARL corpus have been replaced by REUTERS corpus (including vignette)
+* param id2str has been renamed to decode in all functions to avoid unwanted behavior
+* robust indexing of bundle objects for subsetting
+* optional settings have been cleaned
+* reliance on cwb command line tools removed
+* encoding issue with names of partitionBundle solved
+
+# v0.7.6
+* functionality of matches-method (breakdown of frequencies of matches) integrated
+into count-method (new param breakdown)
+* corpus REUTERS included (as data for testsuite)
+* adjust data directory of REUTERS corpus upon loading package
+* a pkgdown-generated website is included in the docs directory
+* consistent use of .message helper function to make shiny app work
+* bug removed for count-method when options("polmineR.cwb-lexdecode") is TRUE and
+options("polmineR.Rcpp") is FALSE
+* if CORPUS_REGISTRY is not defined, the registry directory in the package will
+be used, making REUTERS corpus available
+* getSettings-function removed, was not sufficiently useful, and was superseded by
+template mechanism
+* new class 'count' introduced to organize results from count operations
+* at startup, default template is assigned for corpora without explicitly defined templates to make read() work in a basic fashion
+* new cpos,hits-method to support highlight method
+* tooltips-method to reorder functionality of html/highlight/tooltip-methods
+* param charoffset added to html-method 
+* coerce-method from partition to json and vice versa, potentially useful for storing partitions
+* sAttributes2cpos to work properly with nested xml
+* partition,partition-method reworked to work properly with nested XML
+* encoding of return value of sAttributes will be locale
+* references added to methods count, kwic, cooccurrences, features.
+* as.DocumentTermMatrix,character-method reworked to allow for subsetting and divergence of
+strucs and struc_str
+* html,partition-method has new option beautify, to remove whitespace before interpunctuation
+* output error removed in html,partition-method (that misinterprets `` as code block)
+* the class Corpus now has a slot sAttribute to keep/manage a data.table with corpus positions
+and struc values, and there is a new partition,Corpus-method. In compbination, it will be a lot
+faster to derive a partition, particularly if you need to do that repeatedly
+* a new function install.cwb() provides a convenient way to install CWB in the package 
+* added a missing encoding conversion for the count method
+
 # v0.7.5
 * class 'Regions' renamed to class 'regions' as a matter of consistency
 * data type of slot cpos of class 'regions' is a matrix now

@@ -20,9 +20,9 @@ corpusServer <- function(input, output, session){
   observeEvent(
     input$corpus_corpus,
     {
-      infoFile <- RegistryFile$new(input$corpus_corpus)$getInfo()
+      infoFile <- registry_get_info(input$corpus_corpus)
       if (file.exists(infoFile)){
-        content <- scan(file = infoFile, what = character(), sep = "\n")
+        content <- readLines(infoFile)
         if (grepl(".md$", infoFile)){
             content <- markdown::markdownToHTML(text = content)
             content <-  htmltools::HTML(gsub("^.*<body>(.*?)</body>.*?$", "\\1", as.character(content)))

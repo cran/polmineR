@@ -18,10 +18,9 @@ setGeneric("as.speeches", function(.Object, ...)standardGeneric("as.speeches"))
 #' @exportMethod as.speeches
 #' @rdname as.speeches-method
 #' @examples 
-#' \dontrun{
-#'   use("polmineR.sampleCorpus")
-#'   bt <- partition("PLPRBTTXT", text_year = "2009")
-#'   speeches <- as.speeches(bt, sAttributeDates = "text_date", sAttributeNames = "text_name")
+#'   use("polmineR")
+#'   bt <- partition("GERMAPARLMINI", date = ".*", regex = TRUE)
+#'   speeches <- as.speeches(bt, sAttributeDates = "date", sAttributeNames = "speaker")
 #'   
 #'   # step-by-step, not the fastest way
 #'   speeches <- enrich(speeches, pAttribute = "word")
@@ -33,7 +32,6 @@ setGeneric("as.speeches", function(.Object, ...)standardGeneric("as.speeches"))
 #'   # whatToDrop <- c("stopwords", "specialChars", "numbers", "minNchar")
 #'   # termsToDrop <- unlist(lapply(whatToDrop, function(x) termsToDropList[[x]]))
 #'   # tdm <- trim(tdm, termsToDrop = termsToDrop)
-#' }
 #' @aliases as.speeches as.speeches,partition-method
 setMethod(
   "as.speeches", "partition",
@@ -44,9 +42,9 @@ setMethod(
            ){
   
   # as a first step, create partitions by date
-  if (verbose) message("... getting dates")
+  .message("getting dates", verbose = verbose)
   dates <- sAttributes(.Object, sAttributeDates)
-  if (verbose) message("... generating partitions by date")
+  .message("generating partitions by date", verbose = verbose)
   if (length(dates) > 1){
     toIterate <- lapply(dates, function(x) setNames(x, sAttributeDates))
     partitionByDate <- blapply(
@@ -58,12 +56,12 @@ setMethod(
     partitionByDate <- list(.Object)
   }
   
-  if (verbose) message("... generating speeches")
+  .message("generating speeches", verbose = verbose)
   .splitBySpeakers <- function(datePartition, ...){
     nested <- lapply(
       sAttributes(datePartition, sAttributeNames),
       function(speakerName){
-        beforeSplit <- partition(datePartition, setNames(list(speakerName), sAttributeNames), verbose = FALSE)
+        beforeSplit <- partition(datePartition, def = setNames(list(speakerName), sAttributeNames), verbose = FALSE)
         split(beforeSplit, gap = gap, verbose = FALSE)
       }
     )
@@ -75,7 +73,7 @@ setMethod(
     mc = mc, progress = progress
   )
   speakerFlatList <- do.call(c, unlist(speakerNestedList, recursive = FALSE))
-  if (verbose) message("... generating names")
+  .message("generating names", verbose = verbose)
   partitionNames <- sapply(
     speakerFlatList,
     function(x){
@@ -89,7 +87,7 @@ setMethod(
   if (length(toDrop) > 0) for (i in rev(toDrop)) speakerFlatList[[i]] <- NULL
   
   # the resulting list may be totally unordered - reorder now
-  if (verbose) message("... reordering partitions")
+  .message("reordering partitions", verbose = verbose)
   speakerFlatListOrdered <- lapply(
     order(sapply(speakerFlatList, function(x) x@cpos[1,1])),
     function(i) speakerFlatList[[i]]

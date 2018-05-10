@@ -32,17 +32,11 @@ When the package is loaded and attached, the package will look for a file name '
 in a directory defined by the environment variable 'POLMINER_DIR'. It will take general 
 settings for polmineR from that file. Second, templates are restored.
 }
-\examples{
-\donttest{
-# examples in the manual rely in a sample corpus that can be install as follows:
-install.corpus("polmineR.sampleCorpus")
-}
-}
 \references{
-http://polmine.sowi.uni-due.de
+Jockers, Matthew L. (2014): \emph{Text Analysis with R for Students of Literature}.
+Cham et al: Springer.
 
-Jockers, Matthew L. (2014): Text Analysis with R for Students of Literature.
-Cham: Springer.
+Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum.
 }
 \author{
 Andreas Blaette (andreas.blaette@uni-due.de)

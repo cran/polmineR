@@ -23,10 +23,6 @@
 #' @param meta sAttributes (character vector) with metainformation
 #' @param table logical, whether to turn cpos data.table into data.frame for output
 #' @param size integer, the subset size for sampling
-#' @param highlight a list
-#' @param regex logical, whether to use regular expressions
-#' @param tooltips a list
-#' @param verbose logical
 #' @section Methods:
 #'   \describe{
 #'    \item{[}{indexing for seeing only some concordances}
@@ -38,13 +34,11 @@
 #' @aliases kwic-class [,kwic,ANY,ANY,ANY-method [,kwic-method
 #' @exportClass kwic
 #' @examples
-#' \dontrun{
-#' use("polmineR.sampleCorpus")
-#' K <- kwic("PLPRBTTXT", "Integration")
+#' use("polmineR")
+#' K <- kwic("GERMAPARLMINI", "Integration")
 #' length(K)
 #' K[1]
 #' K[1:5]
-#' }
 #' @rdname kwic-class
 #' @include Labels.R
 setClass(
