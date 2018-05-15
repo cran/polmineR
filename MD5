@@ -1,6 +1,6 @@
-7e4bf0ab82ace825d8ec58bfbf75cb60 *DESCRIPTION
+588fb01c829adbeb182348c60bb1e1e8 *DESCRIPTION
 4a00bb5569698f69e9abababaf837809 *NAMESPACE
-fadfc22047ce943b851ef3b7648b6540 *NEWS.md
+92535420c49263d882a82aa61d3d47b1 *NEWS.md
 de8ae21ee0594e57c48ee1dfba4d0ae5 *R/CQI.R
 f9b29d1ac403bfdde63163974a28005c *R/CQI.cqpserver.R
 b0a802107ad1bbd35ace0143f87cb7e4 *R/Corpus_class.R
@@ -20,18 +20,18 @@ f5264abcd5a3870960cb254eb12e3ebc *R/bundle_class.R
 77f31c9b4542962cf0d9199906f048a9 *R/chisquare_method.R
 06f4ed576a759753da06da9bbe4935ac *R/contextBundle_class.R
 5a3b68d15f9b09e720345f273860bea7 *R/context_class.R
-02cf15ac4545b532461522c4858a1ec0 *R/context_method.R
+7dd23e7ac73e6103e1786f925ef802ab *R/context_method.R
 a3c838c5266f43bd8b42ca9498bec692 *R/cooccurrences_class.R
 2845876016bdf87348396c21e78402a0 *R/cooccurrences_method.R
 45f5f1db013bc0df0622a22d2e202073 *R/corpus_method.R
 35d736d7c5b79c16bb1b5c74a17c1e78 *R/count_class.R
 90d291c6337b7a91d2992ed43c081ef5 *R/count_method.R
-acbe8854d8782b842d007a4e9ef4e74a *R/cpos_method.R
+248b089fbc7ab9fcb2fef6567f64b6d7 *R/cpos_method.R
 bd24431cb5f3bb1eef0412002fb05978 *R/decode_method.R
 51206ee802c47db042e86f5aa78c0bd9 *R/dispersion_method.R
 dd8a6afe3597ca43fb6aea2224f8eb3f *R/dotplot_method.R
 379e03d9345cc2113280180ed5586c47 *R/encoding_method.R
-b7cd1c0b2ca878740e53eb8182bd4534 *R/enrich_method.R
+aaab09df468117b44a43dd27c6cc0bd1 *R/enrich_method.R
 c5d1d7547413dee1fa0e8694e93aaea8 *R/features_class.R
 92920119252b261ec99f1f548151eeaa *R/features_method.R
 0306076d59e750ff322864691aa51710 *R/generics.R
@@ -43,7 +43,7 @@ e63776860c088ae69d9b61f88356171d *R/getTokenStream_method.R
 d62423d93fdf5836f05c9addcf2f901b *R/html_method.R
 2dd40fa8b27166fcc43cce9ec180a400 *R/html_methods.R
 5f7595191af7eb774d2b7f97a987e9ed *R/kwic_class.R
-d0e20674477efb468d0a6fa15070ee6a *R/kwic_method.R
+59da097cbcb73a1df0d5b049175ba200 *R/kwic_method.R
 c522293de849a87be782b5fa8cbad201 *R/label_method.R
 e4379201821d53d764c56e65e80b3e0c *R/ll_method.R
 b13967978a441814b0120dbb0bc69a59 *R/mail_method.R
@@ -76,7 +76,7 @@ fcb8f72fad08ebb84a9c30c3951893e0 *R/textstat_class.R
 624601d83ad5bb38e4630f7c0be42072 *R/utils.R
 497821ad57788c1f306b09d21e8ba93d *R/view_method.R
 b9d922c72dab3d3fcbc12b7ea987e9dc *R/weigh_method.R
-207c20b0aa86a3255b756a3103addd4a *R/zzz.R
+cc681e5374682d73889d0028717c7f5a *R/zzz.R
 c49194f4565cd0d2f1c7c5fc2379a376 *README.md
 a90a8df2282d2aa1c0462d70597202fd *build/vignette.rds
 5d576ac80cdf28296eba463a631d453e *configure
@@ -90,7 +90,7 @@ cf3984f07c2a6ca0a25fcebfdff63ff5 *inst/css/tooltips.css
 e38e298dc3ae4281c4dcb2fb08f6fda6 *inst/css/tooltips_example.html
 3aa6124e2966b15584c2cb389fc0f050 *inst/doc/vignette.R
 1c7ed5b4279c03f335ab1456e90d9b55 *inst/doc/vignette.Rmd
-7054df250022c00fef455e4a8bfeeedd *inst/doc/vignette.html
+14e45bdec581ec20239841c1624892a8 *inst/doc/vignette.html
 9f488db813c2a720a464ebc2d4e762d7 *inst/docker/Dockerfile
 1add547beeeae64625974fa0a480b238 *inst/extdata/cwb/indexed_corpora/germaparlmini/date.avs
 0d4ba9bcdbb97d6ad0392ab3ca3d79db *inst/extdata/cwb/indexed_corpora/germaparlmini/date.avx
@@ -146,8 +146,8 @@ dc044b99e1c807fce74db2a37da37026 *inst/extdata/cwb/indexed_corpora/reuters/word.
 2e367104515a1e125298aebfe1fd3b2b *inst/extdata/cwb/indexed_corpora/reuters/word.lexicon
 e1df95fce0eeb959d18103a5919326c1 *inst/extdata/cwb/indexed_corpora/reuters/word.lexicon.idx
 3f3f7b85a2d6a2422b23db60e6525e6a *inst/extdata/cwb/indexed_corpora/reuters/word.lexicon.srt
-175913df4f2575ba178bafd116369387 *inst/extdata/cwb/registry/germaparlmini
-496836727e0197933063a500cd0b75af *inst/extdata/cwb/registry/reuters
+38002cd5c1b1d718e62dc24370ae1ee3 *inst/extdata/cwb/registry/germaparlmini
+743be29b1256947c6aa94668d82f0b73 *inst/extdata/cwb/registry/reuters
 a66f774d68f30f5e624eb9049d3a2ca8 *inst/graffle/classAndMethodAnalysis.R
 a884bc87538cfacdc51d8224ae3ccdb3 *inst/graffle/polmineRclassDiagram.graffle
 ebe12b49f72fa93117be4ddcde63a281 *inst/init/cqpserver.init
@@ -158,7 +158,7 @@ a7a60bf47d44ba60d77c60b340affa97 *inst/sh/install_cwb.sh
 2d15999bae25ec1b2160c34fb7ecf0a5 *inst/shiny/modules/count.R
 7f394e9a6f79d4b3f33f3d16fe8b3064 *inst/shiny/modules/dispersion.R
 082cec1153deb82cf90a4c2733f4b019 *inst/shiny/modules/features.R
-9265706d897c269e63811e19e2d73675 *inst/shiny/modules/kwic.R
+4922fec799ee35c85356e3fd9344d24d *inst/shiny/modules/kwic.R
 a4d1dcbc06b32dbac57cd5e3ef5cd81e *inst/shiny/modules/partition.R
 d6a9b12960c142efc58925f0264cf0f1 *inst/shiny/modules/polmineR.R
 03628cec664184499ec8a03d7c198584 *inst/shiny/modules/read.R
@@ -184,7 +184,7 @@ e91716b44b66ea309899c584c3f6b15c *man/browse.Rd
 842e77a316a9eb83f8e52d34dcddb0da *man/bundle-class.Rd
 6d072d60c752e5a8bc79976338acc266 *man/chisquare-method.Rd
 069858ed775ac2d25e364be821f494f6 *man/context-class.Rd
-99f36a93afecd26a9d092851886ba08e *man/context-method.Rd
+e58ab4ed42dc01732fa896309da4ffc7 *man/context-method.Rd
 42de28f13066b640e3925ce26cc6d9c7 *man/contextBundle-class.Rd
 ae0ed3505b4e268417a379cb9dad1062 *man/cooccurrences-class.Rd
 b472768e3ee0af5d0d63f6c4cb5d332c *man/cooccurrences.Rd
@@ -192,7 +192,7 @@ b472768e3ee0af5d0d63f6c4cb5d332c *man/cooccurrences.Rd
 d324d9805b5483340d144ef8fd6b2a84 *man/corpus-method.Rd
 f53bfbf41ac324d1920261761e9f041e *man/count-method.Rd
 fbee30a5e6887c658f5ec7ac10651b60 *man/count_class.Rd
-94b84b68d67b1103f5932fe3486897d8 *man/cpos-method.Rd
+5eab1bcdfc1c40298868f0ab6cad413e *man/cpos-method.Rd
 2217ecd66b5dddc693578d2f44a58443 *man/cqp.Rd
 3bdca9d60c8e821b492c151965c2f84b *man/cqpserver.Rd
 7bc1a085199e2758ec33eec3ce507611 *man/decode.Rd
@@ -257,7 +257,7 @@ bba61beedda77bdc06145f035a661bb2 *tests/testthat/test_cooccurrences.R
 68bfb453731e2e6e52b6c738c1268df3 *tests/testthat/test_kwic.R
 1065d14fe2460f911362030aa59734d9 *tests/testthat/test_misc.R
 4fca021f64d73fb6c817d44ea6f68c7c *tests/testthat/test_polmineR.R
-683f0ace9ff452b822368acf2f685d41 *tests/testthat/test_registry_reset.R
+b544eabb3fcb528822b022158a284576 *tests/testthat/test_registry_reset.R
 9c913edb2f7a2072edfc4fba26fbab93 *tests/testthat/test_size.R
 b61b906de508cdebc6fd4dced093f752 *tests/testthat/test_terms.R
 17549f11d91259f99f77ba2295631c9f *tools/setpaths.R

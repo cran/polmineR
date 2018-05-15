@@ -1,8 +1,8 @@
 Package: polmineR
 Type: Package
 Title: Toolkit for Corpus Analysis
-Version: 0.7.7
-Date: 2018-05-10
+Version: 0.7.8
+Date: 2018-05-15
 Authors@R: c(person("Andreas", "Blaette", role = c("aut", "cre"), email = "andreas.blaette@uni-due.de"))
 Imports: methods, R6, data.table, slam, Matrix, tm, DT, xml2, stringi,
         utils, jsonlite, parallel, pbapply, RcppCWB (>= 0.2.2)
@@ -51,8 +51,8 @@ Collate: 'CQI.R' 'CQI.cqpserver.R' 'Corpus_class.R' 'Labels.R'
         'weigh_method.R' 'zzz.R'
 RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2018-05-10 07:43:35 UTC; blaette
+Packaged: 2018-05-15 19:52:35 UTC; blaette
 Author: Andreas Blaette [aut, cre]
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
 Repository: CRAN
-Date/Publication: 2018-05-10 07:59:35 UTC
+Date/Publication: 2018-05-15 20:24:41 UTC
