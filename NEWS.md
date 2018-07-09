@@ -1,6 +1,28 @@
-# v0.7.7.9001
+# v0.7.9
+* new as.list,bundle-method for convenience, to access slot objects
+* as.bundle is more generic now, so that any kind of object can be coerced to a bundle now
+* as.speeches-method turned into function that allows partition and corpus as input
+* is.partition-function introduced
+* sAttributes,partition-method in line with RcppCWB requirements (no negative values of strucs)
+* count repaired for muliple p-attributes
+* bug removed causing a crash for as.markdown-method when cutoff is larger than number of tokens
+* polmineR will now work with a temporary registry in the temporary session directory
+* a (new) registry_move() function is used to copy files to the tmp registry
+* the (new) registry() function will get the temporary registry directory
+* the use() function will add the registry file of a package to the tmp registry
+* a bug removed that has prevented the name<- method to work properly for bundle objects
+* new partition_bundle,partition_bundle-method introduced
+* naming of methods and functions, classes and most arguments moved to snake_case, maintaining backwards compatibility
+* utility function getObjects not exported any more
+* for count,partition_bundle-method, column 'partition' will be a character vector now (not factor)
+* new argument 'type' added to partition_bundle
+* new method 'get_type' introduced to make getting corpus type more robust
+* bug removed that has caused a crash when cutoff is larger than number of tokens in a partition when calling get_token_stream
+* count-method will now return count-object if query is NULL, making it easier to write pipes
+
+# v0.7.8
 * upon loading the package, check that data directories are set correctly in registry files to make sure that sample data in pre-compiled packages can be used
-* startup messages adjust slightly
+* startup messages adjusted slightly
 
 # v0.7.7 
 * removed depracated classes: dispersion, Textstat (reference class), Partition (reference class)

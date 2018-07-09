@@ -1,10 +1,16 @@
+## ----install_polmineR, eval = FALSE--------------------------------------
+#  install.packages("polmineR")
+
+## ----loading_polmineR----------------------------------------------------
+library(polmineR)
+
+## ----get_registry--------------------------------------------------------
+registry()
+
 ## ---- eval = FALSE-------------------------------------------------------
 #  Sys.getenv("CORPUS_REGISTRY")
 
-## ---- message = FALSE----------------------------------------------------
-library(polmineR)
-
-## ---- message = FALSE----------------------------------------------------
+## ----use_polmineR_data, message = FALSE, eval = TRUE---------------------
 use("polmineR")
 
 ## ---- eval = FALSE-------------------------------------------------------
@@ -60,39 +66,37 @@ kuwait
 
 ## ---- eval = TRUE, message = FALSE---------------------------------------
 saudi_arabia <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
-sAttributes(saudi_arabia, "id")
+s_attributes(saudi_arabia, "id")
 
 ## ---- eval = TRUE, message = FALSE---------------------------------------
 saudi_arabia <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
-oil <- cooccurrences(saudi_arabia, "oil", pAttribute = "word", left = 10, right = 10)
+oil <- cooccurrences(saudi_arabia, "oil", p_attribute = "word", left = 10, right = 10)
 
 ## ---- eval = TRUE--------------------------------------------------------
 df <- as.data.frame(oil)
 df[1:5, c("word", "ll", "rank_ll")]
 
 ## ---- eval = TRUE--------------------------------------------------------
-q1 <- dispersion(saudi_arabia, query = 'oil', "id", progress = FALSE)
-q2 <- dispersion(saudi_arabia, query = c("oil", "barrel"), "id", progress = FALSE)
+q1 <- dispersion(saudi_arabia, query = 'oil', s_attribute = "id", progress = FALSE)
+q2 <- dispersion(saudi_arabia, query = c("oil", "barrel"), s_attribute = "id", progress = FALSE)
 
 ## ---- eval = TRUE, message = FALSE---------------------------------------
 qatar <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
-qatar <- enrich(qatar, pAttribute = "word")
+qatar <- enrich(qatar, p_attribute = "word")
 
 qatar_features <- features(qatar, "REUTERS", included = TRUE)
 y <- subset(qatar_features, rank_chisquare <= 10.83 & count_coi >= 5)
 as.data.frame(y)[,c("word", "count_coi", "count_ref", "chisquare")]
 
 ## ---- eval = TRUE--------------------------------------------------------
-articles <- partitionBundle("REUTERS", sAttribute = "id", progress = FALSE)
-articles <- enrich(articles, pAttribute = "word", verbose = FALSE)
-tdm <- as.TermDocumentMatrix(articles, col = "count", verbose = FALSE)
+articles <- partition_bundle("REUTERS", s_attribute = "id", progress = FALSE)
+articles_count <- count(articles, p_attribute = "word")
+tdm <- as.TermDocumentMatrix(articles_count, col = "count", verbose = FALSE)
+
 class(tdm) # to see what it is
 show(tdm)
 m <- as.matrix(tdm) # turn it into an ordinary matrix
 m[c("oil", "barrel"),]
-
-## ---- eval = FALSE-------------------------------------------------------
-#  install.packages("RcppCWB")
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages("polmineR")
@@ -109,11 +113,12 @@ m[c("oil", "barrel"),]
 #  install.packages("RcppCWB")
 
 ## ---- eval = FALSE-------------------------------------------------------
-#  library(polmineR)
-#  corpus()
-
-## ----mac_install_polmineR_cran, eval = FALSE-----------------------------
 #  install.packages("polmineR")
+
+## ---- eval = FALSE-------------------------------------------------------
+#  library(polmineR)
+#  use("polmineR")
+#  corpus()
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages("devtools") # unless devtools is already installed
@@ -130,39 +135,8 @@ m[c("oil", "barrel"),]
 ## ---- eval = FALSE-------------------------------------------------------
 #  library(polmineR)
 #  use("polmineR")
+#  corpus()
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  Sys.setenv(CORPUS_REGISTRY = "C:/PATH/TO/YOUR/REGISTRY")
-
-## ---- eval = TRUE--------------------------------------------------------
-class(polmineR:::CQI)
-
-## ---- eval = FALSE-------------------------------------------------------
-#  unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
-#  assign("CQI", CQI.rcqp$new(), envir = getNamespace("polmineR"))
-#  lockBinding(env = getNamespace("polmineR"), sym = "CQI")
-
-## ---- eval = FALSE-------------------------------------------------------
-#  install.packages("rcqp")
-
-## ---- eval = FALSE-------------------------------------------------------
-#  unlockBinding(env = getNamespace("polmineR"), sym = "CQI")
-#  assign("CQI", CQI.Rcpp$new(), envir = getNamespace("polmineR"))
-#  lockBinding(env = getNamespace("polmineR"), sym = "CQI")
-
-## ---- eval = FALSE-------------------------------------------------------
-#  devtools::install_github("PolMine/polmineR.Rcpp")
-#  install.packages(pkgs = c("rJava", "xlsx", "tidytext"))
-
-## ---- eval = FALSE-------------------------------------------------------
-#  Sys.setenv(CORPUS_REGISTRY = "/PATH/TO/YOUR/REGISTRY/DIRECTORY")
-
-## ---- eval = FALSE-------------------------------------------------------
-#  Sys.getenv("CORPUS_REGISTRY")
-
-## ---- eval = FALSE-------------------------------------------------------
-#  CORPUS_REGISTRY="/PATH/TO/YOUR/REGISTRY/DIRECTORY"
-
-## ---- eval = FALSE-------------------------------------------------------
-#  ?Startup
 
