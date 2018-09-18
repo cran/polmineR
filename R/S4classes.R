@@ -1,6 +1,8 @@
 #' @include polmineR.R
 NULL
 
+
+
 #' Bundle Class
 #' 
 #' A \code{bundle} is used to combine several objects (\code{partition}, \code{context},
@@ -50,41 +52,89 @@ setClass(
 )
 
 
+#' @exportMethod name<-
+#' @rdname bundle
+setReplaceMethod("name", signature = c(x = "bundle", value = "character"), function(x, value) {
+  names(x@objects) <- value
+  for (i in 1L:length(x)) x@objects[[i]]@name <- value[[i]]
+  x
+})
 
 
 
-#' S4 textstat class
+
+
+#' S4 textstat superclass.
 #' 
-#' Superclass for \code{features}, \code{context}, and \code{partition} class.
+#' The \code{textstat}-class (technically an S4 class) serves as a superclass
+#' for the classes \code{features}, \code{context}, and \code{partition}.
+#' Usually, the class will not be used directly. It offers a set of standard
+#' generic methods (such as \code{head}, \code{tail}, \code{dim}, \code{nrow},
+#' \code{colnames}) its childs inherit. The core feature of \code{textstat} and
+#' its childs is a \code{data.table} in the slot \code{stat} for keeping data on
+#' text statistics of a corpus, or a \code{partition}.
+#' 
+#' A \code{head}-method will return the first rows of the \code{data.table} in
+#' the \code{stat}-slot. Use argument \code{n} to specify the number of rows.
+#'
+#' A \code{tail}-method will return the last rows of the \code{data.table} in
+#' the \code{stat}-slot. Use argument \code{n} to specify the number of rows.
+#'
+#' The methods \code{dim}, \code{nrow} and \code{ncol} will return information
+#' on the dimensions, the number of rows, or the number of columns of the
+#' \code{data.table} in the \code{stat}-slot, respectively.
 #' 
 #' Objects derived from the \code{textstat} class can be indexed with simple
 #' square brackets ("[") to get rows specified by an numeric/integer vector,
 #' and with double square brackets ("[[") to get specific columns from the 
 #' \code{data.table} in the slot \code{stat}.
 #' 
-#' @slot p_attribute Object of class \code{"character"} p-attribute of the query
-#' @slot corpus Object of class \code{"character"}
-#' @slot stat Object of class \code{"data.table"} statistics of the analysis
-#' @slot name name of the object
-#' @slot encoding Object of class \code{"character"} encoding of the corpus
-#' @param .Object an object
-#' @param by by
-#' @param decreasing logical
-#' @param e1 object 1
-#' @param e2 object 2
-#' @param i vector to index data.table in stat-slot
-#' @param j vector to index data.table in stat-slot
-#' @param ... further parameters
+#' The \code{colnames}-method will return the column names of the \code{data-table}
+#' in the slot \code{stat}.
+#' 
+#' The methods \code{as.data.table}, and \code{as.data.frame} will extract the
+#' \code{data.table} in the slot \code{stat} as a \code{data.table}, or
+#' \code{data.frame}, respectively.
+#' 
+#' @slot p_attribute Object of class \code{character}, p-attribute of the query.
+#' @slot corpus A corpus specified by a length-one \code{character} vector. 
+#' @slot stat A \code{data.table} with statistical information.
+#' @slot name The name of the object.
+#' @slot encoding A length-one \code{character} vector, the encoding of the corpus.
+#' @param .Object A \code{textstat} object.
+#' @param x A \code{textstat} object.
+#' @param by Column that will serve as the key for sorting.
+#' @param decreasing Logical, whether to return decreasing order.
+#' @param e1 A \code{texstat} object.
+#' @param e2 Another \code{texstat} object.
+#' @param ... Further arguments.
 #' @aliases as.data.frame,textstat-method show,textstat-method
 #'   dim,textstat-method
 #'   colnames,textstat-method rownames,textstat-method names,textstat-method
-#'   as.DataTables,textstat-method
+#'   as.DataTables,textstat-method head,textstat-method tail,textstat-method
+#'   dim,textstat-method nrow,textstat-method ncol,textstat-method
+#'   colnames,textstat-method as.data.table,textstat-method as.data.frame,textstat-method
+#'   round,textstat-method sort,textstat-method [,textstat,ANY,ANY,ANY-method [[,textstat-method
+#'   name name<-
 #' @docType class
 #' @exportClass textstat
 #' @examples
 #' use("polmineR")
 #' P <- partition("GERMAPARLMINI", date = ".*", p_attribute = "word", regex = TRUE)
 #' y <- cooccurrences(P, query = "Arbeit")
+#' 
+#' # Standard generic methods known from data.frames work for objects inheriting
+#' # from the textstat class
+#' 
+#' head(y)
+#' tail(y)
+#' nrow(y)
+#' ncol(y)
+#' dim(y)
+#' colnames(y)
+#' 
+#' # Use brackets for indexing 
+#' 
 #' y[1:25]
 #' y[,c("word", "ll")]
 #' y[1:25, "word"]
@@ -230,8 +280,8 @@ setMethod("length", "count", function(x) x@size)
 #' @slot xml Object of class \code{character}, whether the xml is flat or nested.
 #' @slot s_attribute_strucs Object of class \code{character} the base node 
 #' @slot call Object of class \code{character} the call that generated the partition 
-#' @param .Object a \code{partition} object
-#' @param x a \code{partition} object
+#' @param object A \code{partition} object.
+#' @param .Object A \code{partition} object.
 #' @param p_attribute a p-attribute (for enriching) / performing count.
 #' @param verbose \code{logical} value, whether to output messages
 #' @param ... further parameters passed into \code{count} when calling \code{enrich}, and ...
@@ -263,7 +313,37 @@ setClass(
 )
 
 
-
+#' @rdname partition_class
+setMethod("summary", "partition", function(object){
+  y <- list(
+    name = if (length(name(object)) > 0) name(object) else NA,
+    size = size(object)
+    )
+  if (nrow(object@stat) > 0){
+    y[["p_attribute"]] <- paste(object@p_attribute, collapse = "|")
+    y[["unique"]] <- nrow(object@stat)
+    if ("weight" %in% colnames(object@stat)){
+      dt_positive <- subset(object@stat, object@stat[["weight"]] > 0)
+      if (nrow(dt_positive) > 0){
+        y[["positive_n"]] <- sum(dt_positive[["count"]])
+        y[["positive_share"]] <- y[["positive_n"]] / y[["size"]]
+        y[["positive_weighed"]] <- sum(dt_positive[["count"]] * dt_positive[["weight"]])
+      } else {
+        y <- c(y, list(positive_n = 0, positive_share = 0, positive_weighed = 0))
+      }
+      
+      dt_negative <- subset(object@stat, object@stat[["weight"]] < 0)
+      if (nrow(dt_negative) > 0){
+        y[["negative_n"]] <- sum(dt_negative[["count"]])
+        y[["negative_share"]] <- y[["negative_n"]] / y[["size"]]
+        y[["negative_weighed"]] <- sum(dt_negative[["count"]] * dt_negative[["weight"]])
+      } else {
+        y <- c(y, list(negative_n = 0, negative_share = 0, negative_weighed = 0))
+      }
+    }
+  }
+  y
+})
 
 
 
@@ -275,21 +355,21 @@ setClass(
 #' slot \code{cpos}. The \code{data.table} will at least include the columns "hit_no",
 #' "cpos" and "position".
 #' 
-#' @slot query Object of class \code{"character"}, the query/node examined
-#' @slot count Object of class \code{"numeric"} number of hits
-#' @slot partition Object of class \code{"partition"}, the partition the context object is based on
-#' @slot size_partition Object of class \code{"integer"} the size of the partition
-#' @slot left Object of class \code{"numeric"} number of tokens to the left
-#' @slot right Object of class \code{"numeric"} number of tokens to the right
-#' @slot size Object of class \code{"numeric"} number of tokens in the right and left context
-#' @slot s_attribute Object of class \code{"character"} s-attribute
-#' @slot p_attribute Object of class \code{"character"} p-attribute of the query
-#' @slot corpus Object of class \code{"character"} the CWB corpus used
-#' @slot stat Object of class \code{"data.table"} statistics of the analysis
-#' @slot encoding Object of class \code{"character"} encoding of the corpus
-#' @slot cpos Object of class \code{"list"} corpus positions of the hits
-#' @slot method Object of class \code{"character"} statistical test used
-#' @slot call Object of class \code{"character"} call that generated the object
+#' @slot query The query used/node examined (\code{character}).
+#' @slot count An \code{integer} value, the number of hits.
+#' @slot partition The \code{partition} the \code{context} object is based on.
+#' @slot size_partition A length-one \code{integer}, the size of the partition.
+#' @slot left An \code{integer} value, the number of tokens to the left.
+#' @slot right An \code{integer} value, the number of tokens to the right.
+#' @slot size An \code{integer} value, number of tokens in the right and left context of the node.
+#' @slot boundary An s-attribute (\code{character}).
+#' @slot p_attribute The p-attribute of the query (\code{character}).
+#' @slot corpus The CWB corpus used (\code{character}).
+#' @slot stat A \code{data.table}, the statistics of the analysis.
+#' @slot encoding Object of class \code{character}, encoding of the corpus.
+#' @slot cpos A \code{data.table}, with the columns hit_no, cpos, position, word_id.
+#' @slot method A \code{character}-vector, statistical test used.
+#' @slot call Object of class \code{character}, call that generated the object.
 #'     
 #' @param .Object object
 #' @param x a context object
@@ -309,20 +389,23 @@ setClass(
 setClass("context",
          slots = c(
            query = "character",
-           count = "numeric",
+           count = "integer",
            partition = "partition",
            size_partition = "integer",
            left = "integer",
            right = "integer",
            size = "integer",
-           s_attribute = "character",
+           boundary = "character",
            cpos = "data.table",
            call = "character"
          ),
          contains = c("features", "textstat")
 )
 
-
+#' @details The \code{length}-method will return the number of hits that were achieved.
+#' @rdname context-class
+#' @exportMethod length
+setMethod("length", "context", function(x) as.integer(x@count))
 
 
 #' Cooccurrences class.
@@ -344,7 +427,6 @@ setClass("context",
 #' @slot pos  Object of class \code{character} part-of-speech tags filtered
 #' @slot method  Object of class \code{character} statistical test(s) used
 #' @slot cutoff  Object of class \code{list} cutoff levels that have been applied
-#' @slot svg Object of class \code{character} - valid XML with svg representation
 #' @aliases cooccurrences-class
 #' @docType class
 #' @exportClass cooccurrences
@@ -359,39 +441,38 @@ setClass(
 
 #' kwic (S4 class)
 #' 
-#' S4 class for organizing information for concordance output
+#' S4 class for organizing information for kwic/concordance output. A set of
+#' standard generics (\code{show}, \code{as.character}, \code{as.data.frame},
+#' \code{length}, \code{sample}, \code{subset}) as well as indexing is implemented to process
+#' kwic class objects (see 'Usage'). See section 'Details' for the
+#' \code{enrich}, \code{view} and \code{knit_print} methods.
 #' 
-#' @details The \code{enrich} method is used to generate the actual output for
-#' the kwic method. If param \code{table} is \code{TRUE}, corpus positions will
-#' be turned into a data.frame with the concordance lines. If param \code{meta}
-#' is a character vector with s-attributes, the respective s-attributes will be
-#' added as columns to the table with concordance lines.
+#' @slot metadata A \code{character} vector with s-attributes of the metadata
+#'   that are to be displayed.
+#' @slot left An \code{integer} value, words to the left of the query match. 
+#' @slot right An \code{integer} value, words to the right of the query match.
+#' @slot corpus Length-one \code{character} vector, the CWB corpus.
+#' @slot cpos A \code{data.table} with the columns "hit_no", "cpos", "position", "word_id", "word" and "direction".
+#' @slot table A \code{data.frame}, a table with columns "left", "node", "right", and metadata, if the object has been enriched.
+#' @slot encoding A length-one \code{character} vector with the encoding of the corpus.
+#' @slot labels A \code{character} vector with labels.
+#' @slot categories A \code{character} vector.
 #' 
-#' @slot metadata Object of class \code{"character"} keeping the s-attributes of the metadata that are to be displayed
-#' @slot left words to the left
-#' @slot right words to the right
-#' @slot corpus the CWB corpus
-#' @slot cpos the corpus positions
-#' @slot table Object of class \code{data.frame} a table with the relevant information for kwic output
-#' @slot encoding Object of class \code{character} encoding of the corpus
-#' @slot labels Object of class \code{character}
-#' @slot categories Object of class \code{character}
-#' 
-#' @param x a kwic-class object
-#' @param object an object of class \code{kwic}
-#' @param meta s-attributes (character vector) with metainformation
-#' @param table logical, whether to turn cpos data.table into data.frame for output
-#' @param size integer, the subset size for sampling
-#' @section Methods:
-#'   \describe{
-#'    \item{[}{indexing for seeing only some concordances}
-#'    \item{show}{get kwic output}
-#'   }
+#' @param x A \code{kwic} class object.
+#' @param object A \code{kwic} class object.
+#' @param s_attributes Character vector of s-attributes with metainformation.
+#' @param table Logical, whether to turn cpos \code{data.table} into \code{data.frame} for output.
+#' @param size An \code{integer}, subset size for sampling.
+#' @param i Single integer value, the kwic line for which the fulltext shall be
+#'   inspected.
+#' @param ... Used for backwards compatibility.
 #'   
 #' @name kwic-class
 #' @docType class
 #' @aliases kwic-class [,kwic,ANY,ANY,ANY-method [,kwic-method
 #' @exportClass kwic
+#' @seealso The constructor for generating kwic objects is the
+#'   \code{\link{kwic}} method.
 #' @examples
 #' use("polmineR")
 #' K <- kwic("GERMAPARLMINI", "Integration")
@@ -406,8 +487,8 @@ setClass(
     corpus = "character",
     cpos = "data.table",
     metadata = "character",
-    left = "numeric",
-    right = "numeric",
+    left = "integer",
+    right = "integer",
     table = "data.frame",
     encoding = "character",
     labels = "Labels",
@@ -423,7 +504,9 @@ setClass(
 #' @slot registry directory of the registry dir (subdirectory of dir)
 #' @slot indexed directory of the dir with the indexed files
 #' @exportClass tempcorpus
-#' @rdname tempcorpus
+#' @rdname tempcorpus_class
+#' @name tempcorpus_class
+#' @aliases tempcorpus-class
 setClass(
   "tempcorpus",
   slots = c(
@@ -485,8 +568,12 @@ setClass("features_bundle", contains = "bundle")
 
 
 
+#' Ngrams class.
+#' 
 #' @exportClass ngrams
-#' @rdname ngrams
+#' @rdname ngrams_class
+#' @name ngrams_class
+#' @aliases ngrams-class
 setClass(
   "ngrams",
   representation(
@@ -496,38 +583,17 @@ setClass(
 )
 
 
-#' Get Hits.
-#' 
-#' Get hits for a (set of) queries, optionally with s-attribute values.
-#' 
-#' If the query character vector is named, the names of the query occurr in
-#' the data.table that is returned rather than the queries.
-#' 
-#' If freq is TRUE, the data.table returned in the DT-slot will deliberately
-#' include the subsets of the partition/corpus with no hits (query is NA,
-#' count is 0).
-#' 
+#' Hits class.
 #' @slot stat a \code{"data.table"}
 #' @slot corpus a \code{"character"} vector
 #' @slot query Object of class \code{"character"}
 #' @slot p_attribute p-attribute that has been queried
 #' @slot encoding encoding of the corpus
 #' @slot name name of the object
-#' @param query a (optionally named, see datails) character vector with one or more queries
-#' @param cqp either logical (TRUE if query is a CQP query), or a
-#'   function to check whether query is a CQP query or not
-#' @param s_attribute s-attributes
-#' @param p_attribute p-attribute
-#' @param size logical - return size of subcorpus
-#' @param freq logcial - return relative frequencies
-#' @param x a hits object
-#' @param .Object a character, \code{partition} or \code{partition_bundle} object
-#' @param mc logical, whether to use multicore
-#' @param progress logical, whether to show progress bar
-#' @param verbose logical
-#' @param ... further parameters
 #' @exportClass hits
-#' @rdname hits
+#' @rdname hits_class
+#' @name hits_class
+#' @aliases hits-class
 setClass(
   "hits",
   representation(query = "character"),
@@ -607,7 +673,7 @@ setClass("partition_bundle",
            xml = "character",
            call = "character"
          ),
-         contains = "bundle"
+         contains = "count_bundle"
 )
 
 

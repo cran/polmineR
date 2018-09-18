@@ -10,7 +10,7 @@ setMethod("sample", "context", function(x, size){
     return(x)
   }
   x@cpos <- x@cpos[which(x@cpos[["hit_no"]] %in% sample(hits_unique, size = size))]
-  x@count <- size
+  x@count <- as.integer(size)
   x@size <- length(which(x@cpos[["position"]] != 0))
   x
 })
@@ -20,10 +20,9 @@ setMethod("sample", "context", function(x, size){
 #' @include partition.R partition_bundle.R
 NULL
 
-#' @param ... further arguments
 #' @exportMethod context
 #' @docType methods
-#' @noRd
+#' @rdname context-method
 setGeneric("context", function(.Object, ...) standardGeneric("context") )
 
 #' Analyze context of a node word.
@@ -35,14 +34,15 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 #' examples). Statistical tests available are log-likelihood, t-test, pmi.
 #' 
 #' @param .Object a partition or a partition_bundle object
-#' @param query query, which may by a character vector or a cqpQuery object
+#' @param query A query, which may by a character vector or a CQP query.
 #' @param cqp defaults to is.cqp-function, or provide TRUE/FALSE
-#' @param p_attribute p-attribute of the query
-#' @param s_attribute if provided, it will be checked that corpus positions do not extend beyond
-#' the region defined by the s-attribute 
-#' @param left no of tokens and to the left of the node word
-#' @param right no of tokens to the right of the node word
-#' @param stoplist exclude a query hit from analysis if stopword(s) is/are in
+#' @param p_attribute The p-attribute of the query.
+#' @param boundary If provided, a length-one character vector specifying a
+#'   s-attribute. It will be checked that corpus positions do not extend beyond
+#'   the region defined by the s-attribute.
+#' @param left Number of tokens to the left of the query match.
+#' @param right Number of tokens to the right of the query match.
+#' @param stoplist Exclude match for query if stopword(s) is/are are present in
 #'   context. See positivelist for further explanation.
 #' @param positivelist character vector or numeric/integer vector: include a query hit
 #'   only if token in positivelist is present. If positivelist is a character
@@ -58,10 +58,7 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 #' @return depending on whether a partition or a partition_bundle serves as
 #'   input, the return will be a context object, or a \code{context_bundle} object
 #' @author Andreas Blaette
-#' @aliases context context,partition-method as.matrix,context_bundle-method
-#'   context,context_bundle-method
-#'   context,partition_bundle-method context,cooccurrences-method
-#'   context,cooccurrences-method
+#' @aliases as.matrix,context_bundle-method context,partition-method
 #' @examples
 #' use("polmineR")
 #' p <- partition("GERMAPARLMINI", interjection = "speech")
@@ -76,12 +73,12 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 #' @rdname context-method
 #' @name context
 #' @docType methods
-#' @aliases context,partition-method
 setMethod("context", "partition", function(
   .Object, query, cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  p_attribute = getOption("polmineR.p_attribute"),
+  boundary = NULL,
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
   mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE,
@@ -89,22 +86,11 @@ setMethod("context", "partition", function(
 ) {
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-
-  # set method for making left and right context
-  left <- as.integer(left)
-  right <- as.integer(right)
-  if (is.integer(left) && is.integer(right)){
-    if (is.null(names(left)) && is.null(names(left))){
-      cposMethod <- "expandToCpos"
-    } else {
-      cposMethod <- "expandBeyondRegion"
-      s_attribute <- unique(c(names(left), names(right)))
-    }
-  } else if (is.character(left) && is.character(right)){
-    cposMethod <- "expandToRegion"
-    s_attribute <- unique(c(left, right))
-  }
+  if ("sAttribute" %in% names(list(...))) boundary <- list(...)[["sAttribute"]]
+  if ("s_attribute" %in% names(list(...))) boundary <- list(...)[["s_attribute"]]
+  
+  left <- as.integer(left) # input may be numeric
+  right <- as.integer(right) # input may be numeric
   
   # generate the context object (ctxt)
   ctxt <- new(
@@ -116,7 +102,7 @@ setMethod("context", "partition", function(
     encoding = .Object@encoding,
     partition = .Object,
     size_partition = as.integer(.Object@size),
-    s_attribute = if (!is.null(s_attribute)) s_attribute else character()
+    boundary = if (!is.null(boundary)) boundary else character()
   )
   # ctxt@call <- deparse(match.call()) # kept seperate for debugging purposes
   
@@ -125,32 +111,15 @@ setMethod("context", "partition", function(
   hits <- cpos(.Object, query, p_attribute[1], cqp = cqp)
   if (is.null(hits)){
     warning('No hits for query ', query, ' (returning NULL)')
-    return(invisible(NULL))
+    return( invisible(NULL) )
   } else {
-    if (is.null(hits)){
-      warning('No hits for query ', query, ' (returning NULL)')
-      return( invisible(NULL) )
-    } else {
-      .message("number of hits:", nrow(hits), verbose = verbose)
-    }
+    .message("number of hits:", nrow(hits), verbose = verbose)
   }
   colnames(hits) <- c("hit_cpos_left", "hit_cpos_right")
   
-  hits <- cbind(hits, hit_no = 1:nrow(hits))
+  hits <- cbind(hits, hit_no = 1L:nrow(hits))
   
-  # create matrix_list (expanded form), then data.table in ctxt@cpos 
-  matrix_list <- lapply(
-    1L:nrow(hits),
-    function(i){
-      cbind(
-        hit_no = i,
-        .makeLeftRightCpos[[cposMethod]](hits[i,], left, right, corpus, s_attribute)
-      )
-    }
-  )
-  cpos_matrix <- do.call(rbind, matrix_list) # potentially slow, move to Rcpp later
-  ctxt@cpos <- data.table(cpos_matrix)
-  setnames(ctxt@cpos, old = c("V2", "V3"), new = c("cpos", "position"))
+  ctxt@cpos <- .make_context_dt(hits, left, right, corpus)
   
   # add decoded tokens (ids at this stage)
   ctxt <- enrich(ctxt, p_attribute = p_attribute, decode = FALSE, verbose = verbose)
@@ -162,14 +131,17 @@ setMethod("context", "partition", function(
   .message("generating contexts", verbose = verbose)
   
   ctxt@size <- nrow(ctxt@cpos)
-  ctxt@size_coi <- as.integer(ctxt@size)
+  ctxt@size_coi <- as.integer(ctxt@size) - (sum(hits[,2] - hits[,1]) + nrow(hits))
   ctxt@size_ref <- as.integer(ctxt@size_partition - ctxt@size_coi)
   ctxt@count <- length(unique(ctxt@cpos[["hit_no"]]))
   
   # check that windows do not transgress s-attribute
-  .message("checking that context positions to not transgress regions", verbose = verbose)
-  ctxt <- enrich(ctxt, s_attribute = s_attribute, verbose = verbose)
-  ctxt <- trim(ctxt, s_attribute = s_attribute, verbose = verbose, progress = progress)
+  if (!is.null(boundary)){
+    stopifnot(boundary %in% registry_get_s_attributes(ctxt@corpus))
+    .message("checking that context positions to not transgress regions", verbose = verbose)
+    ctxt <- enrich(ctxt, s_attribute = boundary, verbose = verbose)
+    ctxt <- trim(ctxt, s_attribute = boundary, verbose = verbose, progress = progress)
+  }
   
   # put together raw stat table
   if (count){
@@ -179,7 +151,7 @@ setMethod("context", "partition", function(
     ctxt@stat <- ctxt@cpos[which(ctxt@cpos[["position"]] != 0)][, .N, by = c(eval(paste(p_attribute, "id", sep = "_"))), with = TRUE]
     setnames(ctxt@stat, "N", "count_window")
     
-    for ( i in 1:length(p_attribute) ){
+    for ( i in 1L:length(p_attribute) ){
       newColumn <- CQI$id2str(.Object@corpus, p_attribute[i], ctxt@stat[[paste(p_attribute[i], "id", sep = "_")]])
       newColumnNative <- as.nativeEnc(newColumn, from = .Object@encoding)
       ctxt@stat[, eval(p_attribute[i]) := newColumnNative]
@@ -196,52 +168,72 @@ setMethod("context", "partition", function(
 #' @param s_attribute the integrity of the s_attribute to be checked
 #' @return a list!
 #' @noRd
-.makeLeftRightCpos <- list(
+.make_context_dt <- function(hit_matrix, left, right, corpus, s_attribute = NULL){
   
-  "expandToCpos" = function(set, left, right, corpus, s_attribute){
-    cposLeft <- (set[1] - left):(set[1] -1)
-    cposRight <- (set[2] + 1):(set[2] + right)
-    matrix(
-      c(
-        c(cposLeft, set[1]:set[2], cposRight),
-        c(-left:-1, rep(0, set[2] - set[1] + 1), 1:right)
-      ),
-      ncol = 2
-    )
-  },
+  DT <- data.table(hit_matrix)
   
-  "expandToRegion" = function(set, left, right, corpus, s_attribute){
-    stop("NOT Implemented at present")
-    cposLeft <- c((CQI$cpos2lbound(corpus, s_attribute, set[1])):(set[1] - 1))
-    cposRight <- c((set[2] + 1):(CQI$cpos2rbound(corpus, s_attribute, set[1])))
-    return(list(left = cposLeft, node = c(set[1]:set[2]), right = cposRight))
-  },
-  
-  "expandBeyondRegion" = function(set, left, right, corpus, s_attribute){
-    stop("NOT Implemented at present")
-    queryStruc <- CQI$cpos2struc(corpus, s_attribute, set[1])
-    maxStruc <- CQI$attribute_size(corpus, s_attribute, type = "s")
-    # get left min cpos
-    leftStruc <- queryStruc - left
-    leftStruc <- ifelse(leftStruc < 0, 0, leftStruc)
-    leftCposMin <- CQI$struc2cpos(corpus, s_attribute, leftStruc)[1]
-    cposLeft <- c(leftCposMin:(set[1]-1))
-    # get right max cpos
-    rightStruc <- queryStruc + right
-    rightStruc <- ifelse(rightStruc > maxStruc - 1, maxStruc, rightStruc)
-    rightCposMax <- CQI$struc2cpos(corpus, s_attribute, rightStruc)[2]
-    cposRight <- c((set[2] + 1):rightCposMax)
-    # handing it back
-    return(list(left = cposLeft, node = c(set[1]:set[2]), right = cposRight))
+  if (is.integer(left) && is.integer(right)){
+    if (is.null(names(left)) && is.null(names(left))){
+      
+      fn <- function(.SD){
+        list(
+          c(
+            (.SD[[1]][1] - left):(.SD[[1]][1] - 1L),
+            .SD[[1]][1]:.SD[[2]][1],
+            (.SD[[2]][1] + 1L):(.SD[[2]][1] + right)
+            ),
+          c(
+            -left:-1L,
+            rep(0L, .SD[[2]][1] - .SD[[1]][1] + 1L),
+            1L:right
+            )
+        )
+      }
+      Y <- DT[, fn(.SD), by = c("hit_no")]
+      setnames(Y, old = c("V1", "V2"), new = c("cpos", "position"))
+      return(Y)
+      
+    } else {
+      function(set, left, right, corpus, s_attribute){
+        stop("NOT Implemented at present")
+        queryStruc <- CQI$cpos2struc(corpus, s_attribute, set[1])
+        maxStruc <- CQI$attribute_size(corpus, s_attribute, type = "s")
+        # get left min cpos
+        leftStruc <- queryStruc - left
+        leftStruc <- ifelse(leftStruc < 0, 0, leftStruc)
+        leftCposMin <- CQI$struc2cpos(corpus, s_attribute, leftStruc)[1]
+        cposLeft <- c(leftCposMin:(set[1]-1))
+        # get right max cpos
+        rightStruc <- queryStruc + right
+        rightStruc <- ifelse(rightStruc > maxStruc - 1, maxStruc, rightStruc)
+        rightCposMax <- CQI$struc2cpos(corpus, s_attribute, rightStruc)[2]
+        cposRight <- c((set[2] + 1):rightCposMax)
+        # handing it back
+        list(left = cposLeft, node = c(set[1]:set[2]), right = cposRight)
+      }
+      cposMethod <- "expandBeyondRegion"
+      s_attribute <- unique(c(names(left), names(right)))
+    }
+  } else if (is.character(left) && is.character(right)){
+    function(set, left, right, corpus, s_attribute){
+      stop("NOT Implemented at present")
+      cposLeft <- c((CQI$cpos2lbound(corpus, s_attribute, set[1])):(set[1] - 1L))
+      cposRight <- c((set[2] + 1L):(CQI$cpos2rbound(corpus, s_attribute, set[1])))
+      list(
+        left = cposLeft,
+        node = c(set[1]:set[2]),
+        right = cposRight
+      )
+    }
+    s_attribute <- unique(c(left, right))
   }
-  
-)
+}
 
 
 #' @rdname context-method
 setMethod("context", "character", function(
   .Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
@@ -250,13 +242,18 @@ setMethod("context", "character", function(
 ){
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
+  if ("sAttribute" %in% names(list(...))) boundary <- list(...)[["sAttribute"]]
+  if ("sAttribute" %in% names(list(...))) boundary <- list(...)[["s_attribute"]]
 
   C <- Corpus$new(.Object)
-  C$count(p_attribute, decode = FALSE)
+  # There is a potential overhead of performing the count here: When context-method
+  # is called by kwic, the count is not needed. However, if context is called by
+  # cooccurrences, it is much, much faster (for one p-attribute) having done the 
+  # count here for the entire corpus.
+  if (length(p_attribute) == 1L) C$count(p_attribute, decode = FALSE)
   context(
     C$as.partition(), query = query, cqp = is.cqp,
-    p_attribute = p_attribute, s_attribute = s_attribute,
+    p_attribute = p_attribute, boundary = boundary,
     stoplist = stoplist, positivelist = positivelist, regex = regex,
     count = count, mc = mc, verbose = verbose, progress = progress
   )
@@ -303,7 +300,7 @@ setMethod("context", "cooccurrences", function(.Object, query, complete = FALSE)
     method = .Object@method,
     stat = subset(.Object@stat, .Object@stat[, "node"]==query),
     call = deparse(match.call()),
-    size = unique(subset(.Object@stat, .Object@stat[, "node"]==query)[,"size_window"])
+    size = unique(subset(.Object@stat, .Object@stat[, "node"] == query)[,"size_window"])
   )  
   stop("due to refactoring the context method, this does not work at present")
   if (complete == TRUE){
@@ -316,23 +313,14 @@ setMethod("context", "cooccurrences", function(.Object, query, complete = FALSE)
     hits <- cpos(
       newObject@query,
       get(newObject@partition, ".GlobalEnv"),
-      p_attribute=newObject@p_attribute,
+      p_attribute = newObject@p_attribute,
       verbose = FALSE
     )
     newObject@size <- nrow(hits)
     hits <- cbind(hits, CQI$cpos2struc(newObject@corpus, s_attribute, hits[,1]))
-    newObject@cpos <- apply(
-      hits, 1, function(row) {
-        .makeLeftRightCpos[["expandToCpos"]](
-          row,
-          left = newObject@left,
-          right = newObject@right,
-          s_attribute = sAttr
-        )
-      }    
-    )
+    newObject@cpos <- .make_context_dt(hits, left = newObject@left, right = newObject@right, corpus = newObject@corpus, s_attribute = sAttr)
   }
-  return(newObject)
+  newObject
 })
 
 

@@ -6,6 +6,10 @@
 \alias{[,kwic,ANY,ANY,ANY-method}
 \alias{[,kwic-method}
 \alias{show,kwic-method}
+\alias{knit_print,kwic-method}
+\alias{as.character,kwic-method}
+\alias{[,kwic,ANY,ANY,ANY-method}
+\alias{subset,kwic-method}
 \alias{as.data.frame,kwic-method}
 \alias{length,kwic-method}
 \alias{sample,kwic-method}
@@ -15,68 +19,95 @@
 \usage{
 \S4method{show}{kwic}(object)
 
+\S4method{knit_print}{kwic}(x, pagelength = getOption("polmineR.pagelength"),
+  options = knitr::opts_chunk, ...)
+
+\S4method{as.character}{kwic}(x, fmt = "<i>\%s</i>")
+
+\S4method{[}{kwic,ANY,ANY,ANY}(x, i)
+
+\S4method{subset}{kwic}(x, ...)
+
 \S4method{as.data.frame}{kwic}(x)
 
 \S4method{length}{kwic}(x)
 
 \S4method{sample}{kwic}(x, size)
 
-\S4method{enrich}{kwic}(.Object, meta = NULL, table = FALSE)
+\S4method{enrich}{kwic}(.Object, s_attributes = NULL, table = FALSE, ...)
 
 \S4method{view}{kwic}(.Object)
 }
 \arguments{
-\item{object}{an object of class \code{kwic}}
+\item{object}{A \code{kwic} class object.}
 
-\item{x}{a kwic-class object}
+\item{x}{A \code{kwic} class object.}
 
-\item{size}{integer, the subset size for sampling}
+\item{pagelength}{The number of kwic lines displayed per page in the
+datatables htmlwidget that is returned.}
 
-\item{.Object}{a kwic object}
+\item{options}{Chunk options.}
 
-\item{meta}{s-attributes (character vector) with metainformation}
+\item{...}{Used for backwards compatibility.}
 
-\item{table}{logical, whether to turn cpos data.table into data.frame for output}
+\item{fmt}{A format string passed into \code{sprintf} to format the node of a KWIC display.}
+
+\item{i}{Single integer value, the kwic line for which the fulltext shall be
+inspected.}
+
+\item{size}{An \code{integer}, subset size for sampling.}
+
+\item{.Object}{A \code{kwic} class object.}
+
+\item{s_attributes}{Character vector of s-attributes with metainformation.}
+
+\item{table}{Logical, whether to turn cpos \code{data.table} into \code{data.frame} for output.}
 }
 \description{
-S4 class for organizing information for concordance output
+S4 class for organizing information for kwic/concordance output. A set of
+standard generics (\code{show}, \code{as.character}, \code{as.data.frame},
+\code{length}, \code{sample}, \code{subset}) as well as indexing is implemented to process
+kwic class objects (see 'Usage'). See section 'Details' for the
+\code{enrich}, \code{view} and \code{knit_print} methods.
 }
 \details{
+The \code{knit_print} will be called by knitr when processing code
+  chunks in Rmarkdown documents to include a \code{htmlwidget} into the
+  resulting html document. It may be necessary to explicitly state
+  "render=knit_print" in the chunk options.
+
+The \code{subset}-method will apply \code{subset} to the table in
+  the slot \code{table}, for filtering query results based on metadata (i.e.
+  s-attributes) that need to be present.
+
 The \code{enrich} method is used to generate the actual output for
 the kwic method. If param \code{table} is \code{TRUE}, corpus positions will
-be turned into a data.frame with the concordance lines. If param \code{meta}
+be turned into a data.frame with the concordance lines. If param \code{s_attributes}
 is a character vector with s-attributes, the respective s-attributes will be
 added as columns to the table with concordance lines.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{metadata}}{Object of class \code{"character"} keeping the s-attributes of the metadata that are to be displayed}
+\item{\code{metadata}}{A \code{character} vector with s-attributes of the metadata
+that are to be displayed.}
 
-\item{\code{left}}{words to the left}
+\item{\code{left}}{An \code{integer} value, words to the left of the query match.}
 
-\item{\code{right}}{words to the right}
+\item{\code{right}}{An \code{integer} value, words to the right of the query match.}
 
-\item{\code{corpus}}{the CWB corpus}
+\item{\code{corpus}}{Length-one \code{character} vector, the CWB corpus.}
 
-\item{\code{cpos}}{the corpus positions}
+\item{\code{cpos}}{A \code{data.table} with the columns "hit_no", "cpos", "position", "word_id", "word" and "direction".}
 
-\item{\code{table}}{Object of class \code{data.frame} a table with the relevant information for kwic output}
+\item{\code{table}}{A \code{data.frame}, a table with columns "left", "node", "right", and metadata, if the object has been enriched.}
 
-\item{\code{encoding}}{Object of class \code{character} encoding of the corpus}
+\item{\code{encoding}}{A length-one \code{character} vector with the encoding of the corpus.}
 
-\item{\code{labels}}{Object of class \code{character}}
+\item{\code{labels}}{A \code{character} vector with labels.}
 
-\item{\code{categories}}{Object of class \code{character}}
+\item{\code{categories}}{A \code{character} vector.}
 }}
-
-\section{Methods}{
-
-  \describe{
-   \item{[}{indexing for seeing only some concordances}
-   \item{show}{get kwic output}
-  }
-}
 
 \examples{
 use("polmineR")
@@ -84,4 +115,10 @@ K <- kwic("GERMAPARLMINI", "Integration")
 length(K)
 K[1]
 K[1:5]
+oil <- kwic("REUTERS", query = "oil")
+as.character(oil)
+}
+\seealso{
+The constructor for generating kwic objects is the
+  \code{\link{kwic}} method.
 }

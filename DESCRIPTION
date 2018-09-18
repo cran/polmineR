@@ -1,12 +1,12 @@
 Package: polmineR
 Type: Package
 Title: Toolkit for Corpus Analysis
-Version: 0.7.9
-Date: 2018-07-09
+Version: 0.7.10
+Date: 2018-09-18
 Authors@R: c(person("Andreas", "Blaette", role = c("aut", "cre"), email = "andreas.blaette@uni-due.de", comment = c(ORCID = "0000-0001-8970-8010")))
 Imports: methods, R6, data.table, slam, Matrix, tm, DT, xml2, stringi,
-        utils, jsonlite, parallel, pbapply, RcppCWB (>= 0.2.2)
-Suggests: markdown, htmltools, xlsx, sendmailR, knitr, shiny,
+        utils, jsonlite, parallel, pbapply, RcppCWB (>= 0.2.2), knitr
+Suggests: markdown, rmarkdown, htmltools, openxlsx, sendmailR, shiny,
         shinythemes, testthat, tidytext, magrittr
 VignetteBuilder: knitr
 LazyData: yes
@@ -32,13 +32,13 @@ Collate: 'CQI.R' 'Labels.R' 'polmineR.R' 'S4classes.R' 'p_attributes.R'
         'dotplot.R' 'encoding.R' 'enrich.R' 'highlight.R' 'html.R'
         'label.R' 'll.R' 'mail.R' 'means.R' 'noise.R' 'pmi.R'
         'regions.R' 'read.R' 'registry.R' 'reindex.R' 'renamed.R'
-        's_attributes.R' 'size.R' 't_test.R' 'templates.R' 'terms.R'
-        'token_stream.R' 'tooltips.R' 'trim.R' 'type.R' 'use.R'
-        'utils.R' 'view.R' 'weigh.R' 'zzz.R'
+        's_attributes.R' 'size.R' 'store.R' 't_test.R' 'templates.R'
+        'terms.R' 'token_stream.R' 'tooltips.R' 'trim.R' 'type.R'
+        'use.R' 'utils.R' 'view.R' 'weigh.R' 'zzz.R'
 RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2018-07-09 12:49:14 UTC; blaette
+Packaged: 2018-09-18 11:09:59 UTC; blaette
 Author: Andreas Blaette [aut, cre] (<https://orcid.org/0000-0001-8970-8010>)
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
 Repository: CRAN
-Date/Publication: 2018-07-09 13:10:03 UTC
+Date/Publication: 2018-09-18 11:30:03 UTC

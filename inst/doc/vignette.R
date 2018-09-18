@@ -28,13 +28,19 @@ options("polmineR.left" = 15)
 options("polmineR.right" = 15)
 options("polmineR.mc" = FALSE)
 
-## ---- eval = TRUE--------------------------------------------------------
-kwic("REUTERS", "oil")
-kwic("REUTERS", "oil", meta = "places")
-kwic("REUTERS", "oil", meta = c("id", "places"))
+## ---- echo = FALSE, message = FALSE--------------------------------------
+options("polmineR.pagelength" = 3L)
 
-## ---- eval = TRUE--------------------------------------------------------
-kwic("REUTERS", '"OPEC.*"')
+## ---- eval = TRUE, render = knit_print-----------------------------------
+kwic("REUTERS", "oil")
+
+## ---- render = knit_print------------------------------------------------
+kwic("REUTERS", "oil", s_attributes = "places")
+
+## ---- render = knit_print------------------------------------------------
+kwic("REUTERS", "oil", s_attributes = c("id", "places"))
+
+## ---- render = knit_print------------------------------------------------
 kwic("REUTERS", '"oil" "price.*"')
 
 ## ---- eval = TRUE--------------------------------------------------------
@@ -56,6 +62,11 @@ barplot(height = saudi_arabia[["count"]], names.arg = saudi_arabia[["id"]], las 
 oil <- cooccurrences("REUTERS", query = "oil")
 sa <- cooccurrences("REUTERS", query = '"Saudi" "Arabia.*"', left = 10, right = 10)
 top5 <- subset(oil, rank_ll <= 5)
+
+## ---- render = knit_print------------------------------------------------
+top5
+
+## ---- eval = TRUE--------------------------------------------------------
 as.data.frame(top5)
 
 ## ---- eval = TRUE, message = FALSE, results = 'hide'---------------------
@@ -81,12 +92,16 @@ q1 <- dispersion(saudi_arabia, query = 'oil', s_attribute = "id", progress = FAL
 q2 <- dispersion(saudi_arabia, query = c("oil", "barrel"), s_attribute = "id", progress = FALSE)
 
 ## ---- eval = TRUE, message = FALSE---------------------------------------
-qatar <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
-qatar <- enrich(qatar, p_attribute = "word")
+saudi_arabia <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
+saudi_arabia <- enrich(saudi_arabia, p_attribute = "word")
 
-qatar_features <- features(qatar, "REUTERS", included = TRUE)
-y <- subset(qatar_features, rank_chisquare <= 10.83 & count_coi >= 5)
-as.data.frame(y)[,c("word", "count_coi", "count_ref", "chisquare")]
+saudi_arabia_features <- features(saudi_arabia, "REUTERS", included = TRUE)
+saudi_arabia_features_min <- subset(saudi_arabia_features, rank_chisquare <= 10.83 & count_coi >= 5)
+as(round(saudi_arabia_features_min), "htmlwidget")
+
+## ---- eval = TRUE, message = FALSE---------------------------------------
+df <- as.data.frame(saudi_arabia_features_min)
+df_min <- df[,c("word", "count_coi", "count_ref", "chisquare")]
 
 ## ---- eval = TRUE--------------------------------------------------------
 articles <- partition_bundle("REUTERS", s_attribute = "id", progress = FALSE)
@@ -97,6 +112,11 @@ class(tdm) # to see what it is
 show(tdm)
 m <- as.matrix(tdm) # turn it into an ordinary matrix
 m[c("oil", "barrel"),]
+
+## ---- eval = TRUE, message = FALSE---------------------------------------
+P <- partition("REUTERS", id = "248")
+H <- html(P, height = "250px")
+H
 
 ## ---- eval = FALSE-------------------------------------------------------
 #  install.packages("polmineR")

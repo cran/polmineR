@@ -1,6 +1,7 @@
 #' @include partition.R S4classes.R
 NULL
 
+#' @rdname s_attributes-method
 setGeneric("s_attributes", function(.Object, ...) standardGeneric("s_attributes"))
 
 
@@ -8,6 +9,8 @@ setGeneric("s_attributes", function(.Object, ...) standardGeneric("s_attributes"
 #' @param regex filter return value by applying a regex
 #' @param ... to maintain backward compatibility, of argument \code{sAttribute} is used
 #' @rdname s_attributes-method
+#' @name s_attributes
+#' @aliases s_attributes,character-method
 setMethod("s_attributes", "character", function(.Object, s_attribute = NULL, unique = TRUE, regex = NULL, ...){
   
   if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
@@ -63,7 +66,6 @@ setMethod("s_attributes", "character", function(.Object, s_attribute = NULL, uni
 #' @return a character vector
 #' @exportMethod s_attributes
 #' @docType methods
-#' @aliases s_attributes s_attributes,character-method s_attributes,partition-method
 #' @rdname s_attributes-method
 #' @examples 
 #' use("polmineR")
@@ -81,8 +83,12 @@ setMethod(
     if (is.null(s_attribute)){
       return( CQI$attributes(.Object@corpus, "s") )
     } else {
-      if (length(s_attribute) == 1){
-        if (.Object@xml == "flat" || .Object@s_attribute_strucs == s_attribute){
+      if (length(s_attribute) == 1L){
+        # Checking whether the xml is flat / whether s_attribute is in .Object@s_attribute_strucs 
+        # is necessary because there are scenarios when these slots are not defined.
+        xml_is_flat <- if (length(.Object@xml) > 0) if (.Object@xml == "flat") TRUE else FALSE else FALSE
+        s_attr_strucs <- if (length(.Object@s_attribute_strucs) > 0) if (.Object@s_attribute_strucs == s_attribute) TRUE else FALSE else FALSE
+        if (xml_is_flat && s_attr_strucs){
           len1 <- CQI$attribute_size(.Object@corpus, .Object@s_attribute_strucs)
           len2 <- CQI$attribute_size(.Object@corpus, s_attribute)
           if (len1 != len2){

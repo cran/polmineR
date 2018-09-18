@@ -49,11 +49,19 @@ setMethod("enrich", "partition_bundle", function(.Object, mc = FALSE, progress =
 })
 
 
+#' @details The \code{enrich} method is used to generate the actual output for
+#' the kwic method. If param \code{table} is \code{TRUE}, corpus positions will
+#' be turned into a data.frame with the concordance lines. If param \code{s_attributes}
+#' is a character vector with s-attributes, the respective s-attributes will be
+#' added as columns to the table with concordance lines.
 #' @rdname kwic-class
-setMethod("enrich", "kwic", function(.Object, meta = NULL, table = FALSE){
-  if (length(meta) > 0){
+setMethod("enrich", "kwic", function(.Object, s_attributes = NULL, table = FALSE, ...){
+  
+  if ("meta" %in% names(list(...))) s_attributes <- list(...)[["meta"]]
+  
+  if (length(s_attributes) > 0L){
     metainformation <- lapply(
-      meta,
+      s_attributes,
       function(metadat){
         cposToGet <- .Object@cpos[which(.Object@cpos[["position"]] == 0)][, .SD[1], by = "hit_no", with = TRUE][["cpos"]]
         strucs <- CQI$cpos2struc(.Object@corpus, metadat, cposToGet)
@@ -65,9 +73,9 @@ setMethod("enrich", "kwic", function(.Object, meta = NULL, table = FALSE){
       }
     )
     metainformation <- data.frame(metainformation, stringsAsFactors = FALSE)
-    colnames(metainformation) <- meta
+    colnames(metainformation) <- s_attributes
     .Object@table <- data.frame(metainformation, .Object@table)
-    .Object@metadata <- c(meta, .Object@metadata)
+    .Object@metadata <- c(s_attributes, .Object@metadata)
   }
   
   if (table){
@@ -139,7 +147,6 @@ setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute
       } else {
         .message("getting token id for p-attribute:", pAttr, verbose = verbose)
         ids <- CQI$cpos2id(.Object@corpus, pAttr, .Object@cpos[["cpos"]])
-        .message("assigning to data.table", verbose = verbose)
         .Object@cpos[[colname]] <- ids
       }
     }

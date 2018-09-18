@@ -1,29 +1,6 @@
 #' @include context.R textstat.R partition.R polmineR.R cooccurrences.R bundle.R S4classes.R
 NULL
 
-#' Methods for manipulating \code{cooccurrences_reshaped}-class-objects
-#' 
-#' @param x cooccurrences for a corpus of interest
-#' @param y cooccurrences for a reference corpus
-#' @rdname cooccurrences_reshaped
-#' @aliases cooccurrences_reshaped merge,cooccurrences_reshaped-method
-#' @name cooccurrences_reshaped
-NULL
-
-
-#' @docType methods
-#' @rdname cooccurrences-class
-setMethod('summary', 'cooccurrences', function(object) {
-  cat("\n** Context object: **\n")
-  cat(sprintf("%-20s", "CWB corpus:"), object@corpus, "\n")
-  cat(sprintf("%-20s", "partition:"), object@partition, "\n")
-  cat(sprintf("%-20s", "node:"), object@query, "\n")
-  cat(sprintf("%-20s", "p-Attribute:"), object@p_attribute, "\n")
-  cat(sprintf("%-20s", "node count:"), object@count, "\n")
-  cat(sprintf("%-20s", "stat table length:"), nrow(object@stat), "\n\n")
-})
-
-
 
 #' @docType methods
 #' @rdname cooccurrences-class
@@ -72,10 +49,10 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 #' @param p_attribute the p-attribute of the tokens/the query
 #' @param s_attribute if provided, it will be checked that cpos do not extend beyond
 #' the region defined by the s-attribute 
-#' @param left no of tokens and to the left of the node word
-#' @param right no of tokens to the right of the node word
-#' @param stoplist exclude a query hit from analysis if stopword(s) is/are in
-#'   context (relevant only if query is nut NULL)
+#' @param left Number of tokens to the left of the query match.
+#' @param right Number of tokens to the right of the query match.
+#' @param stoplist Exclude a query hit from analysis if stopword(s) is/are in
+#'   context (relevant only if query is not NULL).
 #' @param positivelist character vector or numeric vector: include a query hit
 #'   only if token in positivelist is present. If positivelist is a character
 #'   vector, it is assumed to provide regex expressions (incredibly long if the
@@ -164,16 +141,19 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
     
     # enrich partition if necessary
     if (!all(paste(.Object@p_attribute, "id", sep = "_") %in% colnames(.Object@partition@stat))){
-      .message("adding missing count for p-attribute ", .Object@p_attribute, " to partition", verbose = verbose)
-      .Object@partition <- enrich(.Object@partition, p_attribute = .Object@p_attribute, decode = FALSE, verbose = verbose)
+      # It may not seem logical that counts are performed for all p-attribute-combinations if
+      # we deal with more than p-attribute. But doing it selectively is much, much slower
+      # than the the comprehensive approach.
+      .message("enrichtung partition by missing count for p-attribute: ", .Object@p_attribute, verbose = verbose)
+      .Object@partition <- enrich(.Object@partition, p_attribute = .Object@p_attribute, decode = FALSE, verbose = FALSE)
     }
     
     setkeyv(.Object@stat, cols = paste(.Object@p_attribute, "id", sep = "_"))
     setkeyv(.Object@partition@stat, cols = paste(.Object@p_attribute, "id", sep = "_"))
     .Object@stat <- .Object@partition@stat[.Object@stat]
-    for (pAttr in .Object@p_attribute){
-      if (paste("i", pAttr, sep = ".") %in% colnames(.Object@stat)){
-        .Object@stat[, eval(paste("i", pAttr, sep = ".")) := NULL, with = TRUE]
+    for (p_attr in .Object@p_attribute){
+      if (paste("i", p_attr, sep = ".") %in% colnames(.Object@stat)){
+        .Object@stat[, eval(paste("i", p_attr, sep = ".")) := NULL, with = TRUE]
       }
     }
     setnames(.Object@stat, old = "count", new = "count_partition")
@@ -184,7 +164,7 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
   }
   
   # finishing
-  if (nrow(.Object@stat) > 0){
+  if (nrow(.Object@stat) > 0L){
     setkeyv(.Object@stat, .Object@p_attribute)
     for (x in grep("_id$", colnames(.Object@stat), value = TRUE)) .Object@stat[[x]] <- NULL
     setcolorder(
@@ -194,14 +174,19 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
     setorderv(.Object@stat, cols = method[1], order = -1L)
   }
   
-  retval <- new("cooccurrences")
-  slotsToGet <- slotNames(retval)[-grep("partition", slotNames(retval))]
-  for (x in slotsToGet) slot(retval, x) <- slot(.Object, x)
+  retval <- new(
+    "cooccurrences",
+    stat = data.table(), cpos = data.table(),
+    partition = new("partition", stat = data.table(), size = 0L),
+    count = 0L
+    )
+  slots_to_get <- slotNames(retval)[-grep("partition", slotNames(retval))]
+  for (x in slots_to_get) slot(retval, x) <- slot(.Object, x)
   retval
 })
 
 
-#' @rdname context-method
+#' @rdname cooccurrences
 setMethod("cooccurrences", "Corpus", function(.Object, query, p_attribute = getOption("polmineR.p_attribute"), ...){
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   if (nrow(.Object$stat) == 0) .Object$count(p_attribute, decode = FALSE)

@@ -6,15 +6,12 @@
 \alias{cooccurrences_reshaped-class}
 \alias{cooccurrences_bundle-class}
 \alias{cooccurrences_bundle}
-\alias{summary,cooccurrences-method}
 \alias{show,cooccurrences-method}
 \alias{as.data.frame,cooccurrences_bundle-method}
 \alias{view,cooccurrences-method}
 \alias{view,cooccurrences_reshaped-method}
 \title{Cooccurrences class.}
 \usage{
-\S4method{summary}{cooccurrences}(object)
-
 \S4method{show}{cooccurrences}(object)
 
 \S4method{as.data.frame}{cooccurrences_bundle}(x)
@@ -59,7 +56,5 @@ S4 class to organize information of context analysis
 \item{\code{method}}{Object of class \code{character} statistical test(s) used}
 
 \item{\code{cutoff}}{Object of class \code{list} cutoff levels that have been applied}
-
-\item{\code{svg}}{Object of class \code{character} - valid XML with svg representation}
 }}
 
