@@ -10,21 +10,24 @@
 \usage{
 kwic(.Object, ...)
 
-\S4method{kwic}{context}(.Object, s_attributes = getOption("polmineR.meta"),
-  cpos = TRUE, verbose = FALSE, ...)
+\S4method{kwic}{context}(.Object,
+  s_attributes = getOption("polmineR.meta"), cpos = TRUE,
+  verbose = FALSE, ...)
 
 \S4method{kwic}{partition}(.Object, query, cqp = is.cqp,
-  left = getOption("polmineR.left"), right = getOption("polmineR.right"),
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
   s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL, positivelist = NULL,
-  regex = FALSE, verbose = TRUE, ...)
+  boundary = NULL, cpos = TRUE, stoplist = NULL,
+  positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
 
-\S4method{kwic}{character}(.Object, query, cqp = is.cqp,
+\S4method{kwic}{character}(.Object, query, cqp = is.cqp, check = TRUE,
   left = as.integer(getOption("polmineR.left")),
   right = as.integer(getOption("polmineR.right")),
   s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL, positivelist = NULL,
-  regex = FALSE, verbose = TRUE, progress = TRUE, ...)
+  boundary = NULL, cpos = TRUE, stoplist = NULL,
+  positivelist = NULL, regex = FALSE, verbose = TRUE,
+  progress = TRUE, ...)
 }
 \arguments{
 \item{.Object}{A (length-one) \code{character} vector with the name of a CWB
@@ -64,6 +67,9 @@ results}
 \item{regex}{Logical, whether stoplist/positivelist is interpreted as regular
 expression}
 
+\item{check}{A \code{logical} value, whether to check validity of CQP query
+using \code{check_cqp_query}.}
+
 \item{progress}{Logical, whether to show progress bars.}
 }
 \description{
@@ -81,28 +87,28 @@ highlighted in the output table.
 }
 \examples{
 use("polmineR")
-kwic("GERMAPARLMINI", "Integration")
-kwic(
+K <- kwic("GERMAPARLMINI", "Integration")
+K <- kwic(
   "GERMAPARLMINI",
   "Integration", left = 20, right = 20,
   s_attributes = c("date", "speaker", "party")
 )
-kwic(
+K <- kwic(
   "GERMAPARLMINI",
   '"Integration" [] "(Menschen|Migrant.*|Personen)"', cqp = TRUE,
   left = 20, right = 20,
   s_attributes = c("date", "speaker", "party")
 )
 
-kwic(
+K <- kwic(
   "GERMAPARLMINI",
   '"Sehr" "geehrte"', cqp = TRUE,
   boundary = "date"
 )
 
 P <- partition("GERMAPARLMINI", date = "2009-11-10")
-kwic(P, query = "Integration")
-kwic(P, query = '"Sehr" "geehrte"', cqp = TRUE, boundary = "date")
+K <- kwic(P, query = "Integration")
+K <- kwic(P, query = '"Sehr" "geehrte"', cqp = TRUE, boundary = "date")
 }
 \references{
 Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, pp. 71-93 (ch. 4).

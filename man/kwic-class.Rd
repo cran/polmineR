@@ -8,7 +8,6 @@
 \alias{show,kwic-method}
 \alias{knit_print,kwic-method}
 \alias{as.character,kwic-method}
-\alias{[,kwic,ANY,ANY,ANY-method}
 \alias{subset,kwic-method}
 \alias{as.data.frame,kwic-method}
 \alias{length,kwic-method}
@@ -19,7 +18,8 @@
 \usage{
 \S4method{show}{kwic}(object)
 
-\S4method{knit_print}{kwic}(x, pagelength = getOption("polmineR.pagelength"),
+\S4method{knit_print}{kwic}(x,
+  pagelength = getOption("polmineR.pagelength"),
   options = knitr::opts_chunk, ...)
 
 \S4method{as.character}{kwic}(x, fmt = "<i>\%s</i>")
@@ -34,7 +34,8 @@
 
 \S4method{sample}{kwic}(x, size)
 
-\S4method{enrich}{kwic}(.Object, s_attributes = NULL, table = FALSE, ...)
+\S4method{enrich}{kwic}(.Object, s_attributes = NULL, table = FALSE,
+  ...)
 
 \S4method{view}{kwic}(.Object)
 }
@@ -92,6 +93,8 @@ added as columns to the table with concordance lines.
 \item{\code{metadata}}{A \code{character} vector with s-attributes of the metadata
 that are to be displayed.}
 
+\item{\code{p_attribute}}{The p-attribute for which the context has been generated.}
+
 \item{\code{left}}{An \code{integer} value, words to the left of the query match.}
 
 \item{\code{right}}{An \code{integer} value, words to the right of the query match.}
@@ -113,8 +116,8 @@ that are to be displayed.}
 use("polmineR")
 K <- kwic("GERMAPARLMINI", "Integration")
 length(K)
-K[1]
-K[1:5]
+K_min <- K[1]
+K_min <- K[1:5]
 oil <- kwic("REUTERS", query = "oil")
 as.character(oil)
 }

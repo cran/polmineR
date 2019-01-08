@@ -7,12 +7,20 @@ NULL
 #' @importFrom utils View browseURL download.file setTxtProgressBar txtProgressBar untar write.csv
 #' @importFrom tm TermDocumentMatrix DocumentTermMatrix
 #' @importFrom tm as.TermDocumentMatrix as.DocumentTermMatrix
-NULL
-
+#' @importFrom data.table data.table setorderv dcast setnames setkeyv setcolorder as.data.table rbindlist setkey dcast.data.table
 #' @importFrom Matrix rowSums colSums
 NULL
 
+# defined globaly to avoid R CMD check errors, as recommende by vignette in data.table package
+`:=` <- function(...) NULL
+.BY <- .GRP <- .SD <- .N <- NULL
+
+
 setOldClass("htmlwidget")
+
+#' @exportMethod zoom
+#' @noRd
+setGeneric("zoom", function(x, ...) standardGeneric("zoom"))
 
 
 #' polmineR-package
@@ -42,13 +50,12 @@ setOldClass("htmlwidget")
 #' @author Andreas Blaette (andreas.blaette@@uni-due.de)
 #' @keywords package
 #' @docType package
-#' @rdname polmineR
-#' @name polmineR
-#' @references 
-#' Jockers, Matthew L. (2014): \emph{Text Analysis with R for Students of Literature}.
+#' @aliases polmineR polmineR-package
+#' @rdname polmineR-package
+#' @name polmineR-package
+#' @references Jockers, Matthew L. (2014): \emph{Text Analysis with R for Students of Literature}.
 #' Cham et al: Springer.
-#' 
-#' Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum.
+#' @references Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum.
 #' @export polmineR
 #' @importFrom RcppCWB cqp_initialize cqp_is_initialized
 #' @importFrom parallel detectCores
@@ -57,21 +64,21 @@ setOldClass("htmlwidget")
 #' 
 #' # Core methods applied to corpus
 #' 
-#' count("REUTERS", query = "oil")
-#' count("REUTERS", query = c("oil", "barrel"))
-#' count("REUTERS", query = '"Saudi" "Arab.*"', breakdown = TRUE, cqp = TRUE)
-#' dispersion("REUTERS", query = "oil", s_attribute = "id")
-#' kwic("REUTERS", query = "oil")
-#' cooccurrences("REUTERS", query = "oil")
+#' C <- count("REUTERS", query = "oil")
+#' C <- count("REUTERS", query = c("oil", "barrel"))
+#' C <- count("REUTERS", query = '"Saudi" "Arab.*"', breakdown = TRUE, cqp = TRUE)
+#' D <- dispersion("REUTERS", query = "oil", s_attribute = "id")
+#' K <- kwic("REUTERS", query = "oil")
+#' CO <- cooccurrences("REUTERS", query = "oil")
 #' 
 #' 
 #' # Core methods applied to partition
 #' 
 #' kuwait <- partition("REUTERS", places = "kuwait", regex = TRUE)
-#' count(kuwait, query = "oil")
-#' dispersion(kuwait, query = "oil", s_attribute = "id")
-#' kwic(kuwait, query = "oil", meta = "id")
-#' cooccurrences(kuwait, query = "oil")
+#' C <- count(kuwait, query = "oil")
+#' D <- dispersion(kuwait, query = "oil", s_attribute = "id")
+#' K <- kwic(kuwait, query = "oil", meta = "id")
+#' CO <- cooccurrences(kuwait, query = "oil")
 #'
 #'
 #' # Go back to full text
@@ -110,5 +117,4 @@ setGeneric("name", function(x) standardGeneric("name"))
 #' @exportMethod name<-
 #' @noRd
 setGeneric("name<-", function(x, value) standardGeneric("name<-"))
-
 
