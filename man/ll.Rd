@@ -39,10 +39,10 @@ table of observationes, which is prepared for every single token in the
 corpus. It reports counts for a token to inspect and all other tokens in a
 corpus of interest (coi) and a reference corpus (ref):
 \tabular{rccc}{
-\tab coi   \tab ref \tab TOTAL\cr
-count token \tab \eqn{o_{11}}{o11}  \tab \eqn{o_{12}}{o12} \tab \eqn{r_{1}}{r1}\cr
-other tokens \tab \eqn{o_{21}}{o21}    \tab \eqn{o_{22}}{o22} \tab \eqn{r_{2}}{r2}\cr
-TOTAL \tab \eqn{c_{1}}{c1}    \tab \eqn{c_{2}}{c2} \tab N\cr
+  \tab coi   \tab ref \tab TOTAL \cr
+  count token \tab \eqn{o_{11}}{o11} \tab \eqn{o_{12}}{o12} \tab \eqn{r_{1}}{r1} \cr
+  other tokens \tab \eqn{o_{21}}{o21} \tab \eqn{o_{22}}{o22} \tab \eqn{r_{2}}{r2} \cr
+  TOTAL \tab \eqn{c_{1}}{c1} \tab \eqn{c_{2}}{c2} \tab N
 }
 (b) Based on the contingency table(s) with observed counts, expected values
 are calculated for each cell, as the product of the column and margin sums,
@@ -82,10 +82,12 @@ if (interactive()) View(format(oil_min))
 summary(oil)
 
 # use ll-method on 'Cooccurrences'-object
+\dontrun{
 R <- Cooccurrences("REUTERS", left = 5L, right = 5L, p_attribute = "word")
 ll(R)
 decode(R)
 summary(R)
+}
 
 # use log likelihood test for feature extraction
 x <- partition(
@@ -157,3 +159,8 @@ Evert, Stefan (2009). Corpora and Collocations. In: A. Ludeling
 Tabbert, Ulrike (2015): \emph{Crime and Corpus. The Linguistic
   Representation of Crime in the Press}. Amsterdam: Benjamins.
 }
+\seealso{
+Other statistical methods: \code{\link{chisquare}},
+  \code{\link{pmi}}, \code{\link{t_test}}
+}
+\concept{statistical methods}

@@ -6,9 +6,9 @@
 \alias{show,html-method}
 \alias{html,character-method}
 \alias{html,partition-method}
+\alias{html,subcorpus-method}
 \alias{html,partition_bundle-method}
 \alias{html,kwic-method}
-\alias{print.html}
 \title{Generate html from object.}
 \usage{
 html(object, ...)
@@ -19,58 +19,65 @@ html(object, ...)
   verbose = FALSE, cutoff = NULL, charoffset = FALSE,
   beautify = TRUE, height = NULL, ...)
 
+\S4method{html}{subcorpus}(object, meta = NULL, cpos = TRUE,
+  verbose = FALSE, cutoff = NULL, charoffset = FALSE,
+  beautify = TRUE, height = NULL, ...)
+
 \S4method{html}{partition_bundle}(object, filename = c(),
   type = "debate")
 
 \S4method{html}{kwic}(object, i, s_attribute = NULL, type = NULL,
   verbose = FALSE, ...)
-
-\method{print}{html}(x, ...)
 }
 \arguments{
-\item{object}{the object the fulltext output will be based on}
+\item{object}{The object the fulltext output will be based on.}
 
-\item{...}{further parameters that are passed into \code{as.markdown}}
+\item{...}{Further parameters that are passed into \code{as.markdown}.}
 
-\item{meta}{metadata for output, if NULL (default), the s-attributes defining
-a partition will be used}
+\item{meta}{Metadata to include in  output, if \code{NULL} (default), the
+s-attributes defining a partition will be used.}
 
-\item{cpos}{logical, if \code{TRUE} (default), all tokens will be wrapped by 
-elements with id attribute indicating corpus positions}
+\item{cpos}{Length-one \code{logical} value, if \code{TRUE} (default), all
+tokens will be wrapped by elements with id attribute indicating corpus
+positions.}
 
-\item{verbose}{logical, whether to be verbose}
+\item{verbose}{Length-one \code{logical} value, whether to output progress
+messages.}
 
-\item{cutoff}{maximum number of tokens to decode from token stream, passed
-into \code{as.markdown}}
+\item{cutoff}{An \code{integer} value, maximum number of tokens to decode
+from token stream, passed into \code{as.markdown}.}
 
-\item{charoffset}{Logical, if \code{TRUE}, character offset positions are
-added to elements embracing tokens.}
+\item{charoffset}{Length-one \code{logical} value, if \code{TRUE}, character
+offset positions are added to elements embracing tokens.}
 
-\item{beautify}{Logical, if \code{TRUE}, whitespace before interpunctuation
-will be removed.}
+\item{beautify}{Length-one \code{logical} value, if \code{TRUE}, whitespace
+before interpunctuation will be removed.}
 
-\item{height}{A character vector that will be inserted into the html as an optional
-height of a scroll box.}
+\item{height}{A \code{character} vector that will be inserted into the html
+as an optional height of a scroll box.}
 
-\item{filename}{the filename}
+\item{filename}{The filename.}
 
-\item{type}{the partition type}
+\item{type}{The partition type.}
 
-\item{i}{if object is a \code{kwic}-object, the index of the concordance for
-which the fulltext is to be generated}
+\item{i}{An \code{integer} value: If \code{object} is a \code{kwic}-object,
+the index of the concordance for which the fulltext is to be generated.}
 
-\item{s_attribute}{structural attributes that will be used to define the partition 
-where the match occurred}
-
-\item{x}{object of class \code{html} to print}
+\item{s_attribute}{Structural attributes that will be used to define the partition 
+where the match occurred.}
+}
+\value{
+Returns an object of class \code{html} as used in the \code{htmltools} package. Methods
+such as \code{htmltools::html_print} will be available. The encoding of the html
+document will be UTF-8 on all systems (including Windows).
 }
 \description{
-Prepare a html document to inspect the full text.
+Prepare html document to see full text.
 }
 \details{
 If param \code{charoffset} is \code{TRUE}, character offset positions will be
 added to tags that embrace tokens. This may be useful, if exported html document
-is annotated with a tools that stores annotations with character offset positions.
+is annotated with a tool that stores annotations with character offset positions.
 }
 \examples{
 use("polmineR")
@@ -79,20 +86,19 @@ H <- html(P)
 if (interactive()) H # show full text in viewer pane
 
 # html-method can be used in a pipe
-if (require("magrittr")){
-  H <- partition("REUTERS", places = "argentina") \%>\% html()
-  # use html-method to get from concordance to full text
-  K <- kwic("REUTERS", query = "barrels")
-  H <- html(K, i = 1, s_attribute = "id")
-  H <- html(K, i = 2, s_attribute = "id")
-  for (i in 1:length(K)) {
-    H <- html(K, i = i, s_attribute = "id")
-    if (interactive()){
-      show(H)
-      userinput <- readline("press 'q' to quit or any other key to continue")
-      if (userinput == "q") break
-    }
+H <- partition("REUTERS", places = "argentina") \%>\% html()
+  
+# use html-method to get full text where concordance occurrs
+K <- kwic("REUTERS", query = "barrels")
+H <- html(K, i = 1, s_attribute = "id")
+H <- html(K, i = 2, s_attribute = "id")
+for (i in 1L:length(K)) {
+  H <- html(K, i = i, s_attribute = "id")
+  if (interactive()){
+    show(H)
+    userinput <- readline("press 'q' to quit or any other key to continue")
+    if (userinput == "q") break
   }
 }
-
+  
 }

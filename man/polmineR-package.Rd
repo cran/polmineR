@@ -35,6 +35,10 @@ The package includes a draft shiny app that can be called using
 \examples{
 use("polmineR") # activate demo corpora included in the package
 
+# The package includes two sample corpora
+corpus("REUTERS") \%>\% show_info()
+corpus("GERMAPARLMINI") \%>\% show_info()
+
 # Core methods applied to corpus
 
 C <- count("REUTERS", query = "oil")
@@ -57,10 +61,10 @@ CO <- cooccurrences(kuwait, query = "oil")
 # Go back to full text
 
 p <- partition("REUTERS", id = 127)
-read(p)
+if (interactive()) read(p)
 h <- html(p)
 h_highlighted <- highlight(h, highlight = list(yellow = "oil"))
-h_highlighted
+if (interactive()) h_highlighted
 
 
 # Generate term document matrix

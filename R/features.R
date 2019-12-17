@@ -139,15 +139,14 @@ setMethod("features", "partition", function(
   
   # if y is a character vector, create a partition from corpus
   if (is.character(y)){
-    stopifnot(length(y) == 1) # can only compare to exactly one 
-    stopifnot(y %in% CQI$list_corpora()) # make sure that it is a corpus that is available
+    stopifnot(length(y) == 1L) # can only compare to exactly one 
+    stopifnot(y %in% .list_corpora()) # make sure that it is a corpus that is available
     if (y == x@corpus && included == FALSE){
       included <- TRUE
       warning("x is derived from corpus y, but included is FALSE - setting to TRUE")
     }
-    refCorpus <- Corpus$new(y)
-    refCorpus$count(p_attribute = x@p_attribute)
-    y <- refCorpus$as.partition()
+    ref_corpus <- corpus(y)
+    y <- count(ref_corpus, p_attribute = x@p_attribute)
   }
   
   .message ('Comparing x and y ...', verbose = verbose)
@@ -190,18 +189,49 @@ setMethod("features", "count", function(x, y, by = NULL, included = FALSE, metho
 })
 
 
+
+
 #' @rdname features
 setMethod("features", "partition_bundle", function(
   x, y, 
   included = FALSE, method = "chisquare", verbose = TRUE, mc = getOption("polmineR.mc"), progress = FALSE
 ) {
-  .features <- function(x, y, included, method, ...) features(x = x, y = y, included = included, method = method)
+  .fn <- function(x, y, included, method, ...) features(x = x, y = y, included = included, method = method)
   retval <- new("features_bundle")
-  retval@objects <- blapply(x@objects, f = .features, y = y, included = included, method = method, verbose = verbose, mc=mc, progress=progress)
+  retval@objects <- blapply(
+    x@objects,
+    f = .fn,
+    y = y,
+    included = included,
+    method = method,
+    verbose = verbose,
+    mc = mc,
+    progress = progress
+  )
   names(retval@objects) <- names(x@objects)
   retval
 })
 
+
+#' @rdname features
+#' @examples
+#' # Get features of objects in a count_bundle
+#' ref <- corpus("GERMAPARLMINI") %>% count(p_attribute = "word")
+#' cois <- corpus("GERMAPARLMINI") %>%
+#'   subset(speaker %in% c("Angela Dorothea Merkel", "Hubertus Heil")) %>%
+#'   split(s_attribute = "speaker") %>%
+#'   count(p_attribute = "word")
+#' y <- features(cois, ref, included = TRUE, method = "chisquare", progress = TRUE)
+setMethod("features", "count_bundle", function(
+  x, y, 
+  included = FALSE, method = "chisquare", verbose = !progress, mc = getOption("polmineR.mc"), progress = FALSE
+) {
+  .fn <- function(x) features(x = x, y = y, included = included, verbose = verbose, method = method)
+  retval <- new("features_bundle")
+  retval@objects <- if (progress) pblapply(x@objects, .fn, cl = mc) else lapply(x@objects, .fn)
+  names(retval@objects) <- names(x@objects)
+  retval
+})
 
 
 

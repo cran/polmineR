@@ -3,10 +3,12 @@
 \docType{methods}
 \name{get_type}
 \alias{get_type}
+\alias{get_type,subcorpus-method}
 \alias{get_type,character-method}
 \alias{get_type,Corpus-method}
 \alias{get_type,partition-method}
 \alias{get_type,partition_bundle-method}
+\alias{get_type,subcorpus_bundle-method}
 \title{Get corpus/partition type.}
 \usage{
 get_type(.Object)
@@ -17,7 +19,11 @@ get_type(.Object)
 
 \S4method{get_type}{partition}(.Object)
 
+\S4method{get_type}{subcorpus}(.Object)
+
 \S4method{get_type}{partition_bundle}(.Object)
+
+\S4method{get_type}{subcorpus_bundle}(.Object)
 }
 \arguments{
 \item{.Object}{A \code{partition}, \code{partition_bundle}, \code{Corpus}

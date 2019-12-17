@@ -22,7 +22,7 @@ NULL
 #' That may offer more flexibility, e.g. to highlight matches for CQP queries.
 #' See examples and the documentation for the different methods to learn more.
 #' 
-#' @param .Object an object to be read (\code{"partition" or "partition_bundle"})
+#' @param .Object an object to be read (\code{partition} or {partition_bundle})
 #' @param meta a character vector supplying s-attributes for the metainformation
 #'   to be printed; if not stated explicitly, session settings will be used
 #' @param template template to format output
@@ -45,8 +45,8 @@ NULL
 #' @examples
 #' use("polmineR")
 #' merkel <- partition("GERMAPARLMINI", date = "2009-11-10", speaker = "Merkel", regex = TRUE)
-#' read(merkel, meta = c("speaker", "date"))
-#' read(
+#' if (interactive()) read(merkel, meta = c("speaker", "date"))
+#' if (interactive()) read(
 #'   merkel,
 #'   highlight = list(yellow = c("Deutschland", "Bundesrepublik"), lightgreen = "Regierung"),
 #'   meta = c("speaker", "date")
@@ -62,8 +62,31 @@ NULL
 setGeneric("read", function(.Object, ...) standardGeneric("read"))
 
 #' @rdname read-method
+setMethod("read", "partition",
+  function(
+    .Object, meta = NULL,
+    highlight = list(), tooltips = list(),
+    verbose = TRUE, cpos = TRUE, cutoff = getOption("polmineR.cutoff"), 
+    template = get_template(.Object),
+    ...
+  ){
+    newobj <- if (is.null(get_type(.Object))){
+      "subcorpus"
+    } else {
+      switch( get_type(.Object), "plpr" = "plpr_subcorpus", "press" = "press_subcorpus" )
+    }
+    
+    read(
+      .Object = as(.Object, newobj), meta = meta, highlight = highlight, tooltips = tooltips,
+      verbose = verbose, cpos = cpos, cutoff = cutoff,
+      template = template,
+      ...
+    )
+  })
+
+#' @rdname read-method
 setMethod(
-  "read", "partition",
+  "read", "subcorpus",
   function(
     .Object, meta = NULL,
     highlight = list(), tooltips = list(),
@@ -119,20 +142,22 @@ setMethod("read", "hits", function(.Object, def, i = NULL, ...){
 })
 
 #' @rdname read-method
-setMethod("read", "kwic", function(.Object, i = NULL, type = registry_get_properties(corpus(.Object))["type"]){
+setMethod("read", "kwic", function(.Object, i = NULL, type = registry_get_properties(get_corpus(.Object))[["type"]]){
   
   # if registry file does not have 'type' corpus property, a named NA vector arrives
   if (length(type) > 0L) if (is.na(type)) type <- NULL
   if (!is.null(type)) type <- unname(type)
+  
+  if (is.null(i)) i <- seq_along(.Object)
 
-  if (is.null(i)){
-    for (i in 1L:length(.Object)){
-      read(.Object, i = i, type = type)
+  if (length(i) > 1L){
+    for (j in i){
+      read(.Object, i = j, type = type)
       user <- readline(prompt = "Hit 'q' to quit or any other key to continue.\n")
-      if (user == "q") return(invisible(NULL))
+      if (user == "q") return( invisible(NULL) )
     }
   } else {
-    fulltext <- html(.Object, i = i, type = type)
+    fulltext <- html(.Object, i = as.integer(i), type = type)
     if (interactive()) htmltools::html_print(fulltext)
   }
 })
@@ -146,10 +171,11 @@ setMethod("read", "regions", function(.Object, meta = NULL){
         setNames(meta, meta),
         function(M){
           as.nativeEnc(
-            CQI$struc2str(
-              .Object@corpus,
-              M,
-              CQI$cpos2struc(.Object@corpus, M, .BY[[1]])
+            cl_struc2str(
+              corpus = .Object@corpus,
+              s_attribute = M,
+              struc = cl_cpos2struc(corpus = .Object@corpus, s_attribute = M, cpos = .BY[[1]], registry = registry()),
+              registry = registry()
             ), from = .Object@encoding
             )
         }

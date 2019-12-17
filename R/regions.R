@@ -8,14 +8,30 @@ NULL
 setGeneric("as.regions", function(x, ...) standardGeneric("as.regions"))
 
 
-
+#' @examples 
+#' p <- partition("GERMAPARLMINI", speaker = "Angela Dorothea Merkel")
+#' r <- as(p, "regions")
+#' @noRd
 setAs(from = "partition", to = "regions", function(from, to){
-  new(
-    "regions",
-    cpos = from@cpos,
-    encoding = from@encoding,
-    corpus = from@corpus
-    )
+  y <- new("regions")
+  slots_to_get <- slotNames(y)
+  slots_to_get <- slots_to_get[-which(slots_to_get %in% c("data_dir", "type"))]
+  for (s in slots_to_get) slot(y, name = s) <- slot(from, name = s)
+  type <- get_type(y@corpus)
+  y@type <- if (length(type) > 0L) type else character()
+  y
+})
+
+#' @examples 
+#' sc <- subset("GERMAPARLMINI", speaker == "Angela Dorothea Merkel")
+#' r <- as(sc, "regions")
+#' @noRd
+setAs(from = "subcorpus", to = "regions", function(from, to){
+  y <- new("regions")
+  slots_to_get <- slotNames(y)
+  slots_to_get <- slots_to_get[-which(slots_to_get == "type")]
+  for (s in slots_to_get) slot(y, name = s) <- slot(from, name = s)
+  y
 })
 
 
@@ -29,6 +45,30 @@ setAs(from = "regions", to = "partition", function(from, to){
   )
 })
 
+setAs(from = "subcorpus", to = "partition", function(from, to){
+  new(
+    "partition",
+    cpos = from@cpos,
+    encoding = from@encoding,
+    corpus = from@corpus,
+    strucs = from@strucs,
+    s_attribute_strucs = from@s_attribute_strucs,
+    xml = from@xml,
+    size = size(from),
+    stat = data.table(),
+    ###
+    name = character(),
+    s_attributes = list(),
+    explanation = character(),
+    annotations = list(),
+    metadata = data.frame(),
+    p_attribute = character(),
+    key = character(),
+    call = character()
+  )
+})
+
+
 #' @rdname partition_class
 setMethod("as.regions", "partition", function(x) as(x, "regions"))
 
@@ -37,15 +77,15 @@ setMethod("as.regions", "partition", function(x) as(x, "regions"))
 #' @rdname context-class
 setMethod("as.regions", "context", function(x, node = TRUE){
   DT <- copy(x@cpos)
-  setkeyv(x = DT, cols = c("hit_no", "cpos"))
+  setkeyv(x = DT, cols = c("match_id", "cpos"))
   .cpos_left_right <- function(.SD) list(cpos_left = min(.SD[["cpos"]]), cpos_right = max(.SD[["cpos"]]))
   DT_list <- list(left = subset(DT, DT[["position"]] < 0), right = subset(DT, DT[["position"]] > 0))
   if (node) DT_list[["node"]] <- subset(DT, DT[["position"]] == 0)
-  DT_regions <- rbindlist(lapply(DT_list, function(x) x[, .cpos_left_right(.SD), by = "hit_no"]))
-  setorderv(DT_regions, cols = "hit_no")
+  DT_regions <- rbindlist(lapply(DT_list, function(x) x[, .cpos_left_right(.SD), by = "match_id"]))
+  setorderv(DT_regions, cols = "match_id")
   new(
     Class = "regions",
-    cpos = as.matrix(DT_regions[, "hit_no" := NULL]),
+    cpos = as.matrix(DT_regions[, "match_id" := NULL]),
     corpus = x@corpus,
     encoding = x@encoding
   )

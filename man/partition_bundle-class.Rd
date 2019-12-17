@@ -26,7 +26,7 @@
 \usage{
 \S4method{show}{partition_bundle}(object)
 
-\S4method{summary}{partition_bundle}(object, progress = TRUE)
+\S4method{summary}{partition_bundle}(object, progress = FALSE)
 
 \S4method{merge}{partition_bundle}(x, name = "", verbose = TRUE)
 
@@ -104,6 +104,15 @@ Using brackets can be used to retrieve the count for a token from the
 \item{\code{call}}{Object of class \code{character} the call that generated the \code{partition_bundle}}
 }}
 
+\examples{
+pb <- partition_bundle("REUTERS", s_attribute = "id")
+barplot(pb, las = 2)
+
+sc <- corpus("GERMAPARLMINI") \%>\%
+  subset(date == "2009-11-10") \%>\%
+  split(s_attribute = "speaker") \%>\%
+  barplot(las = 2)
+}
 \author{
 Andreas Blaette
 }

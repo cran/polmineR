@@ -21,8 +21,10 @@
 #' @importFrom RcppCWB cqp_reset_registry cqp_get_registry cqp_initialize
 #' @seealso To conveniently reset registry, see \code{\link{use}}.
 #' @examples
+#' \dontrun{
 #' x <- system.file(package = "polmineR", "extdata", "cwb", "registry")
 #' registry_reset(registryDir = x)
+#' }
 registry_reset <- function(registryDir = registry(), verbose = TRUE) {
   
   if (!file.exists(registryDir)) stop("registry directory does not exist")
@@ -30,20 +32,18 @@ registry_reset <- function(registryDir = registry(), verbose = TRUE) {
   
   Sys.setenv(CORPUS_REGISTRY = registryDir)
 
-  if (class(CQI)[1] == "CQI.RcppCWB"){
-    if (!cqp_is_initialized()){
-      .message("initializing CQP", verbose = verbose)
-      cqp_initialize(registry = registryDir)
-    } else {
-      cqp_reset_registry(registry = registryDir)
-    }
-    if (cqp_is_initialized() && (cqp_get_registry() == registryDir)){
-      .message("status: OK", verbose = verbose)
-    } else {
-      .message("status: FAIL", verbose = verbose)
-    }
-  } 
-
+  if (!cqp_is_initialized()){
+    .message("initializing CQP", verbose = verbose)
+    cqp_initialize(registry = registryDir)
+  } else {
+    cqp_reset_registry(registry = registryDir)
+  }
+  if (cqp_is_initialized() && (cqp_get_registry() == registryDir)){
+    .message("status: OK", verbose = verbose)
+  } else {
+    .message("status: FAIL", verbose = verbose)
+  }
+  
   set_template()
   invisible(oldRegistry)
 }
@@ -133,7 +133,15 @@ registry_get_properties = function(corpus, registry = Sys.getenv("CORPUS_REGISTR
 }
 
 
-#' @noRd
+#' @details The \code{registry_move} is an auxiliary function to create a copy
+#'   of a registry file in the directory specified by the argument
+#'   \code{registry_new}.
+#' @rdname registry
+#' @param registry The old registry directory.
+#' @param corpus The ID of the corpus for which the registry file shall be moved.
+#' @param registry_new The new registry directory.
+#' @param home_dir_new The new home directory.
+#' @export registry_move
 registry_move <- function(corpus, registry, registry_new, home_dir_new){
   registry <- readLines(file.path(registry, tolower(corpus)))
   
@@ -157,7 +165,7 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
 
 #' Get registry and data directories.
 #' 
-#' The Corpus Workbench (CWB) uses a registry directory with (txt) files
+#' The Corpus Workbench (CWB) uses a registry directory with plain text files
 #' describing corpora in a standardized format. The binary files of a corpus are
 #' stored in a data directory defined in the registry directory. The
 #' \code{registry} and \code{data_dir} functions return the respective
@@ -171,6 +179,10 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
 #'   environment variable are copied to the temporary registry directory, which
 #'   serves as the central place to store all registry files for all corpora, be
 #'   it system corpora, corpora included in R packages, or temporary corpora.
+#' @details The Corpus Workbench may have problems to cope with a registry path
+#'   that includes registry non-ASCII characters. On Windows, a call to
+#'   \code{utils::shortPathName} will generate the short MS-DOS path name that
+#'   circumvents resulting problems.
 #' 
 #' @param pkg A character string with the name of a single package; if \code{NULL} (default),
 #' the temporary registry and data directory is returned.
@@ -185,9 +197,16 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
 #' 
 #' data_dir()
 #' data_dir(pkg = "polmineR")
+#' @importFrom stringi stri_enc_mark
 registry <- function(pkg = NULL){
   if (is.null(pkg)){
     y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_registry", fsep = "/")
+    
+    # The user name may include special characters. On windows, a possible solutions to avoid
+    # error messages, is to use the DOS short path name.
+    if (stri_enc_mark(y) != "ASCII"){
+      if (.Platform$OS.type == "windows") y <- utils::shortPathName(y)
+    }
     return(y)
   } else {
     stopifnot(
@@ -203,6 +222,9 @@ registry <- function(pkg = NULL){
         warning(sprintf("no registry directory in package '%s'", pkg))
         return( NULL )
       } else {
+        if (stri_enc_mark(y) != "ASCII"){
+          if (.Platform$OS.type == "windows") y <- utils::shortPathName(y)
+        }
         return( y )
       }
     }

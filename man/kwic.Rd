@@ -4,15 +4,27 @@
 \name{kwic}
 \alias{kwic}
 \alias{kwic,context-method}
+\alias{kwic,slice-method}
 \alias{kwic,partition-method}
+\alias{kwic,subcorpus-method}
+\alias{kwic,corpus-method}
 \alias{kwic,character-method}
-\title{KWIC/concordance output.}
+\alias{kwic,remote_corpus-method}
+\alias{kwic,remote_partition-method}
+\title{Perform keyword-in-context (KWIC) analysis.}
 \usage{
 kwic(.Object, ...)
 
 \S4method{kwic}{context}(.Object,
   s_attributes = getOption("polmineR.meta"), cpos = TRUE,
   verbose = FALSE, ...)
+
+\S4method{kwic}{slice}(.Object, query, cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
+  boundary = NULL, cpos = TRUE, stoplist = NULL,
+  positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
 
 \S4method{kwic}{partition}(.Object, query, cqp = is.cqp,
   left = getOption("polmineR.left"),
@@ -21,6 +33,21 @@ kwic(.Object, ...)
   boundary = NULL, cpos = TRUE, stoplist = NULL,
   positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
 
+\S4method{kwic}{subcorpus}(.Object, query, cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
+  boundary = NULL, cpos = TRUE, stoplist = NULL,
+  positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
+
+\S4method{kwic}{corpus}(.Object, query, cqp = is.cqp, check = TRUE,
+  left = as.integer(getOption("polmineR.left")),
+  right = as.integer(getOption("polmineR.right")),
+  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
+  boundary = NULL, cpos = TRUE, stoplist = NULL,
+  positivelist = NULL, regex = FALSE, verbose = TRUE,
+  progress = TRUE, ...)
+
 \S4method{kwic}{character}(.Object, query, cqp = is.cqp, check = TRUE,
   left = as.integer(getOption("polmineR.left")),
   right = as.integer(getOption("polmineR.right")),
@@ -28,12 +55,19 @@ kwic(.Object, ...)
   boundary = NULL, cpos = TRUE, stoplist = NULL,
   positivelist = NULL, regex = FALSE, verbose = TRUE,
   progress = TRUE, ...)
+
+\S4method{kwic}{remote_corpus}(.Object, ...)
+
+\S4method{kwic}{remote_partition}(.Object, ...)
 }
 \arguments{
 \item{.Object}{A (length-one) \code{character} vector with the name of a CWB
 corpus, a \code{partition} or \code{context} object.}
 
-\item{...}{Further arguments, used to ensure backwards compatibility.}
+\item{...}{Further arguments, used to ensure backwards compatibility. If
+\code{.Object} is a \code{remote_corpus} of \code{remote_partition} object,
+the three dots (\code{...}) are used to pass arguments. Hence, it is
+necessary to state the names of all arguments to be passed explicity.}
 
 \item{s_attributes}{Structural attributes (s-attributes) to include into
 output table as metainformation.}
@@ -41,7 +75,7 @@ output table as metainformation.}
 \item{cpos}{Logical, if \code{TRUE}, the corpus positions ("cpos") if the hits will
 be included in the \code{kwic}-object that is returned.}
 
-\item{verbose}{Logical, whether to output progress messages}
+\item{verbose}{A \code{logical} value, whether to print messages.}
 
 \item{query}{A query, CQP-syntax can be used.}
 
@@ -64,51 +98,78 @@ results.}
 \item{positivelist}{Terms or ids required for a concordance to occurr in
 results}
 
-\item{regex}{Logical, whether stoplist/positivelist is interpreted as regular
-expression}
+\item{regex}{Logical, whether \code{stoplist}/\code{positivelist} is interpreted as regular
+expression.}
 
 \item{check}{A \code{logical} value, whether to check validity of CQP query
 using \code{check_cqp_query}.}
 
-\item{progress}{Logical, whether to show progress bars.}
+\item{progress}{A \code{logical} value, whether to show progress bar.}
+}
+\value{
+If there are no matches, or if all (initial) matches are dropped due to the
+application of a positivelist, a \code{NULL} is returned.
 }
 \description{
-Prepare and show concordances / keyword-in-context (kwic).
+Get concordances for the matches for a query / perform keyword-in-context
+(kwic) analysis.
 }
 \details{
 The method works with a whole CWB corpus defined by a  character vector, and
 can be applied on a \code{partition}- or a \code{context} object.
 
-If a \code{positivelist} ist supplied, only concordances will be kept if at
-least one of the terms from the \code{positivelist} occurrs in the context of
+If a \code{positivelist} is supplied, only those concordances will be kept that
+have one of the terms from the \code{positivelist} occurr in the context of
 the query match. Use argument \code{regex} if the positivelist should be
 interpreted as regular expressions. Tokens from the positivelist will be
 highlighted in the output table.
+
+If a \code{negativelist} is supplied, concordances are removed if any of the
+tokens of the \code{negativelist} occurrs in the context of the query match.
 }
 \examples{
 use("polmineR")
+
+# basic usage
 K <- kwic("GERMAPARLMINI", "Integration")
+if (interactive()) show(K)
+oil <- corpus("REUTERS") \%>\% kwic(query = "oil")
+if (interactive()) show(oil)
+oil <- corpus("REUTERS") \%>\%
+  kwic(query = "oil") \%>\%
+  highlight(yellow = "crude")
+if (interactive()) show(oil)
+
+# increase left and right context and display metadata
 K <- kwic(
   "GERMAPARLMINI",
   "Integration", left = 20, right = 20,
   s_attributes = c("date", "speaker", "party")
 )
+if (interactive()) show(K)
+
+# use CQP syntax for matching
 K <- kwic(
   "GERMAPARLMINI",
   '"Integration" [] "(Menschen|Migrant.*|Personen)"', cqp = TRUE,
   left = 20, right = 20,
   s_attributes = c("date", "speaker", "party")
 )
+if (interactive()) show(K)
 
+# check that boundary of region is not transgressed
 K <- kwic(
   "GERMAPARLMINI",
   '"Sehr" "geehrte"', cqp = TRUE,
+  left = 100, right = 100,
   boundary = "date"
 )
+if (interactive()) show(K)
 
-P <- partition("GERMAPARLMINI", date = "2009-11-10")
-K <- kwic(P, query = "Integration")
-K <- kwic(P, query = '"Sehr" "geehrte"', cqp = TRUE, boundary = "date")
+# use positivelist and highlight matches in context
+K <- kwic("GERMAPARLMINI", query = "Integration", positivelist = "[Ee]urop.*", regex = TRUE)
+K <- highlight(K, yellow = "[Ee]urop.*", regex = TRUE)
+
 }
 \references{
 Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, pp. 71-93 (ch. 4).
@@ -118,7 +179,9 @@ Cham et al: Springer, pp. 73-87 (chs. 8 & 9).
 }
 \seealso{
 The return value is a \code{\link{kwic-class}} object; the
-  documentation for the class explains the methods applicable to
-  \code{\link{kwic-class}} objects. To read the whole text, see the
-  \code{\link{read}}-method.
+  documentation for the class explains the standard generic methods
+  applicable to \code{\link{kwic-class}} objects. It is possible to read the
+  whole text where a query match occurs, see the \code{\link{read}}-method.
+  To highlight terms in the context of a query match, see the
+  \code{\link{highlight}}-method.
 }

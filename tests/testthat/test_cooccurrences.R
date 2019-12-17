@@ -52,6 +52,7 @@ test_that(
   {
     cooc <- cooccurrences("GERMAPARLMINI", query = "Integration")
     cooc_dt <- cooc@stat[!is.na(ll)]
+    data.table::setorderv(cooc_dt, cols = "ll", order = -1L)
     
     for (i in seq.int(from = 1L, to = 10L)){
       
@@ -144,3 +145,51 @@ test_that(
 )
 
 
+test_that(
+  "Cooccurences-method for subcorpus and partition objects",
+  {
+    merkel <- partition(
+      "GERMAPARLMINI",
+      speaker = "Merkel",
+      date = "2009-11-10",
+      interjection = "speech",
+      regex = TRUE
+    )
+    merkel_cooc <- Cooccurrences(
+      merkel,
+      p_attribute = c("word", "pos"),
+      left = 3L, right = 3L,
+      verbose = TRUE
+    )
+    ll(merkel_cooc)
+    decode(merkel_cooc)
+    
+    expect_identical(
+      unique(merkel_cooc@stat[a_word == "und"][["a_count"]]),
+      count(merkel, "und")[["count"]]
+    )
+    
+    #######
+    
+    merkel_sc <- corpus("GERMAPARLMINI") %>%
+      subset(date == "2009-11-10") %>%
+      subset(grep("Merkel", speaker)) %>%
+      subset(interjection == "speech")
+      
+    merkel_cooc_sc <- Cooccurrences(
+      merkel_sc,
+      p_attribute = c("word", "pos"),
+      left = 3L, right = 3L,
+      verbose = TRUE
+    )
+    ll(merkel_cooc_sc)
+    decode(merkel_cooc_sc)
+    
+    expect_identical(
+      unique(merkel_cooc_sc@stat[a_word == "und"][["a_count"]]),
+      count(merkel_sc, "und", verbose = FALSE)[["count"]]
+    )
+    
+    expect_identical(merkel_cooc@stat, merkel_cooc_sc@stat)
+  }
+)

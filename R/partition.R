@@ -20,87 +20,27 @@ setAs(from = "partition", to = "plpr_partition", function(from){
 #' @exportMethod show
 #' @docType methods
 #' @noRd
-setMethod("show", "partition",
-          function(object){
-            cat("** partition object **\n")
-            cat(sprintf("%-20s", "corpus:"), object@corpus, "\n")
-            cat(sprintf("%-20s", "name:"), object@name, "\n")
-            if (length(object@s_attributes) == 0L) {
-              cat(sprintf("%-20s", "s-attributes:"), "no specification\n")
-            } else {
-              s <- unlist(lapply(
-                names(object@s_attributes),
-                function(x) paste(x, "=", paste(object@s_attributes[[x]], collapse = "/"))
-              ))
-              cat(sprintf("%-20s", "s-attributes:"), s[1], '\n')
-              if (length(s)>1) {for (i in length(s)) cat(sprintf("%-20s", " "), s[i], '\n') }
-            } 
-            cat(sprintf("%-21s", "cpos:"))
-            if (nrow(object@cpos) == 0L) cat("not available\n") else cat(nrow(object@cpos), "pairs of corpus positions\n")
-            cat(sprintf("%-21s", "size:"))
-            if (is.null(object@size)) cat("not available\n") else cat(object@size, "tokens\n")
-            cat(sprintf("%-21s", "count:"))
-            if (length(object@p_attribute) == 0L) cat("not available\n") else cat("available for ", object@p_attribute, "\n")
-          })
-
-
-
-#' @details The \code{split}-method will split a partition object into a
-#' \code{partition_bundle} if gap between strucs exceeds a minimum number of
-#' tokens specified by \code{gap}. Relevant to split up a plenary protocol# into
-#' speeches. Note: To speed things up, the returned partitions will not include
-#' frequency lists. The lists can be prepared by applying \code{enrich} on the
-#' \code{partition_bundle} object that is returned.
-#' @param x A \code{partition} object.
-#' @param gap An integer value specifying the minimum gap between regions for
-#'   performing the split.
-#' @rdname partition_class
-#' @exportMethod split
-#' @docType methods
-setMethod("split", "partition", function(x, gap, ...){
-  cpos <- x@cpos
-  if (nrow(cpos) > 1L){
-    distance <- cpos[,1][2L:nrow(cpos)] - cpos[,2][1L:(nrow(cpos) - 1L)]
-    beginning <- c(1L, ifelse(distance > gap, 1L, 0L))
-    no <- vapply(
-      1L:length(beginning),
-      FUN.VALUE = 1L,
-      function(x) ifelse (beginning[x] == 1L, sum(beginning[1L:x]), 0L)
-    )
-    for (i in 1L:length(no)) no[i] <- ifelse (no[i] == 0, no[i - 1L], no[i])
-    strucsClassified <- cbind(x@strucs, no)
-    strucList <- split(strucsClassified[,1], strucsClassified[,2])
-    cposClassified <- cbind(cpos, no)
-    cposList1 <- split(cposClassified[,1], cposClassified[,3])
-    cposList2 <- split(cposClassified[,2], cposClassified[,3])
-    bundleRaw <- lapply(
-      1L:length(strucList),
-      function(i) {
-        p <- new(
-          class(x)[1],
-          strucs = strucList[[i]],
-          cpos = cbind(cposList1[[i]], cposList2[[i]]),
-          corpus = x@corpus, encoding = x@encoding,
-          s_attributes = x@s_attributes,
-          xml = x@xml, s_attribute_strucs = x@s_attribute_strucs,
-          explanation = "partition results from split, s-attributes do not necessarily define partition",
-          name = paste(x@name, i, collapse = "_", sep = ""),
-          stat = data.table()
-        )
-        meta <- if (is.null(names(x@metadata))) NULL else colnames(x@metadata)
-        p@size <- size(p)
-        p
-      })
+setMethod("show", "partition", function(object){
+  cat("** partition object **\n")
+  cat(sprintf("%-20s", "corpus:"), object@corpus, "\n")
+  cat(sprintf("%-20s", "name:"), object@name, "\n")
+  if (length(object@s_attributes) == 0L) {
+    cat(sprintf("%-20s", "s-attributes:"), "no specification\n")
   } else {
-    x@name <- paste(x@name, 1, collapse = "_", sep = "")
-    bundleRaw <- list(x)
-  }
-  names(bundleRaw) <- unlist(lapply(bundleRaw, function(y) y@name))
-  bundle <- as.bundle(bundleRaw)
-  bundle
+    s <- unlist(lapply(
+      names(object@s_attributes),
+      function(x) paste(x, "=", paste(object@s_attributes[[x]], collapse = "/"))
+    ))
+    cat(sprintf("%-20s", "s-attributes:"), s[1], '\n')
+    if (length(s)>1) {for (i in length(s)) cat(sprintf("%-20s", " "), s[i], '\n') }
+  } 
+  cat(sprintf("%-21s", "cpos:"))
+  if (nrow(object@cpos) == 0L) cat("not available\n") else cat(nrow(object@cpos), "pairs of corpus positions\n")
+  cat(sprintf("%-21s", "size:"))
+  if (is.null(object@size)) cat("not available\n") else cat(object@size, "tokens\n")
+  cat(sprintf("%-21s", "count:"))
+  if (length(object@p_attribute) == 0L) cat("not available\n") else cat("available for ", object@p_attribute, "\n")
 })
-
-
 
 
 
@@ -129,11 +69,11 @@ setAs(
     slotsToMake <- getSlots("partition")
     slotsToMake <- slotsToMake[-which(names(slotsToMake) %in% c("stat", "metadata", "call"))]
     partitionList <- fromJSON(from)
-    newPartition <- new("partition")
+    y <- new("partition")
     for (x in names(slotsToMake)){
-      slot(newPartition, x) <- as(partitionList[[x]], slotsToMake[x])
+      slot(y, x) <- as(partitionList[[x]], slotsToMake[x])
     }
-    newPartition
+    y
   }
 )
 
@@ -170,11 +110,11 @@ is.partition <- function(x) "partition" %in% is(x)
     # Interestingly, the for-loop is more effective than a vectorized version
     # an Rcpp-implementation of struc2str is not faster
     # potential for optimization: struc2str
-    maxAttr <- CQI$attribute_size(.Object@corpus, .Object@s_attribute_strucs, type = "s")
+    maxAttr <- cl_attribute_size(corpus = .Object@corpus, attribute = .Object@s_attribute_strucs, attribute_type = "s", registry = registry())
     meta <- data.frame(struc = 0L:(maxAttr - 1L), select = rep(0L, times = maxAttr))
     if (length(.Object@s_attributes) > 0) {
       for (sAttr in names(.Object@s_attributes)){
-        meta[,2] <- as.vector(CQI$struc2str(.Object@corpus, sAttr, meta[,1]))
+        meta[,2] <- as.vector(cl_struc2str(corpus = .Object@corpus, s_attribute = sAttr, struc = meta[,1], registry = registry()))
         Encoding(meta[,2]) <- .Object@encoding
         if (regex == FALSE) {
           meta <- meta[which(meta[,2] %in% .Object@s_attributes[[sAttr]]),]
@@ -187,55 +127,44 @@ is.partition <- function(x) "partition" %in% is(x)
         warning(paste("no strucs found for the values provided for s-attribute", sAttr))
       }
     }
-    if (nrow(meta) != 0){
-      if (requireNamespace("RcppCWB", quietly = TRUE)){
-        .Object@cpos <- RcppCWB::get_region_matrix(
-          corpus = .Object@corpus, s_attribute = .Object@s_attribute_strucs, strucs = meta[,1]
-        )
-      } else {
-        .Object@cpos <- matrix(
-          data = unlist(lapply(meta[,1], function(x) CQI$struc2cpos(.Object@corpus, .Object@s_attribute_strucs, x))),
-          ncol = 2L, byrow = TRUE
-        )
-      }
-      .Object@strucs <- as.integer(meta[,1])
+    if (nrow(meta) != 0) {
+      .Object@cpos <- RcppCWB::get_region_matrix(
+        corpus = .Object@corpus,
+        s_attribute = .Object@s_attribute_strucs,
+        strucs = meta[, 1]
+      )
+      .Object@strucs <- as.integer(meta[, 1])
     } else {
       warning("returning a NULL object")
       .Object <- NULL    
     }
   } else if (xml == "nested"){
     sAttrNames <- rev(names(.Object@s_attributes))
-    strucs <- 0L:(CQI$attribute_size(.Object@corpus, sAttrNames[1], type = "s") - 1L)
-    sAttrValues <- CQI$struc2str(.Object@corpus, sAttrNames[1], strucs)
-    Encoding(sAttrValues) <- .Object@encoding
+    strucs <- 0L:(cl_attribute_size(corpus = .Object@corpus, attribute = sAttrNames[1], attribute_type = "s", registry = registry()) - 1L)
+    s_attr_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = sAttrNames[1], struc = strucs, registry = registry())
+    Encoding(s_attr_values) <- .Object@encoding
     if (regex == FALSE) {
-      strucs <- strucs[ which(sAttrValues %in% .Object@s_attributes[[ sAttrNames[1] ]]) ]
+      strucs <- strucs[ which(s_attr_values %in% .Object@s_attributes[[ sAttrNames[1] ]]) ]
     } else {
-      matchList <- lapply(.Object@s_attributes[[ sAttrNames[1] ]], function(x) grep(x, sAttrValues))
+      matchList <- lapply(.Object@s_attributes[[ sAttrNames[1] ]], function(x) grep(x, s_attr_values))
       strucs <- strucs[ unique(unlist(matchList)) ]
     }
     
-    # turn strucs into cpos matrix, using RcppCWB, if available
-    if (requireNamespace("RcppCWB", quietly = TRUE)){
-      cpos <- RcppCWB::get_region_matrix(
-        corpus = .Object@corpus, s_attribute = sAttrNames[1],
-        registry = Sys.getenv("CORPUS_REGISTRY"), strucs = strucs
-      )
-    } else {
-      cpos <- matrix(
-        unlist(lapply(strucs, function(x) CQI$struc2cpos(.Object@corpus, sAttrNames[1], x))),
-        byrow = TRUE, ncol = 2L
-      )
-    }
+    # turn strucs into cpos matrix using RcppCWB
+    cpos <- RcppCWB::get_region_matrix(
+      corpus = .Object@corpus, s_attribute = sAttrNames[1],
+      registry = Sys.getenv("CORPUS_REGISTRY"), strucs = strucs
+    )
     
     if (length(sAttrNames) > 1){
       for (i in 2L:length(sAttrNames)){
-        sAttrValues <- CQI$struc2str(.Object@corpus, sAttrNames[i], CQI$cpos2struc(.Object@corpus, sAttrNames[i], cpos[,1]))
-        Encoding(sAttrValues) <- .Object@encoding
+        strucs <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = sAttrNames[i], cpos = cpos[,1], registry = registry())
+        s_attr_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = sAttrNames[i], struc = strucs, registry = registry())
+        Encoding(s_attr_values) <- .Object@encoding
         if (regex) {
-          hits <- unique(unlist(lapply(.Object@s_attributes[[ sAttrNames[i] ]], function(x) grep(x, sAttrValues))))
+          hits <- unique(unlist(lapply(.Object@s_attributes[[ sAttrNames[i] ]], function(x) grep(x, s_attr_values))))
         } else {
-          hits <- which(sAttrValues %in% .Object@s_attributes[[ sAttrNames[i] ]])
+          hits <- which(s_attr_values %in% .Object@s_attributes[[ sAttrNames[i] ]])
         }
         cpos <- cpos[hits,]
         strucs <- strucs[hits]
@@ -300,7 +229,10 @@ is.partition <- function(x) "partition" %in% is(x)
 #' @param type A length-one character vector specifying the type of corpus / partition (e.g. "plpr")
 #' @param mc Whether to use multicore (for counting terms).
 #' @param verbose Logical, whether to be verbose.
-#' @param ... Arguments to define partition (see examples).
+#' @param ... Arguments to define partition (see examples). If \code{.Object} is
+#'   a \code{remote_corpus} or \code{remote_partition} object, the three dots
+#'   (\code{...}) are used to pass arguments. Hence, it is necessary to state
+#'   the names of all arguments to be passed explicity.
 #' @return An object of the S4 class \code{partition}.
 #' @author Andreas Blaette
 #' @seealso To learn about the methods available for objects of the class
@@ -351,8 +283,14 @@ setMethod("partition", "character", function(
     dot_list[["pAttribute"]] <- NULL
   }
   
-  if (!.Object %in% CQI$list_corpora()) stop("corpus not found (not installed / not in registry / a typo?)")
-  if (length(dot_list) != 0 && is.null(def)) def <- dot_list
+  if (!.Object %in% .list_corpora()) stop("corpus not found (not installed / not in registry / a typo?)")
+  if (is.null(def)){
+    if (length(dot_list) > 0L)
+      def <- dot_list
+    else 
+      stop("No s_attributes defining the partition offered")
+  }
+
   if (!all(names(def) %in% s_attributes(.Object))) stop("not all s-attributes are available")
   assign(
     "p",
@@ -428,110 +366,61 @@ setMethod("partition", "partition", function(.Object, def = NULL, name = "", reg
     dot_list[["pAttribute"]] <- NULL
   }
   
-  if (length(dot_list) != 0L && is.null(def)) def <- dot_list
-  if (!all(names(def) %in% s_attributes(.Object))) stop("some or all s-attributes provided are not available")
+  if (is.null(def)){
+    if (length(dot_list) > 0L)
+      def <- dot_list
+    else 
+      stop("No s_attributes defining the partition offered")
+  }
+  
+  if (!all(names(def) %in% s_attributes(.Object))) stop(sprintf("some or all s-attributes provided are not available: %s", paste(names(def), collapse = ", ")))
   if (length(def) > 1L) stop("only one s-attribute allowed")
   if (!is.null(xml)) stopifnot(xml %in% c("flat", "nested"))
   
-  newPartition <- new(
+  y <- new(
     class(.Object)[1], corpus = .Object@corpus, encoding = .Object@encoding, name = name,
     xml = if (is.null(xml)) .Object@xml else xml,
     stat = data.table()
   )
   .message('Setting up partition', name, verbose = verbose)
   def <- lapply(def, function(x) as.corpusEnc(x, corpusEnc = .Object@encoding))  
-  newPartition@s_attributes <- c(.Object@s_attributes, def)
-  newPartition@s_attribute_strucs <- names(def)[1]
+  y@s_attributes <- c(.Object@s_attributes, def)
+  y@s_attribute_strucs <- names(def)[1]
   
   .message('getting cpos and strucs', verbose = verbose)
   
   if (.Object@xml == "flat") {
-    sAttrValues <- CQI$struc2str(.Object@corpus, names(def), .Object@strucs)
-    Encoding(sAttrValues) <- newPartition@encoding
-    hits <- if (regex) grep(def[[1]], sAttrValues) else which(sAttrValues %in% def[[1]])
-    newCposMatrix <- .Object@cpos[hits,]
-    newPartition@cpos <- switch(
-      class(newCposMatrix),
-      "matrix" = newCposMatrix,
-      "integer"= matrix(newCposMatrix, ncol = 2, byrow = TRUE)
+    s_attr_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = names(def), struc = .Object@strucs, registry = registry())
+    Encoding(s_attr_values) <- y@encoding
+    hits <- if (regex) grep(def[[1]], s_attr_values) else which(s_attr_values %in% def[[1]])
+    cpos_matrix_new <- .Object@cpos[hits,]
+    y@cpos <- switch(
+      class(cpos_matrix_new)[1],
+      "matrix" = cpos_matrix_new,
+      "integer"= matrix(cpos_matrix_new, ncol = 2, byrow = TRUE)
     )
-    newPartition@strucs <- .Object@strucs[hits]
+    y@strucs <- .Object@strucs[hits]
   } else if (.Object@xml == "nested") {
-    cposVec <- unlist(apply(.Object@cpos, 1, function(x) x[1]:x[2]))
-    newStrucs <- CQI$cpos2struc(.Object@corpus, names(def)[1], cposVec)
-    sAttrValues <- CQI$struc2str(.Object@corpus, names(def), newStrucs)
-    Encoding(sAttrValues) <- .Object@encoding
-    hits <- if (regex) grep(def[[1]], sAttrValues) else which(sAttrValues %in% def[[1]])
-    newPartition@strucs <- unique(newStrucs[hits])
-    newPartition@cpos <- RcppCWB::get_region_matrix(
+    cpos_vec <- unlist(apply(.Object@cpos, 1, function(x) x[1]:x[2]))
+    strucs_new <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = names(def)[1], cpos = cpos_vec, registry = registry())
+    s_attr_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = names(def), struc = strucs_new, registry = registry())
+    Encoding(s_attr_values) <- .Object@encoding
+    hits <- if (regex) grep(def[[1]], s_attr_values) else which(s_attr_values %in% def[[1]])
+    y@strucs <- unique(strucs_new[hits])
+    y@cpos <- RcppCWB::get_region_matrix(
       corpus = .Object@corpus, s_attribute = names(def),
-      registry = Sys.getenv("CORPUS_REGISTRY"), strucs = newPartition@strucs
+      registry = Sys.getenv("CORPUS_REGISTRY"), strucs = y@strucs
     )
   }
-  newPartition@size <- size(newPartition)
-  if (length(p_attribute) > 0) {
-    newPartition@stat <- count(.Object = newPartition, p_attribute = p_attribute, decode = decode, mc = mc)@stat
-    newPartition@p_attribute <- p_attribute
-  }
-  newPartition
-})
-
-
-#' @details If \code{.Object} is a \code{Corpus} object, preparing the
-#'   \code{partition} may work more efficiently than if \code{.Object} is a
-#'   length-one character vector.
-#' @rdname partition
-#' @importFrom data.table copy
-setMethod("partition", "Corpus", function(
-  .Object, def = NULL, name = "",
-  encoding = NULL, regex = FALSE, xml = "flat",
-  type = get_type(.Object), verbose = TRUE, ...
-) {
-  
-  # some checks to start with
-  if (xml == "nested") stop("applying the partition on a Corpus object is possible only for flat XML")
-  if (length(list(...)) != 0 && is.null(def)) def <- list(...)
-  if (is.null(def)) stop("no s-attributes provided to define partition")
-  if (!all(names(def) %in% colnames(.Object$s_attributes)))
-    stop("at least one s-attribute is not present in data.table in slot s_attribute of .Object")
-  
-  encoding <- if (is.null(encoding)) registry_get_encoding(.Object$corpus) else encoding
-  .message('encoding of the corpus is:', encoding, verbose = verbose)
-  
-  .message('initialize partition ', name, verbose = verbose)
-  assign(
-    "y",
-    new(
-      paste(c(type, "partition"), collapse = "_"),
-      stat = data.table(), corpus = .Object$corpus, name = name, xml = xml,
-      encoding = encoding,
-      s_attributes = lapply(def, function(x) as.corpusEnc(x, corpusEnc = encoding))
-    )
-  ) 
-  def <- y@s_attributes
-  
-  .message('get cpos and strucs', verbose = verbose)
-  dt <- copy(.Object$s_attributes)
-  for (s_attr in names(def)){
-    if (regex){
-      dt <- dt[unique(unlist(lapply(def[[s_attr]], function(x) grep(x, dt[[s_attr]]))))]
-    } else {
-      dt <- dt[which(dt[[s_attr]] %in% def[[s_attr]])]
-    }
-  }
-  y@s_attribute_strucs <- names(def)[length(def)]
-  y@strucs <- dt[["struc"]]
-  y@cpos <- .Object$cpos[dt[["struc"]] + 1L,]
-  
-  if (nrow(y@cpos) == 0){
-    warning("... setting up the partition failed (returning NULL object)")
-    return( NULL )
-  }
-  
-  # get partition size
   y@size <- size(y)
+  if (length(p_attribute) > 0) {
+    y@stat <- count(.Object = y, p_attribute = p_attribute, decode = decode, mc = mc)@stat
+    y@p_attribute <- p_attribute
+  }
   y
 })
+
+
 
 
 #' @param node A logical value, whether to include the node (i.e. query matches) in the region matrix
@@ -549,85 +438,30 @@ setMethod("partition", "context", function(.Object, node = TRUE){
   # Second, generate a list with data.table objects with counts
   DT <- copy(.Object@cpos)
   if (!node) DT <- subset(DT, DT[["position"]] != 0)
-  y@stat <- DT[, .N, by = c("hit_no", paste(.Object@p_attribute, "id", sep = "_"))]
+  y@stat <- DT[, .N, by = c("match_id", paste(.Object@p_attribute, "id", sep = "_"))]
   
   setnames(y@stat, old = "N", new = "count")
   for (p_attr in .Object@p_attribute){
-    y@stat[[p_attr]] <- CQI$id2str(corpus = .Object@corpus, p_attribute = p_attr, id = y@stat[[paste(p_attr, "id", sep = "_")]])
+    y@stat[[p_attr]] <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = y@stat[[paste(p_attr, "id", sep = "_")]], registry = registry())
   }
   y
 })
 
 
-################ EXPERIMENTAL ZONE
-
-#' @details The `$`-method will assign the argument \code{name} to the slot
-#'   \code{key} and return the modified object.
-#' @examples
-#' m <- partition("GERMAPARLMINI", speaker = "Merkel", regex = TRUE)
-#' m2 <- m$speaker
-#' m2@@key
-#' @rdname partition_class
-#' @exportMethod $
-setMethod("$", "partition", function(x, name){
-  x@key <- name
-  x
+#' @rdname partition
+setMethod("partition", "remote_corpus", function(.Object, ...){
+  p <- ocpu_exec(fn = "partition", server = .Object@server, .Object = .Object@corpus, ...)
+  y <- as(p, "remote_partition")
+  y@server <- .Object@server
+  y
 })
 
 
-#' @examples
-#' m <- partition("GERMAPARLMINI", speaker = "Merkel", regex = TRUE)
-#' m$date == "2009-10-28"
-#' @rdname partition_class
-#' @exportMethod ==
-setMethod("==", "partition", function(e1, e2){
-  partition(e1, def = setNames(object = list(e2), nm = e1@key))
-})
-
-
-
-
-#' @examples
-#' s <- partition("GERMAPARLMINI", interjection = "speech")
-#' s$party != "NA"
-#' @rdname partition_class
-#' @exportMethod !=
-setMethod("!=", "partition", function(e1, e2){
-  available <- s_attributes(e1, e1@key)
-  keep <- available[!available %in% e2]
-  partition(e1, def = setNames(object = list(keep), nm = e1@key))
-})
-
-
-
-#' @examples
-#' s <- partition("GERMAPARLMINI", interjection = "speech")
-#' s$date %in% c("2009-10-27", "2009-10-28")
-#' @rdname partition_class
-#' @exportMethod %in%
-setMethod("%in%", "partition", function(x, table){
-  partition(x, def = setNames(object = list(table), nm = x@key))
-})
-
-
-#' @examples
-#' m <- partition("GERMAPARLMINI", speaker = "Merkel", regex = TRUE)
-#' y <- zoom(m, date == "2009-10-28")
-#' 
-#' speeches <- partition("GERMAPARLMINI", interjection = "speech")
-#' m <- zoom(speeches, date == "2009-10-28" & speaker == "Angela Dorothea Merkel")
-#' 
-#' not_unknown <- zoom(speeches, party != c("NA", "FDP"))
-#' s_attributes(not_unknown, "party")
-#' @rdname partition_class
-#' @exportMethod subset
-setMethod("zoom", "partition", function(x, ...){
-  cmds <- strsplit(deparse(substitute(...)), split = "\\s*&\\s*")[[1]]
-  x_s_attributes <- s_attributes(x)
-  for (cmd in cmds){
-    for (s_attr in x_s_attributes) cmd <- gsub(sprintf("(%s)", s_attr), "x$\\1", cmd)
-    x <- eval(parse(text = cmd))
-  }
-  x
+#' @rdname partition
+setMethod("partition", "remote_partition", function(.Object, ...){
+  p <- ocpu_exec(fn = "partition", server = .Object@server, .Object = as(.Object, "partition", ...))
+  y <- as(p, "remote_partition")
+  y@server <- .Object@server
+  y
 })
 

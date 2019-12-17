@@ -40,16 +40,13 @@ NULL
 #' )
 #' 
 #' # the method can be used in pipe
-#' if (require("magrittr")){
-#'   P %>% html() %>% highlight(list(lightgreen = "1986")) -> H
-#'   P %>% html() %>% highlight(list(lightgreen = c("1986", "higher"))) -> H
-#'   P %>% html() %>% highlight(list(lightgreen = 4020:4023)) -> H
-#' }
+#' P %>% html() %>% highlight(list(lightgreen = "1986")) -> H
+#' P %>% html() %>% highlight(list(lightgreen = c("1986", "higher"))) -> H
+#' P %>% html() %>% highlight(list(lightgreen = 4020:4023)) -> H
 #' 
 #' # use highlight for kwic output
 #' K <- kwic("REUTERS", query = "barrel")
 #' K2 <- highlight(K, highlight = list(yellow = c("oil", "price")))
-#' if (interactive()) K2
 #' 
 #' # use character vector for output, not list
 #' K2 <- highlight(
@@ -58,16 +55,16 @@ NULL
 #'     green = "pric.",
 #'     red = "reduction",
 #'     red = "decrease",
-#'     orange = "dropped"),
-#'     regex = TRUE
+#'     orange = "dropped"
+#'   ),
+#'   regex = TRUE
 #' )
-#' if (interactive()) K2
 setGeneric("highlight", function(.Object, ...) standardGeneric("highlight"))
 
 
 
 #' @rdname highlight
-setMethod("highlight", "character", function(.Object, highlight = list(), ...){
+setMethod("highlight", "character", function(.Object, highlight = list(), regex = FALSE, perl = FALSE, ...){
   if (length(list(...)) > 0) highlight <- list(...)
   if (is.character(highlight)) highlight <- split(x = unname(highlight), f = names(highlight))
   if (!requireNamespace("xml2", quietly = TRUE)) stop("package 'xml2' needs to be installed for highlighting using cpos/ids")
@@ -79,7 +76,13 @@ setMethod("highlight", "character", function(.Object, highlight = list(), ...){
         if (is.numeric(x)){
           nodes <- xml2::xml_find_all(doc, xpath = sprintf('//span[@id="%d"]', x))
         } else {
-          nodes <- xml2::xml_find_all(doc, xpath = sprintf('//span[@token="%s"]', x))
+          if (!regex){
+            nodes <- xml2::xml_find_all(doc, xpath = sprintf('//span[@token="%s"]', x))
+          } else {
+            span_nodes <- xml2::xml_find_all(doc, xpath = sprintf('//span', x))
+            token_attrs <- lapply(span_nodes, function(x) xml_attrs(x, "token"))
+            nodes <- span_nodes[grep(x, sapply(token_attrs, function(x) x[["token"]]), perl = perl)]
+          }
         }
         lapply(
           nodes,
@@ -95,11 +98,13 @@ setMethod("highlight", "character", function(.Object, highlight = list(), ...){
 })
 
 #' @rdname highlight
-setMethod("highlight", "html", function(.Object, highlight = list(), ...){
-  if (length(list(...)) > 0) highlight <- list(...)
-  htmltools::HTML(
-    highlight(as.character(.Object), highlight = highlight)
+setMethod("highlight", "html", function(.Object, highlight = list(), regex = FALSE, perl = FALSE, ...){
+  if (length(list(...)) > 0L) highlight <- list(...)
+  ret <- htmltools::HTML(
+    highlight(as.character(.Object), highlight = highlight, regex = regex, perl = perl)
   )
+  attr(ret, "browsable_html") <- TRUE
+  ret
 })
 
 #' @rdname highlight

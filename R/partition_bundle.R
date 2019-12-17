@@ -17,13 +17,9 @@ setMethod("show", "partition_bundle", function (object) {
 })
 
 #' @rdname partition_bundle-class
-setMethod("summary", "partition_bundle", function (object, progress = TRUE){
-  if (progress){
-    a <- lapply(object@objects, function(x) data.frame(summary(x), stringsAsFactors = FALSE))
-  } else {
-    a <- pblapply(object@objects, function(x) data.frame(summary(x), stringsAsFactors = FALSE))
-  }
-  
+setMethod("summary", "partition_bundle", function (object, progress = FALSE){
+  .fn <- function(x) data.frame(summary(x), stringsAsFactors = FALSE)
+  a <- if (!progress) lapply(object@objects, .fn) else pblapply(object@objects, .fn)
   y <- do.call(rbind, a)
   rownames(y) <- NULL
   y
@@ -53,7 +49,7 @@ setMethod("merge", "partition_bundle", function(x, name = "", verbose = TRUE){
   .message('generating corpus positions', verbose = verbose)
   cpos <- data.matrix(t(data.frame(lapply(
     y@strucs,
-    function(s) CQI$struc2cpos(y@corpus, y@s_attribute_strucs, s) )
+    function(s) cl_struc2cpos(corpus = y@corpus, s_attribute = y@s_attribute_strucs, struc = s, registry = registry()) )
   )))
   rownames(cpos) <- NULL
   y@cpos <- cpos
@@ -85,10 +81,18 @@ setMethod('[', 'partition_bundle', function(x,i){
 
 #' @exportMethod barplot
 #' @rdname partition_bundle-class
+#' @examples
+#' pb <- partition_bundle("REUTERS", s_attribute = "id")
+#' barplot(pb, las = 2)
+#' 
+#' sc <- corpus("GERMAPARLMINI") %>%
+#'   subset(date == "2009-11-10") %>%
+#'   split(s_attribute = "speaker") %>%
+#'   barplot(las = 2)
 setMethod("barplot", "partition_bundle", function(height, ...){
   tab <- summary(height)
-  tab <- tab[order(tab[, "token"], decreasing = TRUE),]
-  barplot(tab$token, names.arg=tab$partition, ...)
+  tab <- tab[order(tab[["size"]], decreasing = TRUE),]
+  barplot(tab[["size"]], names.arg = tab[["name"]], ...)
 })
 
 
@@ -101,12 +105,12 @@ NULL
 #' combines a set of \code{partition} objects.
 #' 
 #' @param .Object A \code{partition}, a length-one \code{character} vector supplying a CWB corpus, or a \code{partition_bundle}
-#' @param s_attribute The s-attribute to vary
+#' @param s_attribute The s-attribute to vary.
 #' @param values Values the s-attribute provided shall assume.
 #' @param prefix A character vector that will be attached as a prefix to partition names.
 #' @param progress Logical, whether to show progress bar.
 #' @param mc Logical, whether to use multicore parallelization.
-#' @param xml logical
+#' @param xml A \code{logical} value.
 #' @param type The type of \code{partition} to generate.
 #' @param verbose Logical, whether to provide progress information.
 #' @param ... parameters to be passed into partition-method (see respective documentation)
@@ -171,8 +175,8 @@ setMethod("partition_bundle", "character", function(
     corpus = .Object,
     encoding = registry_get_encoding(.Object)
   )
-  strucs <- 0L:(CQI$attribute_size(.Object, s_attribute, "s") - 1L)
-  names(strucs) <- CQI$struc2str(.Object, s_attribute, strucs)
+  strucs <- 0L:(cl_attribute_size(corpus = .Object, attribute = s_attribute, attribute_type = "s", registry = registry()) - 1L)
+  names(strucs) <- cl_struc2str(corpus = .Object, s_attribute = s_attribute, struc = strucs, registry = registry())
   if (!is.null(values)) {
     valuesToKeep <- values[which(values %in% names(strucs))]
     strucs <- strucs[valuesToKeep]
@@ -203,7 +207,7 @@ setMethod("partition_bundle", "character", function(
       s_attributes = setNames(list(names(cposList)[i]), s_attribute),
       s_attribute_strucs = s_attribute,
       xml = xml,
-      strucs = CQI$cpos2struc(.Object, s_attribute, cposList[[i]][,1])
+      strucs = cl_cpos2struc(corpus = .Object, s_attribute = s_attribute, cpos = cposList[[i]][,1], registry = registry())
     )
   }
   bundle@objects <- blapply(
@@ -233,24 +237,24 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, progress
   stopifnot(is.logical(node))
   
   DT <- copy(.Object@cpos)
-  setkeyv(x = DT, cols = c("hit_no", "cpos"))
+  setkeyv(x = DT, cols = c("match_id", "cpos"))
   if (!node) DT <- subset(DT, DT[["position"]] != 0)
   
   # First step, generate a list of data.tables with regions
   .cpos_left_right <- function(.SD) list(cpos_left = min(.SD[["cpos"]]), cpos_right = max(.SD[["cpos"]]))
   DT_list <- list(left = subset(DT, DT[["position"]] < 0), right = subset(DT, DT[["position"]] > 0))
   if (node) DT_list[["node"]] <- subset(DT, DT[["position"]] == 0)
-  DT_regions <- rbindlist(lapply(DT_list, function(x) x[, .cpos_left_right(.SD), by = "hit_no"]))
-  setorderv(DT_regions, cols = "hit_no")
-  regions_list <- split(DT_regions, by = "hit_no")
+  DT_regions <- rbindlist(lapply(DT_list, function(x) x[, .cpos_left_right(.SD), by = "match_id"]))
+  setorderv(DT_regions, cols = "match_id")
+  regions_list <- split(DT_regions, by = "match_id")
   
   # Second, generate a list with data.table objects with counts
-  CNT <- DT[, .N, by = c("hit_no", paste(.Object@p_attribute, "id", sep = "_"))]
+  CNT <- DT[, .N, by = c("match_id", paste(.Object@p_attribute, "id", sep = "_"))]
   setnames(CNT, old = "N", new = "count")
   for (p_attr in .Object@p_attribute){
-    CNT[[p_attr]] <- CQI$id2str(corpus = .Object@corpus, p_attribute = p_attr, id = CNT[[paste(p_attr, "id", sep = "_")]])
+    CNT[[p_attr]] <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = CNT[[paste(p_attr, "id", sep = "_")]], registry = registry())
   }
-  count_list <- split(CNT, by = "hit_no")
+  count_list <- split(CNT, by = "match_id")
   
   .fn <- function(i){
     cpos_matrix <- as.matrix(regions_list[[i]][, c("cpos_left", "cpos_right")])
@@ -262,7 +266,7 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, progress
       size = sum(cpos_matrix[,2] - cpos_matrix[,1] + 1L),
       xml = .Object@partition@xml,
       p_attribute = .Object@p_attribute,
-      stat = count_list[[i]][, "hit_no" := NULL]
+      stat = count_list[[i]][, "match_id" := NULL]
     )
   }
   partition_objects <- if (progress) pblapply(1L:length(.Object), .fn, cl = mc) else lapply(1L:length(.Object), .fn)

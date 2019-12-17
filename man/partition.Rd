@@ -6,8 +6,9 @@
 \alias{partition,character-method}
 \alias{partition,environment-method}
 \alias{partition,partition-method}
-\alias{partition,Corpus-method}
 \alias{partition,context-method}
+\alias{partition,remote_corpus-method}
+\alias{partition,remote_partition-method}
 \title{Initialize a partition.}
 \usage{
 partition(.Object, ...)
@@ -24,16 +25,19 @@ partition(.Object, ...)
   regex = FALSE, p_attribute = NULL, decode = TRUE, xml = NULL,
   verbose = TRUE, mc = FALSE, ...)
 
-\S4method{partition}{Corpus}(.Object, def = NULL, name = "",
-  encoding = NULL, regex = FALSE, xml = "flat",
-  type = get_type(.Object), verbose = TRUE, ...)
-
 \S4method{partition}{context}(.Object, node = TRUE)
+
+\S4method{partition}{remote_corpus}(.Object, ...)
+
+\S4method{partition}{remote_partition}(.Object, ...)
 }
 \arguments{
 \item{.Object}{A length-one character-vector, the CWB corpus to be used.}
 
-\item{...}{Arguments to define partition (see examples).}
+\item{...}{Arguments to define partition (see examples). If \code{.Object} is
+a \code{remote_corpus} or \code{remote_partition} object, the three dots
+(\code{...}) are used to pass arguments. Hence, it is necessary to state
+the names of all arguments to be passed explicity.}
 
 \item{def}{A named list of character vectors of s-attribute values, the names
 are the s-attributes (see details and examples)}
@@ -110,10 +114,6 @@ If \code{.Object} is an environment (typically \code{.GlobalEnv}),
 
 If \code{.Object} is a \code{partition} object, a subcorpus of the
   subcorpus is generated.
-
-If \code{.Object} is a \code{Corpus} object, preparing the
-  \code{partition} may work more efficiently than if \code{.Object} is a
-  length-one character vector.
 }
 \examples{
 use("polmineR")

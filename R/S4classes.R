@@ -2,7 +2,6 @@
 NULL
 
 
-
 #' Bundle Class
 #' 
 #' A \code{bundle} is used to combine several objects (\code{partition}, \code{context},
@@ -14,20 +13,20 @@ NULL
 #' 
 #' @slot corpus The CWB corpus the objects in the \code{bundle} are based on, a length 1 
 #' \code{character} vector.
-#' @slot objects An object of class \code{"list"}
-#' @slot p_attribute Object of class \code{"character"}
+#' @slot objects An object of class \code{list}.
+#' @slot p_attribute Object of class \code{character}.
 #' @slot encoding The encoding of the corpus.
 #' 
 #' @param x a bundle object
-#' @param i integer to index a bundle object
-#' @param object a bundle object
+#' @param i An \code{integer} value to index a bundle object.
+#' @param object A \code{bundle} object.
 #' @param size number of items to choose to generate a sample
-#' @param ... further parameters
-#' @param col columns of the data.table to use to generate an object
+#' @param ... Further parameters
+#' @param col columns of the \code{data.table} to use to generate an object.
 #' @param value character string with a name to be assigned
 #' @rdname bundle
 #' @name bundle-class
-#' @aliases bundle
+#' @aliases bundle [[,bundle-method [[<-,bundle-method
 #' @exportClass bundle
 #' @docType class
 #' @author Andreas Blaette
@@ -37,6 +36,7 @@ NULL
 #' party_bundle <- partition_bundle("GERMAPARLMINI", s_attribute = "party")
 #' length(party_bundle)
 #' names(party_bundle)
+#' get_corpus(party_bundle)
 #' party_bundle <- enrich(party_bundle, p_attribute = "word")
 #' summary(party_bundle)
 #' parties_big <- party_bundle[[c("CDU_CSU", "SPD")]]
@@ -54,7 +54,7 @@ setClass(
 
 #' @exportMethod name<-
 #' @rdname bundle
-setReplaceMethod("name", signature = c(x = "bundle", value = "character"), function(x, value) {
+setReplaceMethod("name", signature = "bundle", function(x, value) {
   names(x@objects) <- value
   for (i in 1L:length(x)) x@objects[[i]]@name <- value[[i]]
   x
@@ -100,6 +100,8 @@ setReplaceMethod("name", signature = c(x = "bundle", value = "character"), funct
 #' @slot corpus A corpus specified by a length-one \code{character} vector. 
 #' @slot stat A \code{data.table} with statistical information.
 #' @slot name The name of the object.
+#' @slot annotation_cols A \code{character} vector, column names of
+#'   \code{data.table} in slot \code{stat} that are annotations.
 #' @slot encoding A length-one \code{character} vector, the encoding of the corpus.
 #' @param .Object A \code{textstat} object.
 #' @param x A \code{textstat} object.
@@ -122,6 +124,12 @@ setReplaceMethod("name", signature = c(x = "bundle", value = "character"), funct
 #' use("polmineR")
 #' P <- partition("GERMAPARLMINI", date = ".*", p_attribute = "word", regex = TRUE)
 #' y <- cooccurrences(P, query = "Arbeit")
+#' 
+#' # generics defined in the polmineR package
+#' x <- count("REUTERS", p_attribute = "word")
+#' name(x) <- "count_reuters"
+#' name(x)
+#' get_corpus(x)
 #' 
 #' # Standard generic methods known from data.frames work for objects inheriting
 #' # from the textstat class
@@ -150,6 +158,7 @@ setClass("textstat",
            p_attribute = "character",
            encoding = "character",
            stat = "data.table",
+           annotation_cols = "character",
            name = "character"
          )
 )
@@ -167,7 +176,7 @@ setMethod("name", "character", function(x) x)
 #'   of a \code{textstat} class object.
 #' @rdname textstat-class
 #' @exportMethod name<-
-setReplaceMethod("name", signature = c(x = "textstat", value = "character"), function(x, value) {
+setReplaceMethod("name", signature = "textstat", function(x, value) {
   x@name <- value
   x
 })
@@ -199,18 +208,14 @@ setReplaceMethod("name", signature = c(x = "textstat", value = "character"), fun
 #' @exportClass features
 #' @author Andreas Blaette
 setClass("features",
-         representation(
-           corpus = "character",
-           p_attribute = "character",
-           encoding = "character",
-           stat = "data.table",
+         slots = c(
            size_coi = "integer",
            size_ref = "integer",
            method = "character",
            included = "logical",
            call = "character"
          ),
-         contains = "textstat"
+         contains = "textstat" # inherited slots: corpus, p_attribute, encoding, stat
 )
 
 
@@ -219,12 +224,12 @@ setClass("features",
 #' S4 class to organize counts. The classes \code{polmineR} and
 #' \code{ngrams} inherit from the class.
 #' 
-#' @slot stat Object of class \code{data.table}
-#' @slot corpus Object of class \code{character} the CWB corpus the partition is based on 
-#' @slot encoding Object of class \code{character} encoding of the corpus 
-#' @slot name Object of class \code{character}, a name for the object
+#' @slot stat Object of class \code{data.table}.
+#' @slot corpus Object of class \code{character} the CWB corpus the partition is based on .
+#' @slot encoding Object of class \code{character}, the encoding of the corpus.
+#' @slot name Object of class \code{character}, a name for the object.
 #' @slot size Object of class \code{integer}, the size of the partition or
-#'   corpus the count is based upon
+#'   corpus the count is based upon.
 #' @rdname count_class
 #' @param ... Further parameters.
 #' @name count_class
@@ -239,6 +244,66 @@ setClass("count",
            ),
          contains = "textstat"
          )
+
+
+#' @param object A \code{count} object.
+#' @details The \code{summary}-method in combination with a weighed
+#'   \code{count}-object can be used to perform a dictionary-based sentiment
+#'   analysis (see examples).
+#' @rdname count_class
+#' @examples
+#' # sample for dictionary-based sentiment analysis
+#'     weights <- data.table::data.table(
+#'     word = c("gut", "schön", "herrlich", "schlecht", "hässlich", "mies"),
+#'     weight = c(1,1,1,-1,-1,-1)
+#' )
+#' corp <- corpus("GERMAPARLMINI")
+#' sc <- subset(corp, date == "2009-11-11")
+#' cnt <- count(sc, p_attribute = "word")
+#' cnt <- weigh(cnt, with = weights)
+#' y <- summary(cnt)
+#' 
+#' # old, partition-based workflow
+#' p <- partition("GERMAPARLMINI", date = "2009-11-11")
+#' p <- enrich(p, p_attribute = "word")
+#' weights <- data.table::data.table(
+#'   word = c("gut", "schön", "herrlich", "schlecht", "hässlich", "mies"),
+#'   weight = c(1,1,1,-1,-1,-1)
+#' )
+#' p <- weigh(p, with = weights)
+#' summary(p)
+setMethod("summary", "count", function(object){
+  y <- list(
+    name = if (length(name(object)) > 0) name(object) else NA,
+    size = object@size
+  )
+  if (nrow(object@stat) > 0){
+    y[["p_attribute"]] <- paste(object@p_attribute, collapse = "|")
+    y[["unique"]] <- nrow(object@stat)
+    if ("weight" %in% colnames(object@stat)){
+      dt_positive <- subset(object@stat, object@stat[["weight"]] > 0)
+      if (nrow(dt_positive) > 0){
+        y[["positive_n"]] <- sum(dt_positive[["count"]])
+        y[["positive_share"]] <- y[["positive_n"]] / y[["size"]]
+        y[["positive_weighed"]] <- sum(dt_positive[["count"]] * dt_positive[["weight"]])
+      } else {
+        y <- c(y, list(positive_n = 0, positive_share = 0, positive_weighed = 0))
+      }
+      
+      dt_negative <- subset(object@stat, object@stat[["weight"]] < 0)
+      if (nrow(dt_negative) > 0){
+        y[["negative_n"]] <- sum(dt_negative[["count"]])
+        y[["negative_share"]] <- y[["negative_n"]] / y[["size"]]
+        y[["negative_weighed"]] <- sum(dt_negative[["count"]] * dt_negative[["weight"]])
+      } else {
+        y <- c(y, list(negative_n = 0, negative_share = 0, negative_weighed = 0))
+      }
+    }
+  }
+  y
+})
+
+
 
 #' @docType class
 #' @exportClass count_bundle
@@ -288,16 +353,10 @@ setMethod("length", "count", function(x) x@size)
 #' @slot s_attribute_strucs Object of class \code{character} the base node 
 #' @slot key Experimental, an s-attribute that is used as a key.
 #' @slot call Object of class \code{character} the call that generated the partition 
-#' @param object A \code{partition} object.
 #' @param .Object A \code{partition} object.
 #' @param p_attribute a p-attribute (for enriching) / performing count.
 #' @param verbose \code{logical} value, whether to output messages
 #' @param ... further parameters passed into \code{count} when calling \code{enrich}, and ...
-#' @param name An s-attribute that will be assigned as key to a
-#'   \code{partition}.
-#' @param e1 A first expression, a \code{partition} object in this case.
-#' @param e2 A second expression, the value of an s-attribute.
-#' @param table Values a s-attribute shall assume.
 #' @aliases partition-class show,partition-method [,partition,ANY,ANY,ANY-method 
 #'   [,partition-method as.partition_bundle 
 #'   as.partition_bundle,partition-method export export,partition-method split
@@ -326,36 +385,24 @@ setClass(
   contains = "count"
 )
 
-
+#' @exportClass remote_partition
 #' @rdname partition_class
-setMethod("summary", "partition", function(object){
-  y <- list(
-    name = if (length(name(object)) > 0) name(object) else NA,
-    size = size(object)
-    )
-  if (nrow(object@stat) > 0){
-    y[["p_attribute"]] <- paste(object@p_attribute, collapse = "|")
-    y[["unique"]] <- nrow(object@stat)
-    if ("weight" %in% colnames(object@stat)){
-      dt_positive <- subset(object@stat, object@stat[["weight"]] > 0)
-      if (nrow(dt_positive) > 0){
-        y[["positive_n"]] <- sum(dt_positive[["count"]])
-        y[["positive_share"]] <- y[["positive_n"]] / y[["size"]]
-        y[["positive_weighed"]] <- sum(dt_positive[["count"]] * dt_positive[["weight"]])
-      } else {
-        y <- c(y, list(positive_n = 0, positive_share = 0, positive_weighed = 0))
-      }
-      
-      dt_negative <- subset(object@stat, object@stat[["weight"]] < 0)
-      if (nrow(dt_negative) > 0){
-        y[["negative_n"]] <- sum(dt_negative[["count"]])
-        y[["negative_share"]] <- y[["negative_n"]] / y[["size"]]
-        y[["negative_weighed"]] <- sum(dt_negative[["count"]] * dt_negative[["weight"]])
-      } else {
-        y <- c(y, list(negative_n = 0, negative_share = 0, negative_weighed = 0))
-      }
-    }
-  }
+setClass(
+  "remote_partition",
+  slots = c(server = "character"),
+  contains = "partition"
+)
+
+
+setAs(from = "partition", to = "remote_partition", def = function(from){
+  y <- new("remote_partition")
+  for (x in slotNames(from)) slot(y, x) <- slot(from, x)
+  y
+})
+
+setAs(from = "remote_partition", to = "partition", def = function(from){
+  y <- new("partition")
+  for (x in slotNames(y)) slot(y, x) <- slot(from, x)
   y
 })
 
@@ -366,7 +413,7 @@ setMethod("summary", "partition", function(object){
 #' Class to organize information of context analysis.
 #' 
 #' @details Objects of the class \code{context} include a \code{data.table} in the
-#' slot \code{cpos}. The \code{data.table} will at least include the columns "hit_no",
+#' slot \code{cpos}. The \code{data.table} will at least include the columns "match_id",
 #' "cpos" and "position".
 #' 
 #' @slot query The query examined (\code{character}).
@@ -391,7 +438,7 @@ setMethod("summary", "partition", function(object){
 #' @slot corpus The CWB corpus used (\code{character}).
 #' @slot stat A \code{data.table}, the statistics of the analysis.
 #' @slot encoding Object of class \code{character}, encoding of the corpus.
-#' @slot cpos A \code{data.table}, with the columns hit_no, cpos, position, word_id.
+#' @slot cpos A \code{data.table}, with the columns match_id, cpos, position, word_id.
 #' @slot method A \code{character}-vector, statistical test used.
 #' @slot call Object of class \code{character}, call that generated the object.
 #'     
@@ -424,7 +471,7 @@ setClass("context",
            cpos = "data.table",
            call = "character"
          ),
-         contains = c("features", "textstat")
+         contains = "features"
 )
 
 #' @details The \code{length}-method will return the number of hits that were achieved.
@@ -456,15 +503,12 @@ setAs(from = "partition", to = "data.table", def = function(from) from@stat)
 #' @docType class
 #' @exportClass cooccurrences
 #' @rdname cooccurrences-class
-setClass(
-  "cooccurrences",
-  contains = c("context", "features", "textstat")
-)
+setClass("cooccurrences", contains = "context")
 
 
 
 
-#' kwic (S4 class)
+#' S4 kwic class
 #' 
 #' S4 class for organizing information for kwic/concordance output. A set of
 #' standard generics (\code{show}, \code{as.character}, \code{as.data.frame},
@@ -478,16 +522,27 @@ setClass(
 #' @slot left An \code{integer} value, words to the left of the query match. 
 #' @slot right An \code{integer} value, words to the right of the query match.
 #' @slot corpus Length-one \code{character} vector, the CWB corpus.
-#' @slot cpos A \code{data.table} with the columns "hit_no", "cpos", "position", "word_id", "word" and "direction".
-#' @slot table A \code{data.frame}, a table with columns "left", "node", "right", and metadata, if the object has been enriched.
-#' @slot encoding A length-one \code{character} vector with the encoding of the corpus.
-#' @slot labels A \code{character} vector with labels.
-#' @slot categories A \code{character} vector.
+#' @slot cpos A \code{data.table} with the columns "match_id", "cpos", "position",
+#'   "word_id", "word" and "direction".
+#' @slot stat A \code{data.table}, a table with columns "left", "node",
+#'   "right", and metadata, if the object has been enriched.
+#' @slot encoding A length-one \code{character} vector with the encoding of the
+#'   corpus.
+#' @slot name A length-one \code{character} vector naming the object.
+#' @slot annotation_cols A \code{character} vector designating the columns of
+#'   the \code{data.table} in the slot \code{table} that are annotations.
 #' 
 #' @param x A \code{kwic} class object.
 #' @param object A \code{kwic} class object.
 #' @param s_attributes Character vector of s-attributes with metainformation.
-#' @param table Logical, whether to turn cpos \code{data.table} into \code{data.frame} for output.
+#' @param table Logical, whether to turn cpos \code{data.table} into
+#'   \code{data.table} in slot \code{stat} for output.
+#' @param p_attribute A length-one \code{character} vector supplying a p-attribute.
+#' @param verbose A \code{logical} value, whether to output debugging messages.
+#' @param extra An \code{integer} value, number of extra tokens to the left and
+#'   to the right of the windows of tokens to the left and right of a query
+#'   match that are decoded to be displayed in a kwic output to facilitate
+#'   interpretation.
 #' @param size An \code{integer}, subset size for sampling.
 #' @param i Single integer value, the kwic line for which the fulltext shall be
 #'   inspected.
@@ -502,68 +557,133 @@ setClass(
 #' @examples
 #' use("polmineR")
 #' K <- kwic("GERMAPARLMINI", "Integration")
+#' get_corpus(K)
 #' length(K)
 #' K_min <- K[1]
 #' K_min <- K[1:5]
+#' 
+#' # using kwic_bundle class
+#' queries <- c("oil", "prices", "barrel")
+#' li <- lapply(queries, function(q) kwic("REUTERS", query = q))
+#' kb <- as.bundle(li)
+#' 
 #' @rdname kwic-class
-#' @include Labels.R
 setClass(
   "kwic",
   slots = c(
-    corpus = "character",
     cpos = "data.table",
-    p_attribute = "character",
     metadata = "character",
     left = "integer",
-    right = "integer",
-    table = "data.frame",
-    encoding = "character",
-    labels = "Labels",
-    categories = "character"
-  )
+    right = "integer"
+  ),
+  contains = "textstat" # inherited: corpus, encoding, p_attribute, name, annotation_cols, stat
 )
 
 
-#' S4 class to capture core information on a temporary CWB corpus 
-#' 
-#' @slot cpos matrix with start/end corpus positions
-#' @slot dir directory where the tempcorpus is stored
-#' @slot registry directory of the registry dir (subdirectory of dir)
-#' @slot indexed directory of the dir with the indexed files
-#' @exportClass tempcorpus
-#' @rdname tempcorpus_class
-#' @name tempcorpus_class
-#' @aliases tempcorpus-class
-setClass(
-  "tempcorpus",
-  slots = c(
-    cpos = "matrix",
-    dir = "character",
-    registry = "character",
-    indexed = "character"
-  ))
+#' @rdname features-class
+setClass("kwic_bundle", contains = "bundle")
 
 
-#' S4 class to wrap information on CWB corpora.
+
+#' Corpus class initialization
 #' 
-#' @param x A \code{corpus} object.
-#' @param ... Further arguments.
-#' @param name An s-attribute that will be assigned as key to a
-#'   \code{partition}.
-#' @param e1 A first expression, a \code{partition} object in this case.
-#' @param e2 A second expression, the value of an s-attribute.
-#' @param table Values a s-attribute shall assume.
-#' @slot corpus A length-one \code{character} vector, a CWB corpus.
+#' Corpora indexed using the Corpus Workbench (CWB) offer an efficient data
+#' structure for large, linguistically annotated corpora. The
+#' \code{corpus}-class keeps basic information on a CWB corpus. Corresponding to
+#' the name of the class, the \code{corpus}-method is the initializer for
+#' objects of the \code{corpus} class. A CWB corpus can also be hosted remotely
+#' on an \href{https://www.opencpu.org}{OpenCPU} server. The \code{remote_corpus}
+#' class (which inherits from the \code{corpus} class) will handle respective
+#' information. A (limited) set of polmineR functions and methods can be
+#' executed on the corpus on the remote machine from the local R session by
+#' calling them on the \code{remote_corpus} object. Calling the
+#' \code{corpus}-method without an argument will return a \code{data.frame} with
+#' basic information on the corpora that are available.
+#'
+#' @details Calling \code{corpus()} will return a \code{data.frame} listing the corpora
+#' available locally and described in the active registry directory, and some
+#' basic information on the corpora.
+#' @details A \code{corpus} object is instantiated by passing a corpus ID as
+#'   argument \code{.Object}. Following the conventions of the Corpus Workbench
+#'   (CWB), Corpus IDs are written in upper case. If \code{.Object} includes
+#'   lower case letters, the \code{corpus} object is instantiated nevertheless,
+#'   but a warning is issued to prevent bad practice. If \code{.Object} is not a
+#'   known corpus, the error message will include a suggestion if there is a
+#'   potential candidate that can be identified by \code{agrep}.
+#' @details A limited set of methods of the \code{polmineR} package is exposed
+#'   to be executed on a remote OpenCPU server. As a matter of convenience, the
+#'   whereabouts of an OpenCPU server hosting a CWB corpus can be stated in an
+#'   environment variable "OPENCPU_SERVER". Environment variables for R sessions
+#'   can be set easily in the \code{.Renviron} file. A convenient way to do this
+#'   is to call \code{usethis::edit_r_environ()}.
+#'     
+#' @slot corpus A length-one \code{character} vector, the upper-case ID of a CWB
+#'   corpus.
 #' @slot data_dir The directory where the files for the indexed corpus are.
 #' @slot type The type of the corpus (e.g. "plpr" for a corpus of plenary protocols).
+#' @slot name An additional name for the object that may be more telling than the corpus ID.
 #' @slot encoding The encoding of the corpus, given as a length-one \code{character} vector.
-#' @slot key A length-one \code{character} vector stating a s-attribute that
-#'   serves as a key.
+#' @slot server The URL (can be IP address) of the OpenCPU server. The slot is
+#'   available only with the \code{remote_corpus} class inheriting from the
+#'   \code{corpus} class.
+#' @slot user If the corpus on the server requires authentication, the username.
+#' @slot password If the corpus on the server requires authentication, the password.
 #' @exportClass corpus
-#' @rdname corpus_class
-#' @aliases zoom
+#' @aliases zoom corpus get_corpus remote_corpus remote_corpus-class
 #' @name corpus-class
+#' @seealso Methods to extract basic information from a \code{corpus} object are
+#'   covered by the \link{corpus-methods} documentation object. Use the
+#'   \code{\link{s_attributes}} method to get information on structural
+#'   attributes. Analytical methods available for \code{corpus} objects are
+#'   \code{\link{size}}, \code{\link{count}}, \code{\link{dispersion}},
+#'   \code{\link{kwic}}, \code{\link{cooccurrences}},
+#'   \code{\link{as.TermDocumentMatrix}}.
 #' @family classes to manage corpora
+#' @examples
+#' use("polmineR")
+#' 
+#' # get corpora present locally
+#' y <- corpus()
+#' 
+#' # initialize corpus object
+#' r <- corpus("REUTERS")
+#' r <- corpus ("reuters") # will work, but will result in a warning
+#' 
+#' 
+#' # apply core polmineR methods
+#' a <- size(r)
+#' b <- s_attributes(r)
+#' c <- count(r, query = "oil")
+#' d <- dispersion(r, query = "oil", s_attribute = "id")
+#' e <- kwic(r, query = "oil")
+#' f <- cooccurrences(r, query = "oil")
+#' 
+#' # used corpus initialization in a pipe
+#' y <- corpus("REUTERS") %>% s_attributes()
+#' y <- corpus("REUTERS") %>% count(query = "oil")
+#' 
+#' # working with a remote corpus
+#' \dontrun{
+#' REUTERS <- corpus("REUTERS", server = Sys.getenv("OPENCPU_SERVER"))
+#' count(REUTERS, query = "oil")
+#' size(REUTERS)
+#' kwic(REUTERS, query = "oil")
+#' 
+#' GERMAPARL <- corpus("GERMAPARL", server = Sys.getenv("OPENCPU_SERVER"))
+#' s_attributes(GERMAPARL)
+#' size(x = GERMAPARL)
+#' count(GERMAPARL, query = "Integration")
+#' kwic(GERMAPARL, query = "Islam")
+#' 
+#' p <- partition(GERMAPARL, year = 2000)
+#' s_attributes(p, s_attribute = "year")
+#' size(p)
+#' kwic(p, query = "Islam", meta = "date")
+#' 
+#' GERMAPARL <- corpus("GERMAPARLMINI", server = Sys.getenv("OPENCPU_SERVER"))
+#' s_attrs <- s_attributes(GERMAPARL, s_attribute = "date")
+#' sc <- subset(GERMAPARL, date == "2009-11-10")
+#' }
 setClass(
   "corpus",
   slots = c(
@@ -571,10 +691,77 @@ setClass(
     data_dir = "character",
     type = "character",
     encoding = "character",
-    key = "character"
+    name = "character"
   )
 )
 
+setAs(from = "partition", to = "corpus", def = function(from){
+  new(
+    "corpus",
+    corpus = from@corpus,
+    data_dir = registry_get_home(corpus = from@corpus, registry = registry()),
+    type = if (class(from) == "partition") character() else gsub("^(.*?)_.*$", "\\1", class(from)),
+    encoding = from@encoding,
+    name = from@name
+  )
+})
+
+setAs(from = "corpus", to = "partition", def = function(from){
+  new(
+    "partition",
+    corpus = from@corpus,
+    encoding = from@encoding,
+    cpos = matrix(data = c(0L, (size(from) - 1L)), nrow = 1L),
+    stat = data.table(),
+    size = size(from),
+    p_attribute = character()
+  )
+})
+
+#' @exportClass remote_corpus
+#' @docType class
+#' @rdname corpus-class
+setClass(
+  "remote_corpus",
+  slots = c(
+    server = "character",
+    user = "character",
+    password = "character"
+  ),
+  contains = "corpus"
+)
+
+setAs(from = "corpus", to = "remote_corpus", def = function(from){
+  y <- new("remote_corpus")
+  for (x in slotNames(from)) slot(y, x) <- slot(from, x)
+  y
+})
+
+setAs(from = "remote_corpus", to = "corpus", def = function(from){
+  y <- new("corpus")
+  for (x in slotNames(y)) slot(y, x) <- slot(from, x)
+  y
+})
+
+
+#' Corpus class methods
+#' 
+#' A set of generic methods is available to extract basic information from
+#' objects of the \code{corpus} class.
+#' @param object An object of class \code{corpus}, or inheriting from it.
+#' @aliases name,corpus-method
+#' @name corpus-methods
+#' @rdname corpus_methods
+#' @details A \code{corpus} object can have a name, which can be retrieved using
+#' the \code{name}-method.
+#' @examples
+#' # get/show information on corpora
+#' corpus("REUTERS") %>% get_info()
+#' corpus("REUTERS") %>% show_info()
+#' corpus("GERMAPARLMINI") %>% get_info()
+#' corpus("GERMAPARLMINI") %>% show_info()
+#'
+setMethod("name", "corpus", function(x) x@name)
 
 
 #' Regions of a CWB corpus.
@@ -604,57 +791,155 @@ setClass(
 setClass(
   "regions",
   slots = c(
-    cpos = "matrix"
+    cpos = "matrix",
+    size = "integer"
   ),
   contains = "corpus"
 )
 
 
-#' S4 subcorpus class.
+#' The S4 subcorpus class.
 #' 
-#' @param object A \code{subcorpus} object.
+#' @description Class to manage subcorpora derived from a CWB corpus.
+#' 
 #' @slot s_attributes A named \code{list} with the structural attributes
 #'   defining the subcorpus.
 #' @slot cpos A \code{matrix} with left and right corpus positions defining
-#'   regions (two columns).
+#'   regions (two column matrix with \code{integer} values).
 #' @slot annotations Object of class \code{list}.
-#' @slot size Total size of the subcorpus (length-one \code{integer} vector).
+#' @slot size Total size (number of tokens) of the \code{subcorpus} object (a
+#'   length-one \code{integer} vector). The value is accessible by calling 
+#'   the \code{size}-method on the \code{subcorpus}-object (see examples).
 #' @slot metadata Object of class \code{data.frame}, metadata information.
 #' @slot strucs Object of class \code{integer}, the strucs defining the
 #'   subcorpus.
 #' @slot xml Object of class \code{character}, whether the xml is "flat" or
 #'   "nested".
 #' @slot s_attribute_strucs Object of class \code{character}, the base node.
-#' @slot key Experimental, an s-attribute that is used as a key.
+#' @slot user If the corpus on the server requires authentication, the username.
+#' @slot password If the corpus on the server requires authentication, the password.
+#' @param object A \code{subcorpus} object.
+#' @param x A \code{subcorpus} object.
+#' @param ... Arguments passed into \code{size}-method. Used only to maintain
+#'   backwards compatibility.
+#' @inheritParams size
+#' @seealso Most commonly, a \code{subcorpus} is derived from a \code{corpus} or
+#'   a \code{subcorpus} using the \code{\link{subset}} method. See
+#'   \code{\link{size}} for detailed documentation on how to use the
+#'   \code{size}-method. The \code{subcorpus} class shares many features with
+#'   the \code{partition} class, but it is more parsimonious and does not
+#'   include information on statistical properties of the subcorpus (i.e. a
+#'   count table). In line with this logic, the \code{subcorpus} class inherits
+#'   from the \code{corpus} class, whereas the \code{partition} class inherits
+#'   from the \code{textstat} class.
 #' @family classes to manage corpora
+#' @name subcorpus
+#' @rdname subcorpus-class
+#' @aliases subcorpus-class
+#' @examples
+#' use("polmineR")
+#' 
+#' # basic example 
+#' r <- corpus("REUTERS")
+#' k <- subset(r, grepl("kuwait", places))
+#' name(k) <- "kuwait"
+#' y <- summary(k)
+#' s <- size(k)
+#' 
+#' # the same with a magrittr pipe
+#' corpus("REUTERS") %>%
+#'   subset(grepl("kuwait", places)) %>%
+#'   summary()
+#'   
+#' # subsetting a subcorpus in a pipe
+#' stone <- corpus("GERMAPARLMINI") %>%
+#'   subset(date == "2009-11-10") %>%
+#'   subset(speaker == "Frank-Walter Steinmeier")
+#' 
+#' # perform count for subcorpus
+#' n <- corpus("REUTERS") %>% subset(grep("kuwait", places)) %>% count(p_attribute = "word")
+#' n <- corpus("REUTERS") %>% subset(grep("saudi-arabia", places)) %>% count('"Saudi" "Arabia"')
+#'   
+#' # keyword-in-context analysis (kwic)   
+#' k <- corpus("REUTERS") %>% subset(grep("kuwait", places)) %>% kwic("oil")
+#' 
 setClass(
   "subcorpus",
   slots = c(
     s_attributes = "list",
-    cpos = "matrix",
-    size = "integer",
     annotations = "list",
     metadata = "data.frame",
     strucs = "integer",
     xml = "character",
-    s_attribute_strucs = "character",
-    key = "character"
+    s_attribute_strucs = "character"
   ),
   contains = "regions"
 )
 
-#' @describeIn subcorpus Output basic information about \code{subcorpus} object.
-setMethod("show", "subcorpus", function(object) object@size)
+#' @exportClass remote_subcorpus
+#' @rdname subcorpus-class
+setClass(
+  "remote_subcorpus",
+  slots = c(
+    server = "character",
+    user = "character",
+    password = "character"
+    ),
+  contains = "subcorpus"
+)
+
+
+setAs(from = "subcorpus", to = "remote_subcorpus", def = function(from){
+  y <- new("remote_subcorpus")
+  for (x in slotNames(from)) slot(y, x) <- slot(from, x)
+  y
+})
+
+setAs(from = "remote_subcorpus", to = "subcorpus", def = function(from){
+  y <- new("subcorpus")
+  for (x in slotNames(y)) slot(y, x) <- slot(from, x)
+  y
+})
+
+
+
+#' @describeIn subcorpus Get named list with basic information for
+#'   \code{subcorpus} object.
+#' @export
+setMethod("summary", "subcorpus", function(object){
+  list(
+    name = if (length(name(object)) > 0L) name(object) else NA,
+    size = object@size
+  )
+})
+
+
+#' @param value A \code{character} vector to assign as name to slot \code{name}
+#'   of a \code{subcorpus} class object.
+#' @describeIn subcorpus Assign name to a \code{subcorpus} object.
+#' @exportMethod name<-
+setReplaceMethod("name", "subcorpus", function(x, value) {
+  x@name <- value
+  x
+})
+
+
+#' @rdname subcorpus-class
+setClass("plpr_subcorpus", contains = "subcorpus")
+
+#' @rdname subcorpus-class
+setClass("press_subcorpus", contains = "subcorpus")
+
 
 
 #' @rdname features-class
 #' @exportClass features_cooccurrences
-setClass("features_cooccurrences", contains = c("features", "textstat"))
+setClass("features_cooccurrences", contains = "features")
 
 
 #' @rdname features-class
 #' @exportClass features_ngrams
-setClass("features_ngrams", representation(n = "integer"), contains = c("features", "textstat"))
+setClass("features_ngrams", representation(n = "integer"), contains = "features")
 
 
 #' @details A set of \code{features} objects can be combined into a \code{features_bundle}.
@@ -673,13 +958,7 @@ setClass("features_bundle", contains = "bundle")
 #' @rdname ngrams_class
 #' @name ngrams_class
 #' @aliases ngrams-class
-setClass(
-  "ngrams",
-  representation(
-    n = "integer"
-    ),
-  contains = c("count", "textstat")
-)
+setClass("ngrams", representation(n = "integer"), contains = "count")
 
 
 #' Hits class.
@@ -720,9 +999,7 @@ setClass(
 #' @exportClass kwic
 #' @rdname context_bundle-class
 setClass("context_bundle",
-         slots = c(
-           query = "character"
-         ),
+         slots = c(query = "character"),
          contains = "bundle"
 )
 
@@ -766,7 +1043,7 @@ setClass("press_partition", contains = "partition")
 #' @exportClass partition_bundle
 #' @author Andreas Blaette
 setClass("partition_bundle",
-         representation(
+         slots = c(
            s_attributes_fixed = "list",
            explanation = "character",
            xml = "character",
@@ -776,6 +1053,39 @@ setClass("partition_bundle",
 )
 
 
+#' @title Bundled subcorpora
+#' @description A \code{subcorpus_bundle} object combines a set of
+#'   \code{subcorpus} objects in a \code{list} in the the slot \code{objects}.
+#'   The class inherits from the \code{partition_bundle} and the \code{bundle}
+#'   class. Typically, a \code{subcorpus_bundle} is generated by applying the
+#'   \code{split}-method on a \code{corpus} or \code{subcorpus}.
+#' @exportClass subcorpus_bundle
+#' @rdname subcorpus_bundle
+#' @examples 
+#' corpus("REUTERS") %>% split(s_attribute = "id") %>% summary()
+setClass("subcorpus_bundle",
+         slots = c(
+           s_attributes_fixed = "list",
+           xml = "character"
+         ),
+         contains = "partition_bundle"
+)
+
+
+#' @export
+setAs(from = "partition_bundle", to = "subcorpus_bundle", def = function(from){
+  type <- get_type(from)
+  dest_class <- if (is.null(type)) "subcorpus" else paste(type, "subcorpus", sep = "_")
+  new(
+    "subcorpus_bundle",
+    objects = lapply(from@objects, function(x) as(x, dest_class)),
+    p_attribute = character(), # unlike a partition_bundle, a subcorpus_bundle will never include a count
+    corpus = from@corpus,
+    encoding = from@encoding,
+    s_attributes_fixed = from@s_attributes_fixed,
+    xml = from@xml
+  )
+})
 
 
 #' @rdname cooccurrences-class
@@ -790,12 +1100,12 @@ setClass("cooccurrences_reshaped", contains = "cooccurrences")
 setClass("cooccurrences_bundle", contains = "bundle")
 
 
-#' Virtual class clice.
+#' Virtual class slice.
 #' 
-#' The classes \code{regions} and \code{partition} can be used to define
-#' subcorpora. Unlike the \code{regions} class, the \code{partition} class may
+#' The classes \code{subcorpus} and \code{partition} can be used to define
+#' subcorpora. Unlike the \code{subcorpus} class, the \code{partition} class may
 #' include statistical evaluations. The virtual class \code{slice} is a
-#' mechanism to define methods for these classes without making \code{regions}
+#' mechanism to define methods for these classes without making \code{subcorpus}
 #' the superclass of \code{partition}.
 #' 
 #' @rdname slice
@@ -805,11 +1115,8 @@ setClass("cooccurrences_bundle", contains = "bundle")
 #' @exportClass slice
 setClassUnion(
   name = "slice",
-  members = c("regions", "partition")
+  members = c("subcorpus", "regions", "partition")
 )
-
-#' @exportClass CorpusOrSubcorpus
-setClassUnion(name = "CorpusOrSubcorpus", members = c("character", "slice"))
 
 
 #' @details The method \code{aggregate} will deflate the matrix in the slot \code{cpos},
@@ -843,3 +1150,4 @@ setMethod("aggregate", "slice", function(x){
   x@cpos <- do.call(rbind, rework)
   x
 })
+

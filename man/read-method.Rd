@@ -4,6 +4,7 @@
 \name{read}
 \alias{read}
 \alias{read,partition-method}
+\alias{read,subcorpus-method}
 \alias{read,partition_bundle-method}
 \alias{read,data.table-method}
 \alias{read,hits-method}
@@ -18,6 +19,11 @@ read(.Object, ...)
   cutoff = getOption("polmineR.cutoff"),
   template = get_template(.Object), ...)
 
+\S4method{read}{subcorpus}(.Object, meta = NULL, highlight = list(),
+  tooltips = list(), verbose = TRUE, cpos = TRUE,
+  cutoff = getOption("polmineR.cutoff"),
+  template = get_template(.Object), ...)
+
 \S4method{read}{partition_bundle}(.Object, highlight = list(),
   cpos = TRUE, ...)
 
@@ -27,12 +33,12 @@ read(.Object, ...)
 \S4method{read}{hits}(.Object, def, i = NULL, ...)
 
 \S4method{read}{kwic}(.Object, i = NULL,
-  type = registry_get_properties(corpus(.Object))["type"])
+  type = registry_get_properties(get_corpus(.Object))[["type"]])
 
 \S4method{read}{regions}(.Object, meta = NULL)
 }
 \arguments{
-\item{.Object}{an object to be read (\code{"partition" or "partition_bundle"})}
+\item{.Object}{an object to be read (\code{partition} or {partition_bundle})}
 
 \item{...}{further parameters passed into read}
 
@@ -88,8 +94,8 @@ See examples and the documentation for the different methods to learn more.
 \examples{
 use("polmineR")
 merkel <- partition("GERMAPARLMINI", date = "2009-11-10", speaker = "Merkel", regex = TRUE)
-read(merkel, meta = c("speaker", "date"))
-read(
+if (interactive()) read(merkel, meta = c("speaker", "date"))
+if (interactive()) read(
   merkel,
   highlight = list(yellow = c("Deutschland", "Bundesrepublik"), lightgreen = "Regierung"),
   meta = c("speaker", "date")

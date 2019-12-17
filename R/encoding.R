@@ -41,6 +41,11 @@ setMethod("encoding", "bundle", function(object) object@encoding)
 #' @rdname encoding
 setMethod("encoding", "character", function(object) registry_get_encoding(object))
 
+#' @rdname encoding
+setMethod("encoding", "corpus", function(object) object@encoding)
+
+#' @rdname encoding
+setMethod("encoding", "subcorpus", function(object) callNextMethod())
 
 #' Conversion between corpus and native encoding.
 #' 
@@ -82,8 +87,29 @@ as.nativeEnc <- function(x, from){
 #' @rdname encodings
 #' @importFrom utils localeToCharset
 as.corpusEnc <- function(x, from = localeToCharset()[1], corpusEnc){
+  if (is.na(from)) from <- "UTF-8"
   y <- iconv(x, from = from, to = corpusEnc)
   Encoding(y) <- corpusEnc
   y
 }
 
+#' @examples
+#' y <- .recode_call(substitute(name == "Müller"), to = "latin1")
+#' dt <- data.table(
+#'   id = 1L:3L,
+#'   name = iconv(x = c("Müller", "Höhn", "Delingöz"), from = "UTF-8", to = "latin1")
+#' )
+#' dt[eval(y, envir = df), on = "name"]
+#' @noRd
+.recode_call <- function(x, from = localeToCharset()[1], to){
+  .fn <- function(x){
+    if (is.call(x)){
+      return( as.call(lapply(x, .fn)) )
+    } else if (is.character(x)){
+      return( iconv(x = x, from = from, to = to) )
+    } else {
+      return(x)
+    }
+  }
+  .fn(x)
+}

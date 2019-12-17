@@ -14,6 +14,7 @@
 #'   object, or a length-one character vector indicating a CWB corpus.
 #' @rdname get_type
 #' @exportMethod get_type
+#' @aliases get_type,subcorpus-method
 #' @examples
 #' use("polmineR")
 #' 
@@ -52,9 +53,19 @@ setMethod("get_type", "Corpus", function(.Object) get_type(.Object$corpus))
 setMethod("get_type", "partition", function(.Object) get_type(.Object@corpus))
 
 #' @rdname get_type
+setMethod("get_type", "subcorpus", function(.Object) .Object@type)
+
+#' @rdname get_type
 setMethod("get_type", "partition_bundle", function(.Object){
   corpus <- unique(unlist(lapply(.Object@objects, function(x) x@corpus)))
   type <- unique(unlist(lapply(corpus, function(x) get_type(x))))
+  if (length(type) > 1) warning("cannot determine type, partitions derived from more than one corpus")
+  type
+})
+
+#' @rdname get_type
+setMethod("get_type", "subcorpus_bundle", function(.Object){
+  type <- unlist(unique(lapply(.Object@objects, function(x) x@type)))
   if (length(get_type) > 1) warning("cannot determine type, partitions derived from more than one corpus")
   type
 })

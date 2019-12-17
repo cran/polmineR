@@ -26,9 +26,13 @@ setMethod("ncol", "textstat", function(x) ncol(x@stat))
 #'   rounds values of these columns to the number of decimal places specified by
 #'   argument \code{digits}.
 setMethod("round", "textstat", function(x, digits = 2L){
-  column_classes <- sapply(x@stat, function(column) is(column)[1])
-  numeric_columns <- which(column_classes == "numeric")
-  for (i in numeric_columns) x@stat[, colnames(x@stat)[i] := round(x@stat[[i]], digits)]
+  if (is(x@stat)[1] == "data.table"){
+    if (nrow(x@stat) > 1L){
+      column_classes <- sapply(x@stat, function(column) is(column)[1])
+      numeric_columns <- which(column_classes == "numeric")
+      for (i in numeric_columns) x@stat[, colnames(x@stat)[i] := round(x@stat[[i]], digits)]
+    }
+  }
   x
 })
 
@@ -74,8 +78,15 @@ setMethod("+", signature(e1 = "textstat", e2 = "textstat"), function(e1, e2){
 
 #' @exportMethod subset
 #' @rdname textstat-class
-setMethod("subset", "textstat", function(x, ...){
-  x@stat <- subset(copy(x@stat), ...)
+#' @examples
+#' sc <- partition("GERMAPARLMINI", speaker = "Angela Dorothea Merkel")
+#' cnt <- count(sc, p_attribute = c("word", "pos"))
+#' cnt_min <- subset(cnt, pos %in% c("NN", "ADJA"))
+#' cnt_min <- subset(cnt, pos == "NE")
+#' @param subset A logical expression indicating elements or rows to keep.
+setMethod("subset", "textstat", function(x, subset){
+  expr <- substitute(subset)
+  x@stat <- x@stat[eval(expr, envir = x@stat)]
   x
 })
 
@@ -113,11 +124,12 @@ setMethod("[[", "textstat", function(x, i){
 
 #' @exportMethod [
 #' @importFrom data.table key
-setMethod("[", "textstat", function(x, ...){
+setMethod("[", "textstat", function(x, i, j){
   if (nrow(x@stat) == 0) warning("indexing is pointless because data.table is empty")
   if (is.null(key(x@stat))) setkeyv(x@stat, cols = x@p_attribute)
   if (missing(j)){
-    return( x@stat[i] )
+    x@stat <- x@stat[eval(i, envir = x@stat)]
+    return(x)
   } else {
     return( x@stat[i,j, with = FALSE] )
   }

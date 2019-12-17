@@ -49,7 +49,7 @@ count("REUTERS", c("Kuwait", "USA", "Bahrain"))
 count("REUTERS", c('"United" "States"', '"Saudi" "Arabia.*"'), cqp = TRUE)
 
 ## ---- eval = TRUE, message = FALSE---------------------------------------
-oil <- dispersion("REUTERS", query = "oil", sAttribute = "id", progress = FALSE)
+oil <- dispersion("REUTERS", query = "oil", s_attribute = "id", progress = FALSE)
 saudi_arabia <- dispersion(
   "REUTERS", query = '"Saudi" "Arabia.*"',
   sAttribute = "id", cqp = TRUE, progress = FALSE

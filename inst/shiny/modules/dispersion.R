@@ -18,19 +18,21 @@ dispersionUiInput <- function(){
       condition = "input.dispersion_object == 'corpus'",
       selectInput("dispersion_corpus", "corpus", corpus()[["corpus"]])
     ),
+    radioButtons("dispersion_freq", "frequencies", choices = list("yes", "no"), selected = "no", inline = TRUE),
+    radioButtons("dispersion_cqp", "CQP", choices = list("yes", "no"), selected = "no", inline = TRUE),
     conditionalPanel(
       condition = "input.dispersion_object == 'partition'",
       selectInput("dispersion_partition", "partition", choices = character())
     ),
     textInput("dispersion_query", "query", value = "Suche"),
     selectInput(
-      "dispersion_pAttribute", "pAttribute",
-      choices = pAttributes(corpus()[1, "corpus"])
+      "dispersion_p_attribute", "p_attribute",
+      choices = p_attributes(corpus()[1, "corpus"])
     ),
-    # radioButtons("dispersion_dims", "number of sAttributes", choices=c("1", "2"), selected="1", inline=TRUE),
+    # radioButtons("dispersion_dims", "number of s_attributes", choices=c("1", "2"), selected="1", inline=TRUE),
     selectInput(
-      "dispersion_sAttribute_1", "sAttribute",
-      choices = sAttributes(corpus()[1, "corpus"]), multiple = FALSE
+      "dispersion_s_attribute_1", "s_attribute",
+      choices = s_attributes(corpus()[1, "corpus"]), multiple = FALSE
     ),
     radioButtons("dispersion_ts", "time series", choices = c("yes", "no"), selected = "no", inline = TRUE),
     conditionalPanel(
@@ -57,63 +59,68 @@ dispersionServer <- function(input, output, session){
   observe({
     x <- input$dispersion_partition
     if (x != "" && length(values$partitions) > 0 && x %in% names(values$partitions)){
-      new_sAttr <- sAttributes(values$partitions[[x]]@corpus)
-      new_pAttr <- pAttributes(values$partitions[[x]]@corpus)
-      updateSelectInput(session, "dispersion_pAttribute", choices = new_pAttr, selected = NULL)
-      updateSelectInput(session, "dispersion_sAttribute_1", choices = new_sAttr, selected = NULL)
+      new_sAttr <- s_attributes(values$partitions[[x]]@corpus)
+      new_pAttr <- p_attributes(values$partitions[[x]]@corpus)
+      updateSelectInput(session, "dispersion_p_attribute", choices = new_pAttr, selected = NULL)
+      updateSelectInput(session, "dispersion_s_attribute_1", choices = new_sAttr, selected = NULL)
     }
   })
   
   observe({
-    new_sAttr <- sAttributes(input$dispersion_corpus)
-    new_pAttr <- pAttributes(input$dispersion_corpus)
-    updateSelectInput(session, "dispersion_pAttribute", choices = new_pAttr, selected = NULL)
-    updateSelectInput(session, "dispersion_sAttribute_1", choices = new_sAttr, selected = NULL)
+    new_sAttr <- s_attributes(input$dispersion_corpus)
+    new_pAttr <- p_attributes(input$dispersion_corpus)
+    updateSelectInput(session, "dispersion_p_attribute", choices = new_pAttr, selected = NULL)
+    updateSelectInput(session, "dispersion_s_attribute_1", choices = new_sAttr, selected = NULL)
   })
   
+
+
   observeEvent(
     input$dispersion_go,
     isolate({
       
-      if (input$dispersion_object == "partition"){
-        object <- values$partitions[[input$dispersion_partition]]
-      } else if (input$dispersion_object == "corpus"){
-        object <- input$dispersion_corpus
-      }
+      obj <- if (input$dispersion_object == "partition")
+        values$partitions[[input$dispersion_partition]]
+      else 
+        input$dispersion_corpus
+
+      tab <- dispersion(
+        obj,
+        query = rectifySpecialChars(input$dispersion_query),
+        s_attribute = input$dispersion_s_attribute_1,
+        p_attribute = input$dispersion_p_attribute,
+        cqp = if (input$dispersion_cqp == "yes") TRUE else FALSE,
+        freq = if (input$dispersion_freq == "yes") TRUE else FALSE
+      )
       
-      tab <- as.data.frame(dispersion(
-        object,
-        query = input$dispersion_query,
-        sAttribute = input$dispersion_sAttribute_1,
-        pAttribute=input$dispersion_pAttribute
-      ))
-      
-      # tab[["freq"]] <- round(tab[["freq"]], 7)
-      
-      
+      if ("freq" %in% colnames(tab)) tab[, "freq" := round(tab[["freq"]] * 100000, 7)]
+
       if (input$dispersion_ts == "yes"){
-        dates4zoo <- tab[[input$dispersion_sAttribute_1]]
-        tab4zoo <- data.table::copy(tab)
-        tab4zoo[[input$dispersion_sAttribute_1]] <- NULL
-        zooObject <- zoo::zoo(as.matrix(tab4zoo), order.by = as.Date(dates4zoo))
+        dates <- tab[[input$dispersion_s_attribute_1]]
+        dt <- data.table::copy(tab)
+        dt[, eval(input$dispersion_s_attribute_1) := NULL]
+        if ("query" %in% colnames(dt)) dt[, "query" := NULL]
+        print(head(dt))
+        zoo_obj <- zoo::zoo(as.matrix(dt), order.by = as.Date(dates))
+
         if (input$dispersion_ts_aggregation != "none"){
-          zooObject <- switch(
+          zoo_obj <- switch(
             input$dispersion_ts_aggregation,
-            month = aggregate(zooObject, zoo::as.Date(zoo::as.yearmon(zoo::index(zooObject)))),
-            quarter = aggregate(zooObject, zoo::as.Date(zoo::as.yearqtr(zoo::index(zooObject)))),
-            year = aggregate(zooObject, as.Date(paste(gsub("^(\\d{4}).*?$", "\\1", zoo::index(zooObject)), "-01-01", sep="")))
+            month = aggregate(zoo_obj, zoo::as.Date(zoo::as.yearmon(zoo::index(zoo_obj)))),
+            quarter = aggregate(zoo_obj, zoo::as.Date(zoo::as.yearqtr(zoo::index(zoo_obj)))),
+            year = aggregate(zoo_obj, as.Date(paste(gsub("^(\\d{4}).*?$", "\\1", zoo::index(zoo_obj)), "-01-01", sep="")))
           )
           # rework data.frame
-          tab <- data.frame(date = zoo::index(zooObject), zooObject)
-          colnames(tab)[1] <- input$dispersion_sAttribute_1
+          tab <- data.frame(date = zoo::index(zoo_obj), zoo_obj)
+          colnames(tab)[1] <- input$dispersion_s_attribute_1
           rownames(tab) <- NULL
-          output$dispersion_plot <- renderPlot(zoo::plot.zoo(zooObject, main=""))
+          output$dispersion_plot <- renderPlot(zoo::plot.zoo(zoo_obj, main = ""))
         }
       } else {
         output$dispersion_plot <- renderPlot(
           barplot(
-            height = tab[["count"]],
-            names.arg = tab[[input$dispersion_sAttribute_1]]
+            height = if (input$dispersion_freq == "yes") tab[["freq"]] else tab[["count"]],
+            names.arg = tab[[input$dispersion_s_attribute_1]]
           )
         )
       }

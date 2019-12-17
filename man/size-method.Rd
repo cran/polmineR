@@ -3,14 +3,20 @@
 \docType{methods}
 \name{size}
 \alias{size}
+\alias{size,slice-method}
+\alias{size,corpus-method}
 \alias{size,character-method}
 \alias{size,partition-method}
 \alias{size,DocumentTermMatrix-method}
 \alias{size,TermDocumentMatrix-method}
 \alias{size,features-method}
+\alias{size,remote_corpus-method}
+\alias{size,remote_partition-method}
 \title{Get Number of Tokens.}
 \usage{
 size(x, ...)
+
+\S4method{size}{corpus}(x, s_attribute = NULL, verbose = TRUE, ...)
 
 \S4method{size}{character}(x, s_attribute = NULL, verbose = TRUE, ...)
 
@@ -21,18 +27,22 @@ size(x, ...)
 \S4method{size}{TermDocumentMatrix}(x)
 
 \S4method{size}{features}(x)
+
+\S4method{size}{remote_corpus}(x)
+
+\S4method{size}{remote_partition}(x)
 }
 \arguments{
-\item{x}{object to get size(s) for}
+\item{x}{An object to get size(s) for.}
 
-\item{...}{further arguments}
+\item{...}{Further arguments (used only for backwards compatibility).}
 
-\item{s_attribute}{character vector with s-attributes (one or more)}
+\item{s_attribute}{A \code{character} vector with s-attributes (one or more).}
 
-\item{verbose}{logical, whether to print messages}
+\item{verbose}{A \code{logical} value, whether to output messages.}
 }
 \value{
-an integer vector if s_attribute is NULL, a \code{data.table} otherweise
+An \code{integer} vector if s_attribute is \code{NULL}, a \code{data.table} otherwise.
 }
 \description{
 The method will get the number of tokens in a corpus or partition,
@@ -51,14 +61,28 @@ The \code{size}-method for \code{features} objects will return a
 }
 \examples{
 use("polmineR")
+
+# for corpus object
+corpus("REUTERS") \%>\% size()
+corpus("REUTERS") \%>\% size(s_attribute = "id")
+corpus("GERMAPARLMINI") \%>\% size(s_attribute = c("date", "party"))
+
+# for corpus specified by ID
 size("GERMAPARLMINI")
 size("GERMAPARLMINI", s_attribute = "date")
 size("GERMAPARLMINI", s_attribute = c("date", "party"))
 
+# for partition object
 P <- partition("GERMAPARLMINI", date = "2009-11-11")
 size(P, s_attribute = "speaker")
 size(P, s_attribute = "party")
 size(P, s_attribute = c("speaker", "party"))
+
+# for subcorpus
+sc <- corpus("GERMAPARLMINI") \%>\% subset(date == "2009-11-11")
+size(sc, s_attribute = "speaker")
+size(sc, s_attribute = "party")
+size(sc, s_attribute = c("speaker", "party"))
 }
 \seealso{
 See \code{\link{dispersion}}-method for counts of hits. The \code{\link{hits}}

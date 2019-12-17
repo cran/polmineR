@@ -2,39 +2,25 @@
 NULL
 
 
-setAs(
-  from = "kwic",
-  to = "htmlwidget",
-  def = function(from){
-    if (getOption("polmineR.lineview")){
-      from@table[["node"]] <- paste('<span style="color:steelblue">', from@table[["node"]], '</span>', sep="")
-      from@table[["text"]] <- apply(from@table, 1, function(x) paste(x[c("left", "node", "right")], collapse = " "))
-      for (x in c("left", "node", "right", "hit_no")) from@table[[x]] <- NULL
-      retval <- DT::datatable(from@table, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE), escape = FALSE)
-    } else {
-      from@table[["hit_no"]] <- NULL
-      retval <- DT::datatable(from@table, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE), escape = FALSE)
-      retval <- DT::formatStyle(retval, "node", color = "blue", textAlign = "center")
-      retval <- DT::formatStyle(retval, "left", textAlign = "right")
-    }
-    retval$dependencies[[length(retval$dependencies) + 1L]] <- htmltools::htmlDependency(
-      name = "tooltips", version = "0.0.0",
-      src = system.file(package = "polmineR", "css"), stylesheet = "tooltips.css"
-    )
-    retval
-  }
+setAs(from = "kwic", to = "htmlwidget", def = function(from){
+  dt <- format(from, align = FALSE)
+  retval <- DT::datatable(dt, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE), escape = FALSE)
+  if ("node" %in% colnames(dt)) retval <- DT::formatStyle(retval, "node", textAlign = "center")
+  if ("left" %in% colnames(dt)) retval <- DT::formatStyle(retval, "left", textAlign = "right")
+  retval$dependencies[[length(retval$dependencies) + 1L]] <- htmltools::htmlDependency(
+    name = "tooltips", version = "0.0.0",
+    src = system.file(package = "polmineR", "css"), stylesheet = "tooltips.css"
+  )
+  retval
+}
 )
 
 #' @rdname kwic-class
 #' @docType method
 #' @importFrom DT datatable formatStyle
 setMethod("show", "kwic", function(object){
-  retval <- as(object, "htmlwidget")
-  if (interactive()){
-    show(retval)
-  } else{
-    return( retval )
-  }
+  y <- as(object, "htmlwidget")
+  if (interactive()) show(y) else return(y)
 })
 
 
@@ -45,12 +31,12 @@ setMethod("show", "kwic", function(object){
 #' @importFrom knitr knit_print
 #' @exportMethod knit_print
 #' @rdname kwic-class
-#' @param pagelength The number of kwic lines displayed per page in the
-#'   datatables htmlwidget that is returned.
+#' @param pagelength An \code{integer} value, the number of kwic lines displayed
+#'   per page in the \code{datatables} htmlwidget that is returned when
+#'   \code{knit_print} is called on a \code{kwic} object.
 #' @param options Chunk options.   
 setMethod("knit_print", "kwic", function(x, pagelength = getOption("polmineR.pagelength"), options = knitr::opts_chunk, ...){
   y <- as(x, "htmlwidget")
-  # y$x$options$pageLength <- pagelength
   knit_print(y, options = options)
 })
 
@@ -58,79 +44,129 @@ setMethod("knit_print", "kwic", function(x, pagelength = getOption("polmineR.pag
 #' @rdname kwic-class
 #' @docType method
 #' @exportMethod as.character
-#' @param fmt A format string passed into \code{sprintf} to format the node of a KWIC display.
+#' @param fmt A format string passed into \code{sprintf} to format the node of a
+#'   KWIC display.
+#' @details The \code{as.character}-method will return a list of
+#'   \code{character} vectors, concatenating the columns "left", "node" and
+#'   "right" of the \code{data.table} in the \code{stat}-slot of the input
+#'   \code{kwic}-class object. Optionally, the node can be formatted using a
+#'   format string that is passed into \code{sprintf}.
 #' @examples 
+#' # extract node and left and right context as character vectors
 #' oil <- kwic("REUTERS", query = "oil")
-#' as.character(oil)
+#' as.character(oil, fmt = NULL)
+#' as.character(oil) # node wrapped into <i> tag by default
+#' as.character(oil, fmt = "<b>%s</b>")
+#' 
 setMethod("as.character", "kwic", function(x, fmt = "<i>%s</i>"){
-  if (!is.null(fmt)) x@table[["node"]] <- sprintf(fmt, x@table[["node"]])
-  apply(
-    x@table, 1L,
-    function(row) paste(row["left"], row["node"], row["right"], sep = " ")
-  )
+  if (!is.null(fmt)) x@stat[, "node" := sprintf(fmt, x@stat[["node"]])]
+  apply(x@stat, 1L, function(r) paste(r[["left"]], r[["node"]], r[["right"]], sep = " "))
 })
 
 #' @docType methods
 #' @rdname kwic-class
-setMethod('[', 'kwic',
-          function(x,i) {
-            x@table <- x@table[i,]
-            x
-          }        
-)
+setMethod("[", "kwic", function(x, i){
+  ids <- x@stat[["match_id"]][i]
+  x@stat <- x@stat[which(x@stat[["match_id"]] %in% ids)]
+  x@cpos <- x@cpos[x@cpos[["match_id"]] %in% x@stat[["match_id"]]]
+  x
+})
 
 #' @details The \code{subset}-method will apply \code{subset} to the table in
-#'   the slot \code{table}, for filtering query results based on metadata (i.e.
+#'   the slot \code{stat}, e.g. for filtering query results based on metadata (i.e.
 #'   s-attributes) that need to be present.
 #' @rdname kwic-class
-setMethod("subset", "kwic", function(x, ...) {x@table <- subset(x@table, ...); x})
+#' @examples 
+#' # subsetting kwic objects
+#' oil <- corpus("REUTERS") %>%
+#'   kwic(query = "oil") %>%
+#'   subset(grepl("prices", right))
+#' saudi_arabia <- corpus("REUTERS") %>%
+#'   kwic(query = "Arabia") %>%
+#'   subset(grepl("Saudi", left))
+#' int_spd <- corpus("GERMAPARLMINI") %>%
+#'   kwic(query = "Integration") %>%
+#'   enrich(s_attribute = "party") %>%
+#'   subset(grepl("SPD", party))
+#'
+setMethod("subset", "kwic", function(x, ...) {
+  x@stat <- subset(x@stat, ...)
+  x@cpos <- x@cpos[x@cpos[["match_id"]] %in% x@stat[["match_id"]]]
+  x
+})
 
 #' @rdname kwic-class
+#' @examples
+#' # turn kwic object into data.frame with html tags
+#' int <- corpus("GERMAPARLMINI") %>%
+#'   kwic(query = "Integration")
+#' 
+#' as.data.frame(int) # Without further metadata
+#' 
+#' enrich(int, s_attributes = c("date", "speaker", "party")) %>%
+#'   as.data.frame()
+#'   
 setMethod("as.data.frame", "kwic", function(x){
-  metaColumnsNo <- length(colnames(x@table)) - 3L
-  metadata <- apply(x@table, 1, function(row) paste(row[1L:metaColumnsNo], collapse="<br/>"))
-  data.frame(
-    meta = metadata,
-    left = x@table$left,
-    node = x@table$node,
-    right = x@table$right
-  )
+  if (all(c("left", "node", "right") %in% colnames(x@stat))){
+    df <- data.frame(
+      left = x@stat[["left"]],
+      node = x@stat[["node"]],
+      right = x@stat[["right"]],
+      stringsAsFactors = FALSE
+    )
+    if (length(x@metadata) > 0L){
+      df <- data.frame(
+        meta = do.call(paste, c(lapply(x@metadata, function(s_attr) x@stat[[s_attr]]), sep = "<br/>")),
+        df,
+        stringsAsFactors = FALSE
+      )
+    }
+  } else {
+    stop("as.data.frame,kwic-method not yet implemented for lineview")
+  }
+  df
 })
 
 
 #' @rdname kwic-class
-setMethod("length", "kwic", function(x) nrow(x@table) )
+setMethod("length", "kwic", function(x) nrow(x@stat) )
 
 #' @rdname kwic-class
 setMethod("sample", "kwic", function(x, size){
-  hits_unique <- unique(x@cpos[["hit_no"]])
+  hits_unique <- unique(x@cpos[["match_id"]])
   if (size > length(hits_unique)){
     warning("argument size exceeds number of hits, returning original object")
     return(x)
   }
-  x@cpos <- x@cpos[which(x@cpos[["hit_no"]] %in% sample(hits_unique, size = size))]
+  x@cpos <- x@cpos[which(x@cpos[["match_id"]] %in% sample(hits_unique, size = size))]
   x <- enrich(x, table = TRUE)
   x <- enrich(x, s_attributes = x@metadata)
   x
-  
 })
 
 
 #' @include partition.R context.R
 NULL 
 
-#' KWIC/concordance output.
+#' Perform keyword-in-context (KWIC) analysis.
 #' 
-#' Prepare and show concordances / keyword-in-context (kwic).
+#' Get concordances for the matches for a query / perform keyword-in-context
+#' (kwic) analysis.
 #' 
 #' The method works with a whole CWB corpus defined by a  character vector, and
 #' can be applied on a \code{partition}- or a \code{context} object.
 #' 
-#' If a \code{positivelist} ist supplied, only concordances will be kept if at
-#' least one of the terms from the \code{positivelist} occurrs in the context of
+#' If a \code{positivelist} is supplied, only those concordances will be kept that
+#' have one of the terms from the \code{positivelist} occurr in the context of
 #' the query match. Use argument \code{regex} if the positivelist should be
 #' interpreted as regular expressions. Tokens from the positivelist will be
 #' highlighted in the output table.
+#' 
+#' If a \code{negativelist} is supplied, concordances are removed if any of the
+#' tokens of the \code{negativelist} occurrs in the context of the query match.
+#' 
+#' @return If there are no matches, or if all (initial) matches are dropped due to the
+#' application of a positivelist, a \code{NULL} is returned.
 #' 
 #' @param .Object A (length-one) \code{character} vector with the name of a CWB
 #'   corpus, a \code{partition} or \code{context} object.
@@ -153,17 +189,21 @@ NULL
 #'   results.
 #' @param positivelist Terms or ids required for a concordance to occurr in
 #'   results
-#' @param regex Logical, whether stoplist/positivelist is interpreted as regular
-#'   expression
-#' @param verbose Logical, whether to output progress messages
-#' @param progress Logical, whether to show progress bars.
-#' @param ... Further arguments, used to ensure backwards compatibility.
-#' @rdname kwic
+#' @param regex Logical, whether \code{stoplist}/\code{positivelist} is interpreted as regular
+#'   expression.
+#' @param verbose A \code{logical} value, whether to print messages.
+#' @param progress A \code{logical} value, whether to show progress bar.
+#' @param ... Further arguments, used to ensure backwards compatibility. If
+#'   \code{.Object} is a \code{remote_corpus} of \code{remote_partition} object,
+#'   the three dots (\code{...}) are used to pass arguments. Hence, it is
+#'   necessary to state the names of all arguments to be passed explicity.
 #' @docType methods
 #' @seealso The return value is a \code{\link{kwic-class}} object; the
-#'   documentation for the class explains the methods applicable to
-#'   \code{\link{kwic-class}} objects. To read the whole text, see the
-#'   \code{\link{read}}-method.
+#'   documentation for the class explains the standard generic methods
+#'   applicable to \code{\link{kwic-class}} objects. It is possible to read the
+#'   whole text where a query match occurs, see the \code{\link{read}}-method.
+#'   To highlight terms in the context of a query match, see the
+#'   \code{\link{highlight}}-method.
 #' @references 
 #' Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, pp. 71-93 (ch. 4).
 #'
@@ -171,28 +211,47 @@ NULL
 #' Cham et al: Springer, pp. 73-87 (chs. 8 & 9).
 #' @examples
 #' use("polmineR")
+#' 
+#' # basic usage
 #' K <- kwic("GERMAPARLMINI", "Integration")
+#' if (interactive()) show(K)
+#' oil <- corpus("REUTERS") %>% kwic(query = "oil")
+#' if (interactive()) show(oil)
+#' oil <- corpus("REUTERS") %>%
+#'   kwic(query = "oil") %>%
+#'   highlight(yellow = "crude")
+#' if (interactive()) show(oil)
+#' 
+#' # increase left and right context and display metadata
 #' K <- kwic(
 #'   "GERMAPARLMINI",
 #'   "Integration", left = 20, right = 20,
 #'   s_attributes = c("date", "speaker", "party")
 #' )
+#' if (interactive()) show(K)
+#' 
+#' # use CQP syntax for matching
 #' K <- kwic(
 #'   "GERMAPARLMINI",
 #'   '"Integration" [] "(Menschen|Migrant.*|Personen)"', cqp = TRUE,
 #'   left = 20, right = 20,
 #'   s_attributes = c("date", "speaker", "party")
 #' )
+#' if (interactive()) show(K)
 #' 
+#' # check that boundary of region is not transgressed
 #' K <- kwic(
 #'   "GERMAPARLMINI",
 #'   '"Sehr" "geehrte"', cqp = TRUE,
+#'   left = 100, right = 100,
 #'   boundary = "date"
 #' )
+#' if (interactive()) show(K)
 #' 
-#' P <- partition("GERMAPARLMINI", date = "2009-11-10")
-#' K <- kwic(P, query = "Integration")
-#' K <- kwic(P, query = '"Sehr" "geehrte"', cqp = TRUE, boundary = "date")
+#' # use positivelist and highlight matches in context
+#' K <- kwic("GERMAPARLMINI", query = "Integration", positivelist = "[Ee]urop.*", regex = TRUE)
+#' K <- highlight(K, yellow = "[Ee]urop.*", regex = TRUE)
+#' 
 #' @exportMethod kwic
 setGeneric("kwic", function(.Object, ...) standardGeneric("kwic") )
 
@@ -206,17 +265,17 @@ setMethod("kwic", "context", function(.Object, s_attributes = getOption("polmine
   if ("meta" %in% names(list(...))) s_attributes <- list(...)[["meta"]]
   
   DT <- copy(.Object@cpos) # do not accidentily store things
-  setorderv(DT, cols = c("hit_no", "cpos"))
-  decoded_pAttr <- CQI$id2str(
-    .Object@corpus, .Object@p_attribute[1],
-    DT[[paste(.Object@p_attribute[1], "id", sep = "_")]]
+  setorderv(DT, cols = c("match_id", "cpos"))
+  p_attr_decoded <- cl_id2str(
+    corpus = .Object@corpus, p_attribute = .Object@p_attribute[1],
+    id = DT[[paste(.Object@p_attribute[1], "id", sep = "_")]],
+    registry = registry()
   )
-  decoded_pAttr2 <- as.nativeEnc(decoded_pAttr, from = .Object@encoding)
-  DT[, .Object@p_attribute[1] := decoded_pAttr2, with = TRUE]
+  DT[, .Object@p_attribute[1] := as.nativeEnc(p_attr_decoded, from = .Object@encoding), with = TRUE]
   DT[, "direction" := sign(DT[["position"]]), with = TRUE]
   
   if (is.null(s_attributes)) s_attributes <- character()
-  conc <- new(
+  y <- new(
     "kwic",
     corpus = .Object@corpus,
     left = as.integer(.Object@left),
@@ -224,19 +283,17 @@ setMethod("kwic", "context", function(.Object, s_attributes = getOption("polmine
     p_attribute = .Object@p_attribute,
     metadata = if (length(s_attributes) == 0L) character() else s_attributes,
     encoding = .Object@encoding,
-    labels = Labels$new(),
-    cpos = if (cpos) DT else data.table()
+    cpos = if (cpos) DT else data.table(),
+    stat = data.table()
   )
   
-  conc <- enrich(conc, table = TRUE, p_attribute = .Object@p_attribute)
-  conc <- enrich(conc, s_attributes = s_attributes)
-  conc
+  enrich(y, table = TRUE, s_attributes = s_attributes)
 })
 
 
 #' @rdname kwic
 #' @exportMethod kwic
-setMethod("kwic", "partition", function(
+setMethod("kwic", "slice", function(
   .Object, query, cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
@@ -262,19 +319,49 @@ setMethod("kwic", "partition", function(
     count = FALSE, verbose = verbose
   )
   if (is.null(ctxt)){
-    message("... no occurrence of query")
+    message("... no matches for query (or no matches left after applying stoplist/positivelist)")
     return(invisible(NULL))
   }
   retval <- kwic(.Object = ctxt, s_attributes = s_attributes, cpos = cpos)
-  if (!is.null(positivelist)){
-    retval <- highlight(retval, highlight = list(yellow = positivelist), regex = regex)
-  }
+  # if (!is.null(positivelist)) retval <- highlight(retval, highlight = list(yellow = positivelist), regex = regex)
+
   retval
 })
 
 
 #' @rdname kwic
-setMethod("kwic", "character", function(
+#' @exportMethod kwic
+setMethod("kwic", "partition", function(
+  .Object, query, cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word", boundary = NULL, cpos = TRUE,
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
+  verbose = TRUE, ...
+){
+  callNextMethod() 
+})
+
+#' @rdname kwic
+#' @exportMethod kwic
+setMethod("kwic", "subcorpus", function(
+  .Object, query, cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word", boundary = NULL, cpos = TRUE,
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
+  verbose = TRUE, ...
+){
+  callNextMethod() 
+})
+
+
+
+
+#' @rdname kwic
+setMethod("kwic", "corpus", function(
   .Object, query, cqp = is.cqp, check = TRUE,
   left = as.integer(getOption("polmineR.left")),
   right = as.integer(getOption("polmineR.right")),
@@ -291,55 +378,20 @@ setMethod("kwic", "character", function(
   
   hits <- cpos(.Object, query = query, cqp = cqp, check = check, p_attribute = p_attribute, verbose = FALSE)
   if (is.null(hits)){
-    message("sorry, not hits");
+    message("sorry, not hits for query: ", query);
     return(invisible(NULL))
   }
-  cpos_max <- CQI$attribute_size(.Object, p_attribute, type = "p")
-  cposList <- apply(
-    hits, 1,
-    function(row){
-      left <- c((row[1] - left ):(row[1] - 1L))
-      right <- c((row[2] + 1L):(row[2] + right))
-      list(
-        left = left[left > 0L],
-        node = row[1]:row[2],
-        right = right[right <= cpos_max]
-      )
-    }
-  )
-  DT <- data.table(
-    hit_no = unlist(lapply(1L:length(cposList), function(i) rep(i, times = length(unlist(cposList[[i]]))))),
-    cpos = unname(unlist(cposList)),
-    position = unlist(lapply(
-      cposList,
-      function(x) lapply(
-        names(x),
-        function(x2)
-          switch(
-            x2,
-            left = if (length(x[[x2]]) == 0) integer() else rev((-1L:-left)[1L:length(x[[x2]])]),
-            node = rep(0L, times = length(x[[x2]])),
-            right = if (length(x[[x2]]) == 0) integer() else (1L:right)[1L:length(x[[x2]])]
-          )
-      )))
-  )
-  DT[[paste(p_attribute, "id", sep = "_")]] <- CQI$cpos2id(.Object, p_attribute, DT[["cpos"]])
   
-  ctxt <- new(
-    Class = "context",
-    query = character(),
-    count = nrow(hits),
-    stat = data.table(),
-    corpus = .Object,
-    size_partition = integer(), size = integer(),
-    left = as.integer(left), right = as.integer(right), 
-    cpos = DT,
-    boundary = if (!is.null(boundary)) boundary else character(),
-    p_attribute = p_attribute,
-    encoding = registry_get_encoding(.Object),
-    partition = new("partition", stat = data.table())
-  )
+  ctxt <- context(hits, left = left, right = right, corpus = .Object@corpus)
+
+  ctxt@cpos[, paste(p_attribute, "id", sep = "_") := cl_cpos2id(corpus = .Object@corpus, p_attribute = p_attribute, cpos = ctxt@cpos[["cpos"]], registry = registry()), with = TRUE]
   
+  ctxt@count <- nrow(hits)
+  ctxt@boundary <- if (!is.null(boundary)) boundary else character()
+  ctxt@p_attribute <- p_attribute
+  ctxt@encoding <- .Object@encoding
+  ctxt@partition <- new("partition", stat = data.table())
+
   # check that windows do not transgress s-attribute
   if (!is.null(boundary)){
     stopifnot(boundary %in% registry_get_s_attributes(ctxt@corpus))
@@ -347,11 +399,97 @@ setMethod("kwic", "character", function(
     ctxt <- enrich(ctxt, s_attribute = boundary, verbose = verbose, progress = progress)
     ctxt <- trim(ctxt, s_attribute = boundary, verbose = verbose, progress = progress)
   }
-
+  
   # generate positivelist/stoplist with ids and apply it
   if (!is.null(positivelist)) ctxt <- trim(ctxt, positivelist = positivelist, regex = regex, verbose = verbose)
+  if (is.null(ctxt)) return(NULL)
   if (!is.null(stoplist)) ctxt <- trim(ctxt, stoplist = stoplist, regex = regex, verbose = verbose)
+  if (is.null(ctxt)) return(NULL)
   
   kwic(.Object = ctxt, s_attributes = s_attributes, cpos = cpos)
 })
 
+
+
+
+#' @rdname kwic
+setMethod("kwic", "character", function(
+  .Object, query, cqp = is.cqp, check = TRUE,
+  left = as.integer(getOption("polmineR.left")),
+  right = as.integer(getOption("polmineR.right")),
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word", boundary = NULL, cpos = TRUE,
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
+  verbose = TRUE, progress = TRUE, ...
+){
+  kwic(
+    .Object = corpus(.Object),
+    query = query,
+    cqp = cqp,
+    check = check,
+    left = left,
+    right = right,
+    s_attributes = s_attributes,
+    p_attribute = p_attribute,
+    boundary = boundary,
+    cpos = cpos,
+    stoplist = stoplist,
+    positivelist = positivelist,
+    regex = regex,
+    verbose = verbose,
+    progress = progress,
+    ...
+  )
+})
+
+#' @rdname kwic
+setMethod("kwic", "remote_corpus", function(.Object, ...){
+  ocpu_exec(fn = "kwic", server = .Object@server, do.call = FALSE, .Object = .Object@corpus, ...)
+})
+
+#' @rdname kwic
+setMethod("kwic", "remote_partition", function(.Object, ...){
+  ocpu_exec(fn = "kwic", server = .Object@server, .Object = as(.Object, "partition"), ...)
+})
+
+#' @rdname kwic-class
+#' @examples
+#' # merge bundle of kwic objects into one kwic
+#' reuters <- corpus("REUTERS")
+#' queries <- c('"Saudi" "Arabia"', "oil", '"barrel.*"')
+#' comb <- lapply(queries, function(qu) kwic(reuters, query = qu)) %>%
+#'   as.bundle() %>%
+#'   merge()
+#'  
+setMethod("merge", "kwic_bundle", function(x){
+  
+  table_list <- lapply(x@objects, function(obj) copy(obj@stat))
+  cpos_list <- lapply(x@objects, function(obj) copy(obj@cpos))
+  
+  starting <- cumsum(sapply(table_list, function(tab) max(tab[["match_id"]])))
+  starting <- c(0L, starting[-length(table_list)])
+  
+  lapply(
+    seq_along(table_list),
+    function(i) table_list[[i]][, "match_id" := table_list[[i]][["match_id"]] + starting[i]]
+  )
+  lapply(
+    seq_along(cpos_list),
+    function(i) cpos_list[[i]][, "match_id" := cpos_list[[i]][["match_id"]] + starting[i]]
+  )
+
+  new(
+    "kwic",
+    corpus = x@corpus,
+    encoding = x@encoding,
+    cpos = rbindlist(cpos_list),
+    stat = rbindlist(table_list),
+    p_attribute = unique(sapply(x@objects, function(obj) obj@p_attribute)),
+    metadata = character(),
+    left = unique(sapply(x@objects, function(obj) obj@left)),
+    right = unique(sapply(x@objects, function(obj) obj@right)),
+
+    name = character(),
+    annotation_cols = character()
+  )
+})

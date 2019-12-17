@@ -1,17 +1,14 @@
 .makePartitionDf <- function(){
   if (length(values$partitions) == 0){
-    return(
-      data.frame(name = character(), corpus = character(), size = integer())
-    )
+    df <- data.frame(name = character(), corpus = character(), size = integer())
   } else {
-    return(
-      data.frame(
-        name = sapply(values$partitions, function(x) x@name),
-        corpus = sapply(values$partitions, function(x) x@corpus),
-        size = sapply(values$partitions, function(x) x@size)
-      )
+    df <- data.frame(
+      name = sapply(values$partitions, function(x) x@name),
+      corpus = sapply(values$partitions, function(x) x@corpus),
+      size = sapply(values$partitions, function(x) x@size)
     )
   }
+  df
 }
 
 
@@ -36,12 +33,12 @@ partitionUiInput <- function(){
     br(),
     corpus = selectInput("partition_corpus", "corpus", choices = corpus()[["corpus"]], selected = corpus()[["corpus"]][1]),
     name = textInput(inputId = "partition_name", label = "name", value = "unnamed"),
-    sAttributesA = selectInput(
-      inputId = "partition_sAttributes", label = "sAttributes", multiple = TRUE,
-      choices = sAttributes(corpus()[1, "corpus"])
+    s_attributesA = selectInput(
+      inputId = "partition_s_attributes", label = "s_attributes", multiple = TRUE,
+      choices = s_attributes(corpus()[["corpus"]][1])
     ),
-    sAttributesB = uiOutput("partition_sAttributes"),
-    pAttribute = selectInput(inputId = "partition_pAttribute", label = "pAttribute", multiple = TRUE, choices = list(none = "", word = "word", lemma = "lemma")),
+    s_attributesB = uiOutput("partition_s_attributes"),
+    p_attribute = selectInput(inputId = "partition_p_attribute", label = "p_attribute", multiple = TRUE, choices = list(none = "", word = "word", lemma = "lemma")),
     regex = radioButtons("partition_regex", "regex", choices = list("TRUE", "FALSE"), inline = TRUE),
     xml = radioButtons("partition_xml", "xml", choices = list("flat", "nested"), inline = TRUE)
   )
@@ -67,12 +64,12 @@ partitionServer <- function(input, output, session){
     {
       if (input$partition_go > 0){
         defList <- lapply(
-          setNames(input$partition_sAttributes, input$partition_sAttributes),
+          setNames(input$partition_s_attributes, input$partition_s_attributes),
           function(x) input[[x]]
         )
-        # to avid an error, do nothing if no sAttribute value is available/has been entered
-        if (length(input$partition_sAttributes) > 0 && !any(sapply(defList, is.null))){
-          noMessages <- 3 + if (is.null(input$partition_pAttribute)) 0 else 1
+        # to avid an error, do nothing if no s_attribute value is available/has been entered
+        if (length(input$partition_s_attributes) > 0 && !any(sapply(defList, is.null))){
+          noMessages <- 3L + if (is.null(input$partition_p_attribute)) 0L else 1L
           withProgress(
             message = "please wait ...", value = 0, max = noMessages, detail = "getting started",
             {
@@ -80,7 +77,7 @@ partitionServer <- function(input, output, session){
                 as.character(input$partition_corpus),
                 def = defList,
                 name = input$partition_name,
-                pAttribute = input$partition_pAttribute,
+                p_attribute = input$partition_p_attribute,
                 regex = if (input$partition_regex == "TRUE") TRUE else FALSE,
                 xml = input$partition_xml,
                 mc = FALSE,
@@ -108,19 +105,29 @@ partitionServer <- function(input, output, session){
     input$partition_corpus,
     {
       updateSelectInput(
-        session, inputId = "partition_sAttributes",
-        choices = sAttributes(input$partition_corpus)
+        session, inputId = "partition_s_attributes",
+        choices = s_attributes(input$partition_corpus)
       )
     }
   )
   
-  output$partition_sAttributes <- renderUI({
+  observeEvent(
+    input$partition_corpus,
+    {
+      updateSelectInput(
+        session, inputId = "partition_p_attribute",
+        choices = p_attributes(input$partition_corpus)
+      )
+    }
+  )
+  
+  output$partition_s_attributes <- renderUI({
     tagList(lapply(
-      input$partition_sAttributes,
+      input$partition_s_attributes,
       function(x){
         selectInput(
           inputId = x, label = x, multiple = TRUE,
-          choices = sAttributes(input$partition_corpus, x)
+          choices = s_attributes(input$partition_corpus, x)
           )
       } 
     ))
@@ -144,11 +151,11 @@ partitionServer <- function(input, output, session){
       newPartition <- partition(
         as.character(input$partition_corpus),
         def = lapply(
-          setNames(input$partition_sAttributes, input$partition_sAttributes),
+          setNames(input$partition_s_attributes, input$partition_s_attributes),
           rectifySpecialChars
         ),
         name = input$partition_name,
-        pAttribute = input$partition_pAttribute,
+        p_attribute = input$partition_p_attribute,
         regex = input$partition_regex,
         xml = input$partition_xml,
         mc = FALSE,
@@ -176,7 +183,7 @@ partitionGadget <- function(){
           fillCol(
             div(partitionUiInput()[["corpus"]],
                 partitionUiInput()[["name"]],
-                partitionUiInput()[["pAttribute"]],
+                partitionUiInput()[["p_attribute"]],
                 partitionUiInput()[["regex"]],
                 partitionUiInput()[["xml"]]
             )
@@ -184,8 +191,8 @@ partitionGadget <- function(){
           fillCol(br()),
           fillCol(
             div(
-              partitionUiInput()[["sAttributesA"]],
-              partitionUiInput()[["sAttributesB"]]
+              partitionUiInput()[["s_attributesA"]],
+              partitionUiInput()[["s_attributesB"]]
             )
           ),
           flex = c(1,0.1, 1)

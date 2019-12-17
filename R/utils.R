@@ -114,8 +114,8 @@ as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE){
 #' @noRd
 .token2id <- function(corpus, p_attribute, token = NULL, regex = FALSE){
   stopifnot(
-    corpus %in% CQI$list_corpora(),
-    p_attribute %in% CQI$attributes(corpus, type = "p")
+    corpus %in% .list_corpora(),
+    p_attribute %in% registry_get_p_attributes(corpus)
     )
   if (is.null(token)) return( NULL )
   if (is.numeric(token)){
@@ -124,10 +124,10 @@ as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE){
     if (regex){
       retval <- unlist(lapply(
         token,
-        function(x) CQI$regex2id(corpus = corpus, p_attribute = p_attribute, regex = x))
-      )
+        function(x) cl_regex2id(corpus = corpus, p_attribute = p_attribute, regex = x, registry = registry())
+      ))
     } else {
-      retval <- CQI$str2id(corpus = corpus, p_attribute = p_attribute, str = token)
+      retval <- cl_str2id(corpus = corpus, p_attribute = p_attribute, str = token, registry = registry())
     }
     return( retval )
   }
@@ -272,13 +272,31 @@ flatten <- function(object){
 }
 
 
-.message <- function(..., verbose = TRUE){
-  message <- paste(unlist(list(...)), collapse = " ")
-  if (verbose == TRUE){
-    message(paste("...", message))
-  } else if (verbose == "shiny"){
-    shiny::incProgress(amount = 1, detail = message)
+.message <- function(..., verbose = TRUE, type = "message", shiny = getOption("polmineR.shiny")){
+  msg <- paste(unlist(list(...)), collapse = " ")
+  
+  # print(shiny)
+  if (is.null(shiny)) shiny <- FALSE
+  
+  
+  if (shiny){
+    if (requireNamespace(package = "shiny", quietly = TRUE)){
+      if (type %in% c("default", "message")){
+        shiny::incProgress(amount = 1, detail = msg)
+      } else {
+        shiny::showNotification(msg, type = type)
+      }
+    }
+  } else {
+    if (type == "error"){
+      stop(msg)
+    } else if (type == "warning"){
+      warning(msg)
+    } else {
+      if (verbose) message(paste("...", msg))
+    }
   }
+  
 }
 
 
@@ -295,3 +313,10 @@ round.data.table <- function(x, digits = 2L){
   for (i in numeric_columns) x[, colnames(x)[i] := round(x[[i]], digits)]
   invisible( NULL )
 }
+
+
+.list_corpora = function() toupper(list.files( registry() ))
+
+#' @importFrom magrittr %>%
+#' @export
+magrittr::`%>%`

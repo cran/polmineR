@@ -23,8 +23,8 @@ NULL
 #' terms("GERMAPARLMINI", p_attribute = "word")
 #' terms("GERMAPARLMINI", p_attribute = "word", regex = "^Arbeit.*")
 #' @rdname terms
-#' @aliases terms,partition-method
-setMethod("terms", "partition", function(x, p_attribute, regex = NULL, ...){
+#' @aliases terms,slice-method terms,partition-method
+setMethod("terms", "slice", function(x, p_attribute, regex = NULL, ...){
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   
@@ -39,7 +39,7 @@ setMethod("terms", "partition", function(x, p_attribute, regex = NULL, ...){
   } else {
     ids <- region_matrix_to_ids(corpus = x@corpus, p_attribute = p_attribute, matrix = x@cpos)
     ids_unique <- unique(ids)
-    y <- CQI$id2str(corpus = x@corpus, p_attribute = p_attribute, id = ids_unique)
+    y <- cl_id2str(corpus = x@corpus, p_attribute = p_attribute, id = ids_unique, registry = registry())
     Encoding(y) <- x@encoding
   }
   y <- enc2utf8(y)
@@ -49,6 +49,13 @@ setMethod("terms", "partition", function(x, p_attribute, regex = NULL, ...){
   }
   y
 })
+
+#' @rdname terms
+setMethod("terms", "partition", function(x, p_attribute, regex = NULL, ...) callNextMethod() )
+
+#' @rdname terms
+setMethod("terms", "subcorpus", function(x, p_attribute, regex = NULL, ...) callNextMethod() )
+
 
 #' @rdname terms
 setMethod("terms", "character", function(x, p_attribute, regex = NULL, robust = FALSE, ...){
@@ -63,15 +70,15 @@ setMethod("terms", "character", function(x, p_attribute, regex = NULL, robust = 
     )
   if (!is.null(regex)) stopifnot(is.character(regex))
   
-  corpusEncoding <- registry_get_encoding(x)
-  totalNoTerms <- CQI$lexicon_size(x, p_attribute)
-  ids <- 0L:(totalNoTerms - 1L)
+  terms_total <- cl_lexicon_size(corpus = x, p_attribute = p_attribute, registry = registry())
+  ids <- 0L:(terms_total - 1L)
+  str <- cl_id2str(corpus = x, p_attribute = p_attribute, id = ids, registry = registry())
+  corpus_enc <- registry_get_encoding(x)
+  Encoding(str) <- corpus_enc
+  y <- as.nativeEnc(str, from = corpus_enc)
   
-  y <- CQI$id2str(x, p_attribute, ids)
-  Encoding(y) <- registry_get_encoding(x)
-  y <- as.nativeEnc(y, from = corpusEncoding)
   if (robust != FALSE){
-    if (robust == TRUE){
+    if (robust){
       if (length(y) != length(unique(y))){
         warning("there may be terms causing issues")
         strCount <- table(y)
@@ -83,8 +90,8 @@ setMethod("terms", "character", function(x, p_attribute, regex = NULL, robust = 
     for (villainName in villainNames){
       warning("this is a villain: ", villainName)
       villainPos <- which(villainName == y)
-      for (i in 1:length(villainPos)){
-        if (i >= 2) y[villainPos[i]] <- paste(villainName, i, sep = "_")
+      for (i in 1L:length(villainPos)){
+        if (i >= 2L) y[villainPos[i]] <- paste(villainName, i, sep = "_")
       }
     }
   }

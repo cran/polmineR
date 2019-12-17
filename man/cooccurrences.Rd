@@ -3,15 +3,25 @@
 \docType{methods}
 \name{cooccurrences}
 \alias{cooccurrences}
+\alias{cooccurrences,corpus-method}
 \alias{cooccurrences,character-method}
+\alias{cooccurrences,slice-method}
 \alias{cooccurrences,partition-method}
+\alias{cooccurrences,subcorpus-method}
 \alias{cooccurrences,context-method}
-\alias{cooccurrences,Corpus-method}
 \alias{cooccurrences,partition_bundle-method}
 \alias{cooccurrences,Cooccurrences-method}
 \title{Get cooccurrence statistics.}
 \usage{
 cooccurrences(.Object, ...)
+
+\S4method{cooccurrences}{corpus}(.Object, query, cqp = is.cqp,
+  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"), stoplist = NULL,
+  positivelist = NULL, regex = FALSE, keep = NULL, cpos = NULL,
+  method = "ll", mc = getOption("polmineR.mc"), verbose = FALSE,
+  progress = FALSE, ...)
 
 \S4method{cooccurrences}{character}(.Object, query, cqp = is.cqp,
   p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
@@ -21,7 +31,21 @@ cooccurrences(.Object, ...)
   method = "ll", mc = getOption("polmineR.mc"), verbose = FALSE,
   progress = FALSE, ...)
 
+\S4method{cooccurrences}{slice}(.Object, query, cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  stoplist = NULL, positivelist = NULL, keep = NULL, method = "ll",
+  mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+
 \S4method{cooccurrences}{partition}(.Object, query, cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  stoplist = NULL, positivelist = NULL, keep = NULL, method = "ll",
+  mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+
+\S4method{cooccurrences}{subcorpus}(.Object, query, cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
@@ -30,9 +54,6 @@ cooccurrences(.Object, ...)
 
 \S4method{cooccurrences}{context}(.Object, method = "ll",
   verbose = FALSE)
-
-\S4method{cooccurrences}{Corpus}(.Object, query,
-  p_attribute = getOption("polmineR.p_attribute"), ...)
 
 \S4method{cooccurrences}{partition_bundle}(.Object, query,
   mc = getOption("polmineR.mc"), ...)
@@ -111,6 +132,16 @@ cooccurrences("REUTERS", query = "oil") \%>\%
   subset(ll >= 10.83) \%>\%
   format()
 }
+pb <- partition_bundle("GERMAPARLMINI", s_attribute = "speaker")
+pb_min <- pb[[ count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]] ]]
+y <- cooccurrences(pb_min, query = "Deutschland")
+if (interactive()) y[[1]]
+if (interactive()) y[[2]]
+
+y2 <- corpus("GERMAPARLMINI") \%>\%
+  subset(speaker \%in\% c("Hubertus Heil", "Angela Dorothea Merkel")) \%>\%
+  split(s_attribute = "speaker") \%>\%
+  cooccurrences(query = "Deutschland")
 }
 \references{
 Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, p. 95-120 (ch. 5).

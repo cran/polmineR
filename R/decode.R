@@ -1,140 +1,226 @@
 #' @rdname decode
 setGeneric("decode", function(.Object, ...) standardGeneric("decode"))
 
+setOldClass("Annotation")
 
-#' Decode structural attribute, partition or corpus.
+
+setAs(from = "corpus", to = "Annotation", def = function(from){
+  
+  # Implemented only for class 'corpus', 'subcorpus'-class will inherit from it.
+  
+  if (!requireNamespace(package = "NLP", quietly = TRUE))
+    stop("Package 'NLP' required but not available")
+
+  word <- get_token_stream(from@cpos, corpus = from@corpus, p_attribute = "word", encoding = from@encoding)
+  pos <- get_token_stream(from@cpos, corpus = from@corpus, p_attribute = "pos", encoding = from@encoding)
+  whitespace_after <- c(ifelse(pos %in% c("$.", "$,"), FALSE, TRUE)[2L:length(pos)], FALSE)
+  word_with_whitespace <- paste(word, ifelse(whitespace_after, " ", ""), sep = "")
+  s <- paste(word_with_whitespace, collapse = "")
+  word_length <- sapply(word, nchar)
+  left_offset <- c(1L, (cumsum(sapply(word_with_whitespace, nchar)) + 1L)[1L:(length(word) - 1L)] )
+  names(left_offset) <- word
+  right_offset <- left_offset + word_length - 1L
+  names(right_offset) <- word
+  cpos <- unlist(apply(from@cpos, 1, function(x) x[1]:x[2]))
+  w <- NLP::Annotation(
+    id = cpos,
+    rep.int("word", length(cpos)),
+    start = left_offset,
+    end = right_offset
+  )
+
+  right_offset <- left_offset + word_length
+  names(right_offset) <- word
+  m <- matrix(data = c(left_offset, right_offset), ncol = 2, byrow = FALSE)
+  f <- cut(x = 1L:length(pos), breaks = unique(c(1L, grep("\\$\\.", pos), length(pos))), include.lowest = TRUE)
+  chunks <- split(x = m, f = f)
+  sentence_left <- sapply(chunks, min)
+  sentence_right <- sapply(chunks, max) - 1L
+  s <- NLP::Annotation(
+    id = 1L:length(sentence_left),
+    rep.int("sentence", length(sentence_left)),
+    start = sentence_left,
+    end = sentence_right
+  )
+  c(w, s)
+})
+
+
+setAs(from = "character", to = "data.table", def = function(from){
+  
+  p_attribute_list <- lapply(
+    p_attributes(from),
+    function(x){
+      message("decoding p-attribute:", x)
+      tokens <- get_token_stream(from, p_attribute = x)
+      Encoding(tokens) <- registry_get_encoding(from)
+      as.nativeEnc(tokens, from = registry_get_encoding(from))
+    }
+  )
+  names(p_attribute_list) <- p_attributes(from)
+  
+  max_cpos <- cl_attribute_size(corpus = from, attribute = "word", attribute_type = "p", registry = registry()) - 1L
+  s_attribute_list <- lapply(
+    s_attributes(from),
+    function(x){
+      message("decoding s-attribute:", x)
+      struc <- cl_cpos2struc(corpus = from, s_attribute = x, cpos = 0L:max_cpos, registry = registry())
+      str <- cl_struc2str(corpus = from, s_attribute = x, struc = struc, registry = registry())
+      Encoding(str) <- registry_get_encoding(from)
+      as.nativeEnc(str, from = registry_get_encoding(from))
+    }
+  )
+  names(s_attribute_list) <- s_attributes(from)
+  
+  message("assembling data.table")
+  combinedList <- c(
+    list(cpos = 0L:max_cpos),
+    p_attribute_list,
+    s_attribute_list
+  )
+  data.table::as.data.table(combinedList)
+})
+
+#' Decode corpus or subcorpus.
 #' 
-#' Function that can be applied on a corpus or a \code{partition}. The returned
-#' \code{data.table} can be coerced to a tibble easily and processed according
-#' to tidytext approaches.
+#' Decode \code{corpus} or \code{subcorpus} and return class specified by argument \code{to}.
 #' 
-#' If a \code{s_attribute} is a character vector providing one or several
-#' structural attributes, the return value is a \code{data.table} with the left
-#' and right corpus positions in the first and second columns ("cpos_left" and
-#' "cpos_right"). Values of further columns are the decoded s-attributes. The
-#' name of the s-attribute is the column name. An error is thrown if the lengths
-#' of structural attributes differ (i.e. if there is a nested data structure).
-#'
-#' If \code{s_attribute} is NULL, the token stream is decoded for all positional
-#' attributes that are present. Structural attributes are reported in additional
-#' columns. Decoding the entire corpus may be useful to make a transition to
-#' processing data following the 'tidy' approach, or to manipulate the corpus
-#' data and to re-encode the corpus.
-#' @param .Object The corpus or partition to decode (character vector).
-#' @param verbose Logical value, whether to output messages.
-#' @param s_attribute The s-attribute to decode.
+#' The primary purpose of the method is type conversion. By obtaining the corpus
+#' or subcorpus in the format specified by the argument \code{to}, the data can
+#' be processed with tools that do not rely on the Corpus Workbench (CWB).
+#' Supported output formats are \code{data.table} (which can be converted to a
+#' \code{data.frame} or \code{tibble} easily) or an \code{Annotation} object as
+#' defined in the package \code{NLP}. Another purpose of decoding the corpus can
+#' be to rework it, and to re-import it into the CWB (e.g. using the
+#' \code{cwbtools}-package).
+#' 
+#' An earlier version of the method included an option to decode a single
+#' s-attribute, which is not supported any more. See the \code{s_attribute_decode}
+#' function of the package RcppCWB.
+#' 
+#' @return The return value will correspond to the class specified by argument \code{to}. 
+#' 
+#' @param .Object The \code{corpus} or \code{subcorpus} to decode.
+#' @param to The class of the returned object, stated as a length-one
+#'   \code{character} vector.
 #' @param ... Further arguments.
-#' @return The return value is a \code{data.table}. 
+#' @exportMethod decode
+#' @importFrom RcppCWB get_region_matrix
 #' @rdname decode
+#' @seealso To decode a structural attribute, you can use the
+#'   \code{\link{s_attributes}}-method, setting argument \code{unique} as
+#'   \code{FALSE} and \code{\link[RcppCWB]{s_attribute_decode}}. See
+#'   \code{\link{as.VCorpus}} to decode a \code{partition_bundle} object,
+#'   returning a \code{VCorpus} object.
 #' @examples
-#' \dontrun{
 #' use("polmineR")
 #' 
-#' # Scenario 1: Decode one or two s-attributes
-#' dt <- decode("REUTERS", s_attribute = "id")
-#' dt <- decode("REUTERS", s_attribute = c("topics_cat", "places"))
+#' # Decode corpus as data.table
+#' dt <- decode("GERMAPARLMINI", to = "data.table")
 #' 
-#' # Scenario 2: Decode entire corpus
-#' dt <- decode("REUTERS")
+#' # Decode a subcorpus
+#' sc <- subset(corpus("GERMAPARLMINI"), speaker == "Angela Dorothea Merkel")
+#' dt <- decode(sc, to = "data.table")
 #' 
-#' # Scenario 3: Decode partition
-#' p <- partition("REUTERS", places = "kuwait", regex = TRUE)
-#' dt <- decode(p)
+#' # Decode partition
+#' P <- partition("REUTERS", places = "kuwait", regex = TRUE)
+#' dt <- decode(P)
 #' 
-#' # Scenario 4: Decode partition_bundle
-#' pb <- partition_bundle("REUTERS", s_attribute = "id")
-#' dts <- lapply(as.list(pb), decode)
-#' dts <- lapply(names(dts), function(n) dts[[n]][, speech_id := n])
-#' dt <- data.table::rbindlist(dts)
+#' # Previous versions of polmineR offered an option to decode a single
+#' # s-attribute. This is how you could proceed to get a table with metadata.
+#' dt[, "word" := NULL]
+#' dt[,
+#'   {list(cpos_left = min(.SD[["cpos"]]), cpos_right = max(.SD[["cpos"]]), id = unique(.SD[["id"]]))},
+#'   by = "struc"
+#'   ]
+#' 
+#' # Decode subcorpus as Annotation object
+#' \dontrun{
+#' if (requireNamespace("NLP")){
+#'   library(NLP)
+#'   p <- subset(corpus("GERMAPARLMINI"), date == "2009-11-10" & speaker == "Angela Dorothea Merkel")
+#'   s <- as(p, "String")
+#'   a <- as(p, "Annotation")
+#'   
+#'   # The beauty of having this NLP Annotation object is that you can now use 
+#'   # the different annotators of the openNLP package. Here, just a short scenario
+#'   # how you can have a look at the tokenized words and the sentences.
+#' 
+#'   words <- s[a[a$type == "word"]]
+#'   sentences <- s[a[a$type == "sentence"]] # does not yet work perfectly for plenary protocols 
 #' }
+#' }
+#' @rdname decode
+setMethod("decode", "character", function(.Object, to = c("data.table", "Annotation"), ...){
+  
+  if (any(c("sAttribute", "s_attribute") %in% names(list(...)))){
+    stop("Decoding an s_attribute is not supported any longer in the decode()-method of ",
+         "the polmineR package. See s_attribute_decode in the RcppCWB package as a substitute.")
+  }
+  
+  stopifnot(
+    length(.Object) == 1L, # cannot process more than one corpus
+    .Object %in% .list_corpora() # ensure that corpus is available
+  )
+  
+  as(.Object, to)
+  
+})
+
+
+setAs(from = "subcorpus", to = "data.table", def = function(from){
+  ts <- lapply(
+    setNames(p_attributes(from), p_attributes(from)),
+    function(p_attr){
+      message("... decoding p_attribute ", p_attr)
+      get_token_stream(from, p_attribute = p_attr)
+    }
+  )
+  p_attr_dt <- as.data.table(ts)
+  p_attr_dt[, "cpos" := unlist(apply(from@cpos, 1, function(row) row[1]:row[2]))]
+  
+  s_attrs <- s_attributes(from)
+  strucs <- RcppCWB::cl_cpos2struc(corpus = from@corpus, s_attribute = s_attrs[1], cpos = from@cpos[,1])
+  
+  dts <- lapply(
+    strucs,
+    function(struc){
+      region <- RcppCWB::cl_struc2cpos(corpus = from@corpus, s_attribute = s_attrs[1], struc = struc)
+      data.table(struc = struc, cpos_left = region[1], cpos_right = region[2])
+    }
+  )
+  regions <- rbindlist(dts)
+  
+  s_attr_values <- lapply(
+    setNames(s_attrs, s_attrs),
+    function(s_attr) RcppCWB::cl_struc2str(corpus = from@corpus, s_attribute = s_attr, struc = strucs)
+  )
+  dt <- as.data.table(s_attr_values)
+  
+  s_attr_dt <- cbind(regions, dt)
+  
+  
+  unfold <- function(.SD){
+    dt <- data.table(cpos = .SD[["cpos_left"]]:.SD[["cpos_right"]])
+    for (s_attr in s_attrs) dt[[s_attr]] <- rep(.SD[[s_attr]], times = nrow(dt))
+    dt
+  }
+  s_attr_dt_ext <- s_attr_dt[, unfold(.SD), by = "struc"]
+  
+  setkeyv(p_attr_dt, cols = "cpos")
+  setkeyv(s_attr_dt_ext, cols = "cpos")
+  p_attr_dt[s_attr_dt_ext]
+})
+
+
 #' @exportMethod decode
-#' @importFrom data.table fread
-#' @importFrom RcppCWB get_region_matrix
-decode <- function(.Object, s_attribute = NULL, verbose = TRUE, ...){
-  
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-  
-  is.corpus <- function(x) if (is.character(x)) if (x %in% CQI$list_corpora()) TRUE else FALSE else FALSE
-  if (!(is.partition(.Object) || is.corpus(.Object))){
-    stop(".Object needs to be a partition, or an available corpus.")
-  }
-  
-  corpus_enc <- if (is.corpus(.Object)) registry_get_encoding(.Object) else .Object@encoding
-  
-  if (!is.null(s_attribute)){
-    
-    stopifnot(s_attribute %in% s_attributes(.Object)) # s-attribute needs to be available 
-    
-    if (is.corpus(.Object)){
-      regions <- get_region_matrix(
-        .Object, s_attribute = s_attribute[1],
-        strucs = 0L:(CQI$attribute_size(.Object, s_attribute[1]) - 1L),
-        registry = Sys.getenv("CORPUS_REGISTRY")
-      )
-      y <- data.table(regions)
-    } else if (is.partition(.Object)){
-      y <- as.data.table(.Object@cpos)
-    }
-    colnames(y) <- c("cpos_left", "cpos_right")
+#' @rdname decode
+setMethod("decode", "slice", function(.Object, to = "data.table"){
+  as(.Object, to)
+})
 
-    if (s_attribute[1] %in% colnames(y)) s_attribute <- s_attribute[-1]
-    for (s_attr in s_attribute){
-      .message("decoding s-attribute:", s_attr)
-      s_attr_decoded <- s_attributes(.Object, s_attribute = s_attr, unique = FALSE)
-      if (length(s_attr_decoded) != nrow(y)){
-        stop(
-          "s-attribute", s_attr, " has ", length(s_attr_decoded), " values, but s-s_attribute ",
-          s_attr, " has only ", nrow(y), " - decode will only work for flat XML with strucs with identical length"
-        )
-      }
-      Encoding(s_attr_decoded) <- corpus_enc
-      s_attr_decoded <- as.nativeEnc(s_attr_decoded, from = corpus_enc)
-      y[, eval(s_attr) := s_attr_decoded]
-    }
-    return( y )
-    
-  } else {
-    
-    if (is.corpus(.Object)){
-      max_cpos <- CQI$attribute_size(.Object, "word", type = "p") - 1L
-    } else {
-      cpos_vector <- as.vector(unlist(apply(.Object@cpos, 1, function(r) r[1]:r[2])))
-    }
-    
-    p_attr_list <- lapply(
-      p_attributes(.Object),
-      function(p_attr){
-        .message("decoding p-attribute:", p_attr, verbose = verbose)
-        tokens <- get_token_stream(.Object, p_attribute = p_attr)
-      }
-    )
-    names(p_attr_list) <- p_attributes(.Object)
-    
-    s_attr_list <- lapply(
-      s_attributes(.Object),
-      function(s_attr){
-        .message("decoding s-attribute:", s_attr, verbose = verbose)
-        struc <- CQI$cpos2struc(
-          if (is.corpus(.Object)) .Object else .Object@corpus,
-          s_attribute = s_attr,
-          cpos = if (is.corpus(.Object)) 0L:max_cpos else cpos_vector
-        )
-        str <- CQI$struc2str(if (is.corpus(.Object)) .Object else .Object@corpus, s_attribute = s_attr, struc)
-        Encoding(str) <- corpus_enc
-        as.nativeEnc(str, from = corpus_enc)
-      }
-    )
-    names(s_attr_list) <- s_attributes(.Object)
-
-    .message("assembling data.table", verbose = verbose)
-    lists <- c(
-      list(cpos = if (is.corpus(.Object)) 0L:max_cpos else cpos_vector),
-      p_attr_list,
-      s_attr_list
-    )
-    y <- data.table::as.data.table(lists)
-  }
-  y
-}
-
+#' @rdname decode
+setMethod("decode", "partition", function(.Object, to = "data.table"){
+  as(as(.Object, "subcorpus"), to)
+})
 

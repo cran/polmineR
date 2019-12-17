@@ -4,28 +4,34 @@
 \name{p_attributes}
 \alias{p_attributes}
 \alias{p_attributes,character-method}
+\alias{p_attributes,corpus-method}
 \title{Get p-attributes.}
 \usage{
 p_attributes(.Object, ...)
 
 \S4method{p_attributes}{character}(.Object, p_attribute = NULL, ...)
+
+\S4method{p_attributes}{corpus}(.Object, p_attribute = NULL, ...)
 }
 \arguments{
-\item{.Object}{a character vector (length 1) or partition object}
+\item{.Object}{A length-one \code{character} vector, or a \code{partition} object.}
 
 \item{...}{further arguments}
 
-\item{p_attribute}{p-attribute to decode}
+\item{p_attribute}{A p-attribute to decode, provided by a length-one
+\code{character} vector.}
 }
 \description{
 In a CWB corpus, every token has positional attributes. While s-attributes
 cover a range of tokens, every single token in the token stream of a corpus
 will have a set of positional attributes (such as part-of-speech, or lemma).
-The available p-attributes are returned by the p_attributes-method.
+The available p-attributes are returned by the \code{p_attributes}-method.
 }
 \examples{
 use("polmineR")
 p_attributes("GERMAPARLMINI")
+p_attributes("REUTERS")
+p_attributes("REUTERS", p_attribute = "word")
 }
 \references{
 Stefan Evert & The OCWB Development Team, CQP Query Language Tutorial, http://cwb.sourceforge.net/files/CQP_Tutorial.pdf.

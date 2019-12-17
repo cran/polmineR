@@ -17,16 +17,11 @@ setMethod("cbind2", signature = c(x = "TermDocumentMatrix", y = "TermDocumentMat
 
 #' Generate TermDocumentMatrix / DocumentTermMatrix.
 #' 
-#' Methods to generate the classes \code{TermDocumentMatrix} or 
-#' \code{DocumentTermMatrix} as defined in the \code{tm} package. These classes
-#' inherit from the \code{simple_triplet_matrix}-class defined in the 
-#' \code{slam}-package. There are many text mining applications for 
-#' document-term matrices. A \code{DocumentTermMatrix} is required as input by
-#' the \code{topicmodels} package, for instance.
-#' 
-#' The method can be applied on objects of the class 
-#' \code{character}, \code{bundle}, or classes inheriting from the
-#' \code{bundle} class.
+#' Methods to generate the classes \code{TermDocumentMatrix} or
+#' \code{DocumentTermMatrix} as defined in the \code{tm} package.  There are
+#' many text mining applications for document-term matrices. A
+#' \code{DocumentTermMatrix} is required as input by the \code{topicmodels}
+#' package, for instance.
 #' 
 #' If \code{x} refers to a corpus (i.e. is a length 1 character vector), a
 #' \code{TermDocumentMatrix}, or \code{DocumentTermMatrix} will be generated for
@@ -45,15 +40,18 @@ setMethod("cbind2", signature = c(x = "TermDocumentMatrix", y = "TermDocumentMat
 #' In this case, a \code{p_attribute} needs to be provided. Then counting will
 #' be performed, too.
 #' 
-#' @param x a \code{character} vector indicating a corpus, or an object of class
-#'   \code{bundle}, or inheriting from class \code{bundle} (e.g. \code{partition_bundle})
-#' @param p_attribute p-attribute counting is be based on
-#' @param s_attribute s-attribute that defines content of columns, or rows
-#' @param col the column of \code{data.table} in slot \code{stat} (if \code{x}
-#'   is a \code{bundle}) to use of assembling the matrix
-#' @param verbose logial, whether to output progress messages
-#' @param ... s-attribute definitions used for subsetting the corpus, compare partition-method
-#' @return a TermDocumentMatrix
+#' @param x A \code{character} vector indicating a corpus, or an object of class
+#'   \code{bundle}, or inheriting from class \code{bundle} (e.g. \code{partition_bundle}).
+#' @param p_attribute A p-attribute counting is be based on.
+#' @param s_attribute An s-attribute that defines content of columns, or rows.
+#' @param col The column of \code{data.table} in slot \code{stat} (if \code{x}
+#'   is a \code{bundle}) to use of assembling the matrix.
+#' @param verbose A \code{logial} value, whether to output progress messages.
+#' @param ... Definitions of s-attribute used for subsetting the corpus, compare
+#'   partition-method.
+#' @return A \code{TermDocumentMatrix}, or a \code{DocumentTermMatrix} object.
+#'   These classes are defined in the \code{tm} package, and inherit from the
+#'   \code{simple_triplet_matrix}-class defined in the \code{slam}-package.
 #' @author Andreas Blaette
 #' @exportMethod as.TermDocumentMatrix
 #' @docType methods
@@ -70,18 +68,16 @@ setGeneric("as.DocumentTermMatrix", function(x, ...) UseMethod("as.DocumentTermM
 #' @examples
 #' use("polmineR")
 #'  
-#' # do-it-yourself 
-#' p <- partition("GERMAPARLMINI", date = ".*", regex = TRUE)
-#' pB <- partition_bundle(p, s_attribute = "date")
-#' pB <- enrich(pB, p_attribute="word")
-#' tdm <- as.TermDocumentMatrix(pB, col = "count")
+#' # enriching partition_bundle explicitly 
+#' tdm <- partition("GERMAPARLMINI", date = ".*", regex = TRUE) %>% 
+#'   partition_bundle(s_attribute = "date") %>% 
+#'   enrich(p_attribute = "word") %>%
+#'   as.TermDocumentMatrix(col = "count")
 #'    
-#'  # leave the counting to the as.TermDocumentMatrix-method
-#' pB2 <- partition_bundle(p, s_attribute = "date")
-#' tdm <- as.TermDocumentMatrix(pB2, p_attribute = "word", verbose = TRUE)
+#' # leave the counting to the as.TermDocumentMatrix-method
+#' tdm <- partition_bundle("GERMAPARLMINI", s_attribute = "date") %>% 
+#'   as.TermDocumentMatrix(p_attribute = "word", verbose = FALSE)
 #'    
-#' # diretissima
-#' tdm <- as.TermDocumentMatrix("GERMAPARLMINI", p_attribute = "word", s_attribute = "date")
 #' @rdname as.DocumentTermMatrix
 setMethod("as.TermDocumentMatrix", "character",function (x, p_attribute, s_attribute, verbose = TRUE, ...) {
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
@@ -93,6 +89,10 @@ setMethod("as.TermDocumentMatrix", "character",function (x, p_attribute, s_attri
 
 
 
+#' @examples
+#' # obtain TermDocumentMatrix directly (fastest option)
+#' tdm <- as.TermDocumentMatrix("GERMAPARLMINI", p_attribute = "word", s_attribute = "date")
+#' 
 #' @rdname as.DocumentTermMatrix
 setMethod("as.DocumentTermMatrix", "character", function(x, p_attribute, s_attribute, verbose = TRUE, ...){
   
@@ -104,88 +104,81 @@ setMethod("as.DocumentTermMatrix", "character", function(x, p_attribute, s_attri
   }
   
   stopifnot(
-    length(x) == 1,
-    x %in% CQI$list_corpora(),
+    length(x) == 1L,
+    x %in% .list_corpora(),
     is.character(p_attribute),
-    length(p_attribute) == 1,
-    p_attribute %in% CQI$attributes(x, "p"),
+    length(p_attribute) == 1L,
+    p_attribute %in% registry_get_p_attributes(x),
     is.character(s_attribute),
-    length(s_attribute) == 1,
-    s_attribute %in% CQI$attributes(x, "s"),
+    length(s_attribute) == 1L,
+    s_attribute %in% registry_get_s_attributes(x),
     is.logical(verbose),
-    all(names(dot_list) %in% CQI$attributes(x, "s"))
+    all(names(dot_list) %in% registry_get_s_attributes(x))
   )
   
   .message("generate data.table with token and struc ids", verbose = verbose)
-  cpos_vector <- 0:(CQI$attribute_size(x, p_attribute, type = "p") - 1)
-  token_id <- CQI$cpos2id(x, p_attribute, cpos_vector)
-  struc_vector <- 0:(CQI$attribute_size(x, s_attribute, type = "s") - 1)
-  struc_id <- CQI$cpos2struc(x, s_attribute, cpos_vector)
-  tokenStreamDT <- data.table(cpos = cpos_vector, token_id = token_id, struc_id = struc_id)
-  tokenStreamDT <- tokenStreamDT[which(tokenStreamDT[["struc_id"]] != -1)]
+  cpos_vector <- 0L:(cl_attribute_size(corpus = x, attribute = p_attribute, attribute_type = "p", registry = registry()) - 1L)
+  token_id <- cl_cpos2id(corpus = x, p_attribute = p_attribute, cpos = cpos_vector, registry = registry())
+  struc_vector <- 0L:(cl_attribute_size(corpus = x, attribute = s_attribute, attribute_type = "s", registry = registry()) - 1)
+  struc_id <- cl_cpos2struc(corpus = x, s_attribute = s_attribute, cpos = cpos_vector, registry = registry())
+  token_stream_dt <- data.table(cpos = cpos_vector, token_id = token_id, struc_id = struc_id)
+  token_stream_dt <- token_stream_dt[which(token_stream_dt[["struc_id"]] != -1)]
   rm(token_id, struc_id)
   
-  sAttrSelect <- dot_list
+  s_attr_select <- dot_list
   
   if (
-    length(sAttrSelect) == 0
-    && length(unique(CQI$struc2str(x, s_attribute, struc_vector))) == CQI$attribute_size(x, s_attribute, type = "s")
+    length(s_attr_select) == 0L
+    && length(unique(cl_struc2str(corpus = x, s_attribute = s_attribute, struc = struc_vector, registry = registry()))) == cl_attribute_size(corpus = x, attribute = s_attribute, attribute_type = "s", registry = registry())
   ){
     
-    token_id <- CQI$cpos2id(x, p_attribute, cpos_vector)
-    struc_id <- CQI$cpos2struc(x, s_attribute, cpos_vector)
-    tokenStreamDT <- data.table(token_id = token_id, struc_id = struc_id)
+    token_id <- cl_cpos2id(corpus = x, p_attribute = p_attribute, cpos = cpos_vector, registry = registry())
+    struc_id <- cl_cpos2struc(corpus = x, s_attribute = s_attribute, cpos = cpos_vector, registry = registry())
+    token_stream_dt <- data.table(token_id = token_id, struc_id = struc_id)
     rm(token_id, struc_id)
-    tokenStreamDT <- tokenStreamDT[which(tokenStreamDT[["struc_id"]] != -1)]
+    token_stream_dt <- token_stream_dt[which(token_stream_dt[["struc_id"]] != -1)]
     
     if (verbose) message("... counting token per doc")
-    countDT <- tokenStreamDT[, .N, by = c("token_id", "struc_id"), with = TRUE]
+    count_dt <- token_stream_dt[, .N, by = c("token_id", "struc_id"), with = TRUE]
     
     if(verbose) message("... generate simple_triplet_matrix")
     dtm <- simple_triplet_matrix(
-      i = countDT[["struc_id"]] + 1,
-      j = countDT[["token_id"]] + 1,
-      v = countDT[["N"]],
+      i = count_dt[["struc_id"]] + 1L,
+      j = count_dt[["token_id"]] + 1L,
+      v = count_dt[["N"]],
     )
-    docs <- CQI$struc2str(x, s_attribute, 0:(CQI$attribute_size(x, s_attribute, type = "s") - 1))
-    terms <- CQI$id2str(x, p_attribute, 0:max(countDT[["token_id"]]))
+    docs <- cl_struc2str(corpus = x, s_attribute = s_attribute, struc = 0L:(cl_attribute_size(corpus = x, attribute = s_attribute, attribute_type = "s", registry = registry()) - 1L), registry = registry())
+    terms <- cl_id2str(corpus = x, p_attribute = p_attribute, id = 0L:max(count_dt[["token_id"]]), registry = registry())
     terms <- as.nativeEnc(terms, from = registry_get_encoding(x))
     dimnames(dtm) <- list(docs, terms)
     
   } else {
-    if (length(sAttrSelect) >= 1){
-      for (i in 1:length(sAttrSelect)){
-        sAttrSub <- names(sAttrSelect)[i]
-        .message("subsetting data.table by s-attribute", sAttrSub, verbose = verbose)
-        struc_id <- CQI$cpos2struc(x, sAttrSub, tokenStreamDT[["cpos"]])
-        struc_values <- CQI$struc2str(x, sAttrSub, struc_id)
-        tokenStreamDT <- tokenStreamDT[ which(struc_values %in% as.character(sAttrSelect[[i]])) ]
+    if (length(s_attr_select) >= 1L){
+      for (i in 1L:length(s_attr_select)){
+        s_attr_sub <- names(s_attr_select)[i]
+        .message("subsetting data.table by s-attribute", s_attr_sub, verbose = verbose)
+        struc_id <- cl_cpos2struc(corpus = x, s_attribute = s_attr_sub, cpos = token_stream_dt[["cpos"]], registry = registry())
+        struc_values <- cl_struc2str(corpus = x, s_attribute = s_attr_sub, struc = struc_id, registry = registry())
+        token_stream_dt <- token_stream_dt[ which(struc_values %in% as.character(s_attr_select[[i]])) ]
       }
     }
     .message("generate unique document ids", verbose = verbose)
-    struc_values <- CQI$struc2str(x, s_attribute, tokenStreamDT[["struc_id"]])
-    unique_struc_values <- unique(struc_values)
-    doc_index <- setNames(object = 1:length(unique_struc_values), nm = unique_struc_values)
-    tokenStreamDT[["doc_id"]] <- doc_index[ struc_values ]
-    tokenStreamDT[, "struc_id" := NULL][, "cpos" := NULL]
+    struc_values <- cl_struc2str(corpus = x, s_attribute = s_attribute, struc = token_stream_dt[["struc_id"]], registry = registry())
+    s_attr_factor <- factor(struc_values)
+    token_stream_dt[, "doc_id" := as.integer(s_attr_factor)]
+    token_stream_dt[, "struc_id" := NULL][, "cpos" := NULL]
     
     .message("counting token per doc", verbose = verbose)
-    countDT <- tokenStreamDT[, .N, by = c("token_id", "doc_id"), with = TRUE]
-    unique_token_ids <- unique(tokenStreamDT[["token_id"]])
-    new_token_index <- setNames(1:length(unique_token_ids), as.character(unique_token_ids))
-    countDT[["new_token_id"]] <- new_token_index[ as.character(countDT[["token_id"]]) ]
-    names(new_token_index) <- CQI$id2str(x, p_attribute, as.integer(names(new_token_index)))
-    
+    count_dt <- token_stream_dt[, .N, by = c("token_id", "doc_id"), with = TRUE]
+    count_dt[, "token_decoded" := cl_id2str(corpus = x, p_attribute = p_attribute, id = count_dt[["token_id"]], registry = registry()) ]
+    token_factor <- factor(count_dt[["token_decoded"]])
+
     .message("generate simple_triplet_matrix", verbose = verbose)
-    dtm <- simple_triplet_matrix(
-      i = countDT[["doc_id"]],
-      j = countDT[["new_token_id"]],
-      v = countDT[["N"]],
-    )
+    dtm <- simple_triplet_matrix(i = count_dt[["doc_id"]], j = as.integer(token_factor), v = count_dt[["N"]],)
     
     .message("add row and column labels", verbose = verbose)
-    terms <- as.nativeEnc(names(new_token_index), from = registry_get_encoding(x))
-    documents <- as.nativeEnc(names(doc_index), from = registry_get_encoding(x))
+    terms <- as.nativeEnc(levels(token_factor), from = registry_get_encoding(x))
+    documents <- as.nativeEnc(levels(s_attr_factor), from = registry_get_encoding(x))
     
     dimnames(dtm) <- list(documents, terms)
   }
@@ -252,46 +245,99 @@ setMethod("as.TermDocumentMatrix", "bundle", function(x, col, p_attribute = NULL
 })
 
 #' @rdname as.DocumentTermMatrix
-setMethod("as.DocumentTermMatrix", "bundle", function(x, col, p_attribute = NULL, verbose = TRUE, ...) {
+setMethod("as.DocumentTermMatrix", "bundle", function(x, col = NULL, p_attribute = NULL, verbose = TRUE, ...) {
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   as.DocumentTermMatrix(as.TermDocumentMatrix(x = x, col = col, p_attribute = p_attribute, verbose = verbose))
 })
 
+#' @rdname as.DocumentTermMatrix
+setMethod("as.DocumentTermMatrix", "partition_bundle", function(x, col = NULL, p_attribute = NULL, verbose = TRUE, ...) {
+  if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
+  as.DocumentTermMatrix(
+    as.TermDocumentMatrix(x = x, col = col, p_attribute = p_attribute, verbose = verbose)
+  )
+})
+
+
+#' @details If \code{x} is a \code{partition_bundle}, and argument \code{col} is
+#'   not \code{NULL}, as \code{TermDocumentMatrix} is generated based on the
+#'   column indicated by \code{col} of the \code{data.table} with counts in the
+#'   \code{stat} slots of the objects in the bundle. If \code{col} is
+#'   \code{NULL}, the p-attribute indicated by \code{p_attribute} is decoded,
+#'   and a count is performed to obtain the values of the resulting
+#'   \code{TermDocumentMatrix}. The same procedure applies to get a
+#'   \code{DocumentTermMatrix}.
 #' @rdname as.DocumentTermMatrix
 setMethod("as.TermDocumentMatrix", "partition_bundle", function(x, p_attribute = NULL, col = NULL, verbose = TRUE, ...){
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   if (!is.null(col)){
     callNextMethod()
   } else if (!is.null(p_attribute)){
-    encoding <- unique(sapply(x@objects, function(y) y@encoding))
-    .message("generating corpus positions", verbose = verbose)
+    encoding <- unique(sapply(x@objects, slot, name = "encoding"))
     
-    cposList <- lapply(
-      1L:length(x@objects),
-      function(i) cbind(i, cpos(x@objects[[i]]@cpos))
-    )
-    cposMatrix <- do.call(rbind, cposList)
+    .message("generating corpus positions", verbose = verbose)
+    regions_dt <- data.table(do.call(rbind, lapply(x@objects, slot, name = "cpos")))
+    regions_dt[, "i" := do.call(
+      c,
+      lapply(seq_along(x@objects), function(i) rep(x = i, times = nrow(x@objects[[i]]@cpos)))
+    )]
+    DT <- regions_dt[, {do.call(c, lapply(1L:nrow(.SD), function(i) .SD[[1]][i]:.SD[[2]][i]))}, by = "i"]
+    setnames(DT, old = "V1", new = "cpos")
+    rm(regions_dt)
+
     .message("getting ids", verbose = verbose)
-    id_vector <- CQI$cpos2id(x[[1]]@corpus, p_attribute, cposMatrix[,2])
-    DT <- data.table(i = cposMatrix[,1], id = id_vector, key = c("i", "id"))
+    DT[, "id" := cl_cpos2id(corpus = x[[1]]@corpus, p_attribute = p_attribute, cpos = DT[["cpos"]], registry = registry())]
+    DT[, "cpos" := NULL]
+    setkeyv(x = DT, cols = c("i", "id"))
+
     .message("performing count", verbose = verbose)
-    TF <- DT[,.N, by = c("i", "id"), with = TRUE]
+    TF <- DT[, .N, by = c("i", "id"), with = TRUE]
+    rm(DT)
     setnames(TF, old = "N", new = "count")
-    TF[, (p_attribute) := as.nativeEnc(CQI$id2str(x[[1]]@corpus, p_attribute, TF[["id"]]), from = encoding)]
+    str <- cl_id2str(corpus = x[[1]]@corpus, p_attribute = p_attribute, id = TF[["id"]], registry = registry())
+    TF[, (p_attribute) := as.nativeEnc(str, from = encoding)]
+    rm(str)
+    
     .message("generating keys", verbose = verbose)
-    uniqueTerms <- unique(TF[[p_attribute]])
-    keys <- setNames(1L:length(uniqueTerms), uniqueTerms)
+    unique_terms <- unique(TF[[p_attribute]])
+    keys <- setNames(1L:length(unique_terms), unique_terms)
+    
     .message("generating simple triplet matrix", verbose = verbose)
     retval <- simple_triplet_matrix(
-      i = keys[ TF[[p_attribute]] ], j = TF[["i"]], v = TF[["count"]],
+      i = keys[ TF[[p_attribute]] ],
+      j = TF[["i"]],
+      v = TF[["count"]],
       dimnames = list(Terms = names(keys), Docs = names(x@objects))
     )
     class(retval) <- c("TermDocumentMatrix", "simple_triplet_matrix")
+    attr(retval, "weighting") <- c("term frequency", "tf")
     return( retval )
   } else {
     message("... doing nothing, as p_attribute and col is NULL")
   }
 })
+
+
+#' @details If \code{x} is a \code{subcorpus_bundle}, the p-attribute provided
+#'   by argument \code{p_attribute} is decoded, and a count is performed to
+#'   obtain the resulting \code{TermDocumentMatrix} or
+#'   \code{DocumentTermMatrix}.
+#' @rdname as.DocumentTermMatrix
+#' @examples
+#' dtm <- corpus("REUTERS") %>%
+#'   split(s_attribute = "id") %>%
+#'   as.TermDocumentMatrix(p_attribute = "word")
+setMethod("as.TermDocumentMatrix", "subcorpus_bundle", function(x, p_attribute = NULL, verbose = TRUE, ...){
+  callNextMethod()
+})
+
+
+#' @rdname as.DocumentTermMatrix
+setMethod("as.DocumentTermMatrix", "subcorpus_bundle", function(x, p_attribute = NULL, verbose = TRUE, ...){
+  callNextMethod()
+})
+
+
 
 #' @rdname as.DocumentTermMatrix
 setMethod("as.DocumentTermMatrix", "partition_bundle", function(x, p_attribute = NULL, col = NULL, verbose = TRUE, ...){
@@ -302,49 +348,75 @@ setMethod("as.DocumentTermMatrix", "partition_bundle", function(x, p_attribute =
 #' @rdname as.DocumentTermMatrix
 setMethod("as.DocumentTermMatrix", "context", function(x, p_attribute, verbose = TRUE, ...){
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if (!paste(p_attribute, "id", "_") %in% colnames(x@cpos)){
-    .message("adding token ids for p-attribute:", p_attribute, verbose = verbose)
-    x <- enrich(x, p_attribute = p_attribute)
+  p_attr_id <- paste(p_attribute, "id", sep = "_")
+  if (!p_attr_id %in% colnames(x@cpos)){
+    x <- enrich(x, p_attribute = p_attribute, verbose = verbose)
   }
   
   .message("dropping nodes", verbose = verbose)
-  CPOS <- x@cpos[which(x@cpos[["position"]] != 0)]
+  cpos_min <- x@cpos[which(x@cpos[["position"]] != 0)]
   
   .message("counting tokens in context", verbose = verbose)
-  CPOS2 <- CPOS[, .N, by = c("hit_no", paste(p_attribute, "id", sep = "_"))]
+  cnt <- cpos_min[, .N, by = c("match_id", p_attr_id)]
   
   # create new index for hits
   # may be necessary if negativelist/positivelist has been applied
   .message("creating new index for hits", verbose = verbose)
-  hits <- unique(CPOS[["hit_no"]])
+  hits <- unique(cpos_min[["match_id"]])
   hits <- hits[order(hits, decreasing = FALSE)]
-  hit_index_new <- 1:length(hits)
+  hit_index_new <- 1L:length(hits)
   names(hit_index_new) <- as.character(hits)
-  CPOS2[, "i" := hit_index_new[as.character(CPOS2[["hit_no"]])], with = TRUE]
+  cnt[, "i" := hit_index_new[as.character(cnt[["match_id"]])], with = TRUE]
   
   # create new index for word_ids
   .message("creating new index for tokens", verbose = verbose)
-  uniqueIDs <- unique(CPOS2[[paste(p_attribute, "id", sep = "_")]])
-  uniqueIDs <- uniqueIDs[order(uniqueIDs, decreasing = FALSE)]
-  idIndexNew <- setNames(1:length(uniqueIDs), as.character(uniqueIDs))
-  decodedTokens <- as.nativeEnc(
-    CQI$id2str(x@corpus, p_attribute, uniqueIDs),
+  unique_ids <- unique(cnt[[p_attr_id]])
+  unique_ids <- unique_ids[order(unique_ids, decreasing = FALSE)]
+  id_index_new <- setNames(1L:length(unique_ids), as.character(unique_ids))
+  decoded_tokens <- as.nativeEnc(
+    cl_id2str(
+      corpus = x@corpus,
+      p_attribute = p_attribute,
+      id = unique_ids,
+      registry = registry()
+    ),
     from = x@encoding
   )
-  CPOS2[, "j" := idIndexNew[as.character(CPOS2[[paste(p_attribute, "id", sep = "_")]])], with = TRUE]
+  cnt[, "j" := id_index_new[as.character(cnt[[p_attr_id]])], with = TRUE]
   
   .message("putting together matrix", verbose = verbose)
   dtm <- simple_triplet_matrix(
-    i = CPOS2[["i"]], j = CPOS2[["j"]], v = CPOS2[["N"]],
-    dimnames = list(Docs = as.character(1:max(CPOS2[["i"]])), Terms = decodedTokens)
+    i = cnt[["i"]],
+    j = cnt[["j"]],
+    v = cnt[["N"]],
+    dimnames = list(
+      Docs = as.character(1L:max(cnt[["i"]])),
+      Terms = decoded_tokens
+    )
   )
   class(dtm) <- c("DocumentTermMatrix", "simple_triplet_matrix")
   attr(dtm, "weighting") <- c("term frequency", "tf")
   dtm
 })
 
+
+#' @rdname kwic-class
+setMethod("as.DocumentTermMatrix", "kwic", function(x, p_attribute, verbose = TRUE, ...){
+  as.DocumentTermMatrix(as(x, "context"), p_attribute = p_attribute, verbose = verbose, ...)
+})
+
+#' @rdname kwic-class
+setMethod("as.TermDocumentMatrix", "kwic", function(x, p_attribute, verbose = TRUE, ...){
+  as.TermDocumentMatrix(as(x, "context"), p_attribute = p_attribute, verbose = verbose, ...)
+})
+
+
 #' @rdname as.DocumentTermMatrix
 setMethod("as.TermDocumentMatrix", "context", function(x, p_attribute, verbose = TRUE, ...){
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  as.DocumentTermMatrix(x = x, p_attribute = p_attribute, verbose = verbose)
+  dtm <- as.DocumentTermMatrix(x = x, p_attribute = p_attribute, verbose = verbose)
+  as.TermDocumentMatrix(dtm)
 })
+
+
+

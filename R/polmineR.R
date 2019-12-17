@@ -9,6 +9,11 @@ NULL
 #' @importFrom tm as.TermDocumentMatrix as.DocumentTermMatrix
 #' @importFrom data.table data.table setorderv dcast setnames setkeyv setcolorder as.data.table rbindlist setkey dcast.data.table
 #' @importFrom Matrix rowSums colSums
+#' @importFrom RcppCWB cqp_is_initialized cqp_initialize
+#' @importFrom R6 R6Class
+#' @importFrom RcppCWB cl_attribute_size cl_lexicon_size cl_cpos2struc cl_cpos2id cl_struc2cpos cl_id2str cl_struc2str
+#' @importFrom RcppCWB cl_id2str cl_struc2str cl_regex2id cl_str2id cl_cpos2str cl_id2freq cl_id2cpos cl_cpos2lbound cl_cpos2rbound
+#' @importFrom RcppCWB cqp_query cqp_dump_subcorpus
 NULL
 
 # defined globaly to avoid R CMD check errors, as recommende by vignette in data.table package
@@ -17,10 +22,6 @@ NULL
 
 
 setOldClass("htmlwidget")
-
-#' @exportMethod zoom
-#' @noRd
-setGeneric("zoom", function(x, ...) standardGeneric("zoom"))
 
 
 #' polmineR-package
@@ -62,6 +63,10 @@ setGeneric("zoom", function(x, ...) standardGeneric("zoom"))
 #' @examples
 #' use("polmineR") # activate demo corpora included in the package
 #' 
+#' # The package includes two sample corpora
+#' corpus("REUTERS") %>% show_info()
+#' corpus("GERMAPARLMINI") %>% show_info()
+#' 
 #' # Core methods applied to corpus
 #' 
 #' C <- count("REUTERS", query = "oil")
@@ -84,10 +89,10 @@ setGeneric("zoom", function(x, ...) standardGeneric("zoom"))
 #' # Go back to full text
 #' 
 #' p <- partition("REUTERS", id = 127)
-#' read(p)
+#' if (interactive()) read(p)
 #' h <- html(p)
 #' h_highlighted <- highlight(h, highlight = list(yellow = "oil"))
-#' h_highlighted
+#' if (interactive()) h_highlighted
 #'
 #'
 #' # Generate term document matrix
@@ -95,11 +100,32 @@ setGeneric("zoom", function(x, ...) standardGeneric("zoom"))
 #' pb <- partition_bundle("REUTERS", s_attribute = "id")
 #' cnt <- count(pb, p_attribute = "word")
 #' tdm <- as.TermDocumentMatrix(cnt, col = "count")
+#' @importFrom utils packageVersion
 polmineR <- function(){
-  if (requireNamespace("shiny", quietly = TRUE)){
+  # The code is adapted from the pkgload library
+  # https://github.com/r-lib/pkgload/blob/master/R/utils.R
+  .conditional_install <- function(pkg){
+    v <- tryCatch(utils::packageVersion(pkg), error = function(e) NA)
+    if (is.na(v)) {
+      msg <- sprintf("Package '%s' needed to run the shiny app.", pkg)
+      if (interactive()) {
+        message(sprintf("%s Would you like to install it?", msg))
+        if (utils::menu(c("Yes", "No")) == 1) {
+          utils::install.packages(pkg)
+        } else {
+          stop(msg, call. = FALSE)
+        }
+      } else {
+        stop(msg, call. = FALSE)
+      }
+    }
+  }
+  
+  .conditional_install("shiny")
+  .conditional_install("shinythemes")
+
+  if (requireNamespace("shiny", quietly = TRUE) && requireNamespace("shinythemes", quietly = TRUE)){
     shiny::runApp(system.file("shiny", package = "polmineR"))
-  } else {
-    stop("package 'shiny' required but not installed")
   }
 }
 
@@ -118,3 +144,12 @@ setGeneric("name", function(x) standardGeneric("name"))
 #' @noRd
 setGeneric("name<-", function(x, value) standardGeneric("name<-"))
 
+
+#' @title Generic methods defined in the polmineR package
+#' @description This documentation object gives an overview over the generic
+#'   methods defined in the polmineR package that have no individual man page
+#'   but are documented directly with the classes they are defined for.
+#' @param x An S4 class object.
+#' @rdname polmineR-generics
+#' @name polmineR-generics
+NULL

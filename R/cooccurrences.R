@@ -101,7 +101,7 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 setGeneric("cooccurrences", function(.Object, ...) standardGeneric("cooccurrences") )
 
 #' @rdname cooccurrences
-setMethod("cooccurrences", "character", function(
+setMethod("cooccurrences", "corpus", function(
   .Object, query, cqp = is.cqp,
   p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
@@ -114,7 +114,7 @@ setMethod("cooccurrences", "character", function(
   if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
   
   if (missing(query)) stop("query missing - it is not possible to calculate cooccurrences")
-  C <- context(
+  ctxt <- context(
     .Object = .Object, query = query, cqp = is.cqp,
     p_attribute = p_attribute, s_attribute = s_attribute,
     left = left, right = right,
@@ -122,8 +122,69 @@ setMethod("cooccurrences", "character", function(
     count = TRUE, 
     mc = mc, verbose = verbose, progress = progress
   )
-  if (is.null(C)) invisible(NULL) else cooccurrences(C, method = method, verbose = verbose)
+  if (is.null(ctxt)) invisible(NULL) else cooccurrences(ctxt, method = method, verbose = verbose)
 })
+
+
+
+#' @rdname cooccurrences
+setMethod("cooccurrences", "character", function(
+  .Object, query, cqp = is.cqp,
+  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  left = getOption("polmineR.left"), right = getOption("polmineR.right"),
+  stoplist = NULL, positivelist = NULL, regex = FALSE,
+  keep = NULL, cpos = NULL, method = "ll",
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE,
+  ...
+){
+  cooccurrences(
+    .Object = corpus(.Object),
+    query = query,
+    cqp = cqp,
+    p_attribute = p_attribute,
+    s_attribute = s_attribute,
+    left = left,
+    right = right,
+    stoplist = stoplist,
+    positivelist = positivelist,
+    regex = regex,
+    keep = keep,
+    cpos = cpos,
+    method = method,
+    mc = mc,
+    verbose = verbose,
+    progress = progress,
+    ...
+  )
+})
+
+
+
+#' @rdname cooccurrences
+setMethod(
+  "cooccurrences", "slice",
+  function(
+    .Object, query, cqp = is.cqp,
+    left = getOption("polmineR.left"), right = getOption("polmineR.right"),
+    p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+    stoplist = NULL, positivelist = NULL, keep = NULL,
+    method = "ll",
+    mc = FALSE, progress = TRUE, verbose = FALSE,
+    ...
+  ){
+    if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
+    if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
+    y <- context(
+      .Object = .Object, query = query, cqp = is.cqp,
+      p_attribute = p_attribute, s_attribute = s_attribute,
+      left = left, right = right,
+      stoplist = stoplist, positivelist = positivelist,
+      count = TRUE, 
+      mc = mc, verbose = verbose, progress = progress
+    )
+    if (is.null(y)) invisible(NULL) else cooccurrences(y, method = method, verbose = verbose)
+  }
+)
 
 #' @rdname cooccurrences
 setMethod(
@@ -136,21 +197,25 @@ setMethod(
     method = "ll",
     mc = FALSE, progress = TRUE, verbose = FALSE,
     ...
-  ){
-    if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-    if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-    C <- context(
-      .Object = .Object, query = query, cqp = is.cqp,
-      p_attribute = p_attribute, s_attribute = s_attribute,
-      left = left, right = right,
-      stoplist = stoplist, positivelist = positivelist,
-      count = TRUE, 
-      mc = mc, verbose = verbose, progress = progress
-    )
-    retval <- if (is.null(C)) invisible(NULL) else cooccurrences(C, method = method, verbose = verbose)
-    retval
-  }
+  ) callNextMethod()
 )
+
+
+#' @rdname cooccurrences
+setMethod(
+  "cooccurrences", "subcorpus",
+  function(
+    .Object, query, cqp = is.cqp,
+    left = getOption("polmineR.left"), right = getOption("polmineR.right"),
+    p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+    stoplist = NULL, positivelist = NULL, keep = NULL,
+    method = "ll",
+    mc = FALSE, progress = TRUE, verbose = FALSE,
+    ...
+  ) callNextMethod()
+)
+
+
 
 #' @rdname cooccurrences
 setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose = FALSE){
@@ -198,6 +263,7 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
     .Object@stat[, "count_ref" := ifelse(!is.na(dt[["V1"]]), count_ref + dt[["V1"]], count_ref)]
   }
   
+  setkeyv(.Object@stat, .Object@p_attribute)
   
   if (!is.null(method)){
     for (test in method){
@@ -210,13 +276,10 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
   
   # finishing
   if (nrow(.Object@stat) > 0L){
-    setkeyv(.Object@stat, .Object@p_attribute)
-    # for (x in grep("_id$", colnames(.Object@stat), value = TRUE)) .Object@stat[[x]] <- NULL
     setcolorder(
       .Object@stat,
       c(.Object@p_attribute, colnames(.Object@stat)[-which(colnames(.Object@stat) %in% .Object@p_attribute)])
     )
-    setorderv(.Object@stat, cols = method[1], order = -1L)
   }
   
   retval <- new(
@@ -232,16 +295,17 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
 
 
 #' @rdname cooccurrences
-setMethod("cooccurrences", "Corpus", function(.Object, query, p_attribute = getOption("polmineR.p_attribute"), ...){
-  if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if (nrow(.Object$stat) == 0) .Object$count(p_attribute, decode = FALSE)
-  P <- .Object$as.partition()
-  cooccurrences(P, query = query, p_attribute = p_attribute, ...)
-})
-
-
-
-#' @rdname cooccurrences
+#' @examples
+#' pb <- partition_bundle("GERMAPARLMINI", s_attribute = "speaker")
+#' pb_min <- pb[[ count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]] ]]
+#' y <- cooccurrences(pb_min, query = "Deutschland")
+#' if (interactive()) y[[1]]
+#' if (interactive()) y[[2]]
+#' 
+#' y2 <- corpus("GERMAPARLMINI") %>%
+#'   subset(speaker %in% c("Hubertus Heil", "Angela Dorothea Merkel")) %>%
+#'   split(s_attribute = "speaker") %>%
+#'   cooccurrences(query = "Deutschland")
 setMethod("cooccurrences", "partition_bundle", function(.Object, query, mc = getOption("polmineR.mc"), ...){
   bundle <- new("cooccurrences_bundle")
   bundle@objects <- pbapply::pblapply(
@@ -249,7 +313,7 @@ setMethod("cooccurrences", "partition_bundle", function(.Object, query, mc = get
     function(x) cooccurrences(x, query = query, mc = mc, ...) 
   )
   names(bundle@objects) <- names(.Object@objects)
-  for (i in 1L:length(bundle@objects)){
+  for (i in seq_along(bundle@objects)){
     if (!is.null(bundle@objects[[i]])) bundle@objects[[i]]@name <- .Object@objects[[i]]@name
   }
   for (i in rev(which(sapply(bundle@objects, is.null)))) bundle@objects[[i]] <- NULL
@@ -525,7 +589,7 @@ setMethod("Cooccurrences", "character", function(
 #' }
 #' 
 #' }
-setMethod("Cooccurrences", "partition", function(
+setMethod("Cooccurrences", "slice", function(
   .Object, p_attribute, left, right,
   stoplist = NULL,
   mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE
@@ -541,7 +605,7 @@ setMethod("Cooccurrences", "partition", function(
     window_sizes = data.table(),
     name = character(),
     minimized = FALSE,
-    partition = .Object
+    partition = if ("partition" %in% is(.Object)) .Object else as(.Object, "partition")
   )
   
   
@@ -625,8 +689,9 @@ setMethod("Cooccurrences", "partition", function(
     
   } else {
     
-    if (length(.Object@p_attribute) == 0)
-      stop("The partition is required to included counts. Enrich the object first!")
+    
+    # if (length(.Object@p_attribute) == 0)
+    #  stop("The partition is required to included counts. Enrich the object first!")
     
     a_cols_id <- setNames(paste("a", p_attribute, "id", sep = "_"), p_attribute)
     b_cols_id <- setNames(paste("b", p_attribute, "id", sep = "_"), p_attribute)
@@ -682,6 +747,21 @@ setMethod("Cooccurrences", "partition", function(
   y
 })
 
+
+#' @rdname all_cooccurrences
+setMethod("Cooccurrences", "partition", function(
+  .Object, p_attribute, left, right,
+  stoplist = NULL,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE
+){ callNextMethod() })
+
+
+#' @rdname all_cooccurrences
+setMethod("Cooccurrences", "subcorpus", function(
+  .Object, p_attribute, left, right,
+  stoplist = NULL,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE
+){ callNextMethod() })
 
 
 #' @details The \code{as.simple_triplet_matrix}-method will transform a
