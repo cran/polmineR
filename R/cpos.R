@@ -146,14 +146,18 @@ setMethod("cpos", "character", function(.Object, query, p_attribute = getOption(
   
 #' @rdname cpos-method
 setMethod("cpos", "slice", function(.Object, query, cqp = is.cqp, check = TRUE, p_attribute = getOption("polmineR.p_attribute"), verbose = TRUE, ...){
-  
   hits <- cpos(as(.Object, "corpus"), query = query, cqp = cqp, check = check, p_attribute = p_attribute, verbose = verbose, ...)
-  if (!is.null(hits) && length(.Object@s_attributes) > 0L){
-    s_attr <- names(.Object@s_attributes)[length(.Object@s_attributes)]
-    struc_hits <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = s_attr, cpos = hits[,1], registry = registry())
-    hits <- hits[which(struc_hits %in% .Object@strucs),]
-    if (is(hits)[1] == "integer") hits <- matrix(data = hits, ncol = 2L)
-    if (nrow(hits) == 0L) hits <- NULL
+  if (!is.null(hits)){
+    if (length(.Object@s_attribute_strucs) > 0L){
+      # The incoming .Object may be a partition/subcorpus object that has been generated
+      # from a corpus object. In this case, the slot s_attribute_strucs is an empty character
+      # vector, and no filtering will be performed. This is used by the coocurrences-method
+      # that is implemented for the partition class, but not for the corpus class.
+      struc_hits <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = .Object@s_attribute_strucs, cpos = hits[,1], registry = registry())
+      hits <- hits[which(struc_hits %in% .Object@strucs),]
+      if (is(hits)[1] == "integer") hits <- matrix(data = hits, ncol = 2L)
+      if (nrow(hits) == 0L) hits <- NULL
+    }
   }
   if (is(hits)[1] == "integer") hits <- matrix(hits, ncol = 2L)
   hits
@@ -172,10 +176,15 @@ setMethod("cpos", "subcorpus", function(.Object, query, cqp = is.cqp, check = TR
 
 
 
+#' @details. If \code{.Object} is a \code{matrix}, it is assumed to be a region
+#' matrix, i.e. a two-column \code{matrix} with left and right corpus positions
+#' in the first and second row, respectively. For many operations, such as
+#' decoding the token stream, it is necessary to inflate the denoted regions
+#' into a vector of all corpus positions referred to by the regions defined in
+#' the matrix. The \code{cpos}-method for \code{matrix} objects will performs
+#' this task robustly.
 #' @rdname cpos-method
 setMethod("cpos", "matrix", function(.Object)
-  # as.vector(unlist(apply(.Object, 1, function(row) row[1]:row[2])))  
-  # do.call(c, lapply(1L:nrow(.Object), function(i) .Object[i,1]:.Object[i,2]))
   do.call(c, lapply(1L:nrow(.Object), function(i) .Object[i,1]:.Object[i,2]))
 )
 
@@ -184,4 +193,11 @@ setMethod("cpos", "hits", function(.Object)
   cpos(as.matrix(.Object@stat[, c("cpos_left", "cpos_right")]))
 )
 
+
+#' @details If \code{.Object} is \code{NULL}, the method will return an empty
+#'   integer vector. Used internally to handle \code{NULL} objects that may be
+#'   returned from the \code{cpos}-method if no matches are obtained for a
+#'   query.
+#' @rdname cpos-method
+setMethod("cpos", "NULL", function(.Object) integer())
 

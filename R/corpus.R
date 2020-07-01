@@ -12,13 +12,14 @@ setGeneric("corpus", function(.Object, ...) standardGeneric("corpus"))
 #'   locally. If provided, the name of an OpenCPU server (can be an IP address)
 #'   that hosts a corpus, or several corpora. The \code{corpus}-method will then
 #'   instantiate a \code{remote_corpus} object.
-#' @param user If the corpus resides on a remote server and requires
-#'   authentication, the respective username.
-#' @param password If the corpus resides on a remote server and requires
-#'   authentication, the respective username.
+#' @param restricted A \code{logical} value, whether access to a remote corpus is
+#'   restricted (\code{TRUE}) or not (\code{FALSE}).
 #' @exportMethod corpus
 #' @importFrom RcppCWB cqp_list_corpora
-setMethod("corpus", "character", function(.Object, server = NULL, user = NULL, password = NULL){
+setMethod("corpus", "character", function(.Object, server = NULL, restricted){
+  
+  if (length(.Object) != 1L) stop("Cannot process more than one corpus at a time: Provide only one corpus ID as input.")
+  
   if (is.null(server)){
     corpora <- cqp_list_corpora()
     
@@ -49,15 +50,19 @@ setMethod("corpus", "character", function(.Object, server = NULL, user = NULL, p
       corpus = .Object,
       encoding = registry_get_encoding(.Object),
       data_dir = registry_get_home(.Object),
-      type = if ("type" %in% names(properties)) properties[["type"]] else character()
+      type = if ("type" %in% names(properties)) properties[["type"]] else character(),
+      size = cl_attribute_size(corpus = .Object, attribute = "word", attribute_type = "p", registry = registry())
     )
     return(y)
   } else {
-    y <- ocpu_exec(fn = "corpus", server = server, user = user, password = password, .Object = .Object)
+    if (missing(restricted)) restricted <- FALSE
+    if (isFALSE(is.logical(restricted))) stop("Argument 'restricted' is required to be a logical value.")
+    y <- ocpu_exec(fn = "corpus", corpus = .Object, server = server, restricted = restricted, .Object = .Object)
     y <- as(y, "remote_corpus")
+    # The object returned from the remote server will not include information on the server and
+    # the accessibility status.
     y@server <- server
-    y@user <- user
-    y@password <- password
+    y@restricted <- restricted
     return(y)
   }
 })
@@ -100,7 +105,7 @@ setMethod("corpus", "missing", function(){
     y <- data.frame(
       corpus = corpora,
       size = unname(sapply(corpora,function(x) cl_attribute_size(corpus = x, attribute = registry_get_p_attributes(x)[1], attribute_type = "p", registry = registry()))),
-      template = unname(sapply(corpora, function(x) x %in% names(getOption("polmineR.templates")))),
+      template = unname(sapply(corpora, function(x) if (is.null(get_template(x, warn = FALSE))) FALSE else TRUE )),
       stringsAsFactors = FALSE
     )
   } else {
@@ -370,11 +375,11 @@ setMethod("subset", "subcorpus", function(x, subset, ...){
 #' @details The \code{show}-method will show basic information on the
 #'   \code{corpus} object.
 setMethod("show", "corpus", function(object){
-  cat(sprintf("** '%s' object **\n", class(object)))
-  cat(sprintf("%-12s", "corpus:"), object@corpus, "\n")
-  cat(sprintf("%-12s", "encoding:"), object@encoding, "\n")
-  cat(sprintf("%-12s", "type:"), if (length(object@type) > 0) object@type else "[undefined]", "\n")
-  cat(sprintf("%-12s", "size:"), size(object), "\n")
+  message(sprintf("** '%s' object **", class(object)))
+  message(sprintf("%-12s", "corpus:"), object@corpus)
+  message(sprintf("%-12s", "encoding:"), object@encoding)
+  message(sprintf("%-12s", "type:"), if (length(object@type) > 0) object@type else "[undefined]")
+  message(sprintf("%-12s", "size:"), size(object))
 })
 
 
@@ -409,16 +414,19 @@ setMethod("$", "corpus", function(x, name) s_attributes(x, s_attribute = name))
 #' @param object An object of class \code{subcorpus_bundle}.
 #' @rdname subcorpus_bundle
 setMethod("show", "subcorpus_bundle", function (object) {
-  cat('** subcorpus_bundle object: **\n')
-  cat(sprintf('%-25s', 'Number of subcorpora:'), length(object@objects), '\n')
+  message('** subcorpus_bundle object: **')
+  message(sprintf('%-25s', 'Number of subcorpora:'), length(object@objects))
 })
 
 
 #' @rdname subset
 setMethod("subset", "remote_corpus", function(x, subset){
   expr <- substitute(subset)
-  sc <- ocpu_exec(fn = "subset", server = x@server, do.call = FALSE, x = as(x, "corpus"), subset = expr)
+  sc <- ocpu_exec(fn = "subset", corpus = x@corpus, server = x@server, restricted = x@restricted, do.call = FALSE, x = as(x, "corpus"), subset = expr)
   y <- as(sc, "remote_subcorpus")
+  # Capture information on accessibility status and the server which is not included
+  # in the object that is returned.
+  y@restricted <- x@restricted
   y@server <- x@server
   y
 })

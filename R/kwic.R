@@ -4,7 +4,29 @@ NULL
 
 setAs(from = "kwic", to = "htmlwidget", def = function(from){
   dt <- format(from, align = FALSE)
-  retval <- DT::datatable(dt, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE), escape = FALSE)
+  retval <- DT::datatable(
+    dt,
+    extensions = "Buttons",
+    filter = "top",
+    options = c(
+      list(
+        pageLength = getOption("polmineR.pagelength"), 
+        lengthMenu = c(10,25,50,100,250,500),
+        lengthChange = TRUE
+      ), 
+      if (getOption("polmineR.buttons")){
+        list(
+          dom = "<'row'<'col-md-3'l><'col-md-6'><'col-md-3'B>><'row'<'col-md-12't>><'row'<'col-md-6'i><'col-md-6'p>>",
+          buttons = c('copy', 'excel', 'pdf')
+        )
+      } else {
+        NULL
+      }
+    ),
+    escape = FALSE,
+    selection = "single",
+    rownames = FALSE
+  )
   if ("node" %in% colnames(dt)) retval <- DT::formatStyle(retval, "node", textAlign = "center")
   if ("left" %in% colnames(dt)) retval <- DT::formatStyle(retval, "left", textAlign = "right")
   retval$dependencies[[length(retval$dependencies) + 1L]] <- htmltools::htmlDependency(
@@ -20,7 +42,19 @@ setAs(from = "kwic", to = "htmlwidget", def = function(from){
 #' @importFrom DT datatable formatStyle
 setMethod("show", "kwic", function(object){
   y <- as(object, "htmlwidget")
-  if (interactive()) show(y) else return(y)
+  if (interactive()){
+    if (
+      isFALSE(getOption("polmineR.warn.size")) && 
+      (is.null(getOption("DT.warn.size")) || isFALSE(getOption("DT.warn.size")))
+    ){
+      restore_value <- getOption("DT.warn.size")
+      options("DT.warn.size" = FALSE)
+      on.exit(options("DT.warn.size" = restore_value))
+    }
+    show(y)
+  } else {
+    return(y)
+  }
 })
 
 
@@ -180,8 +214,13 @@ NULL
 #' @param right Number of tokens to the right of query match.
 #' @param s_attributes Structural attributes (s-attributes) to include into
 #'   output table as metainformation.
-#' @param cpos Logical, if \code{TRUE}, the corpus positions ("cpos") if the hits will
-#'   be included in the \code{kwic}-object that is returned.
+#' @param cpos Logical, if \code{TRUE}, a \code{data.table} with the corpus
+#'   positions ("cpos") of the hits and their surrounding context will be
+#'   assigned to the slot "cpos" of the \code{kwic}-object that is returned.
+#'   Defaults to \code{TRUE}, as the availability of the cpos-\code{data.table}
+#'   will often be a prerequisite for further operations on the \code{kwic}
+#'   object. Omitting the table may however be useful to minimize memory
+#'   consumption.
 #' @param p_attribute The p-attribute, defaults to 'word'.
 #' @param boundary If provided, a length-one character vector stating an
 #'   s-attribute that will be used to check the boundaries of the text.
@@ -189,8 +228,8 @@ NULL
 #'   results.
 #' @param positivelist Terms or ids required for a concordance to occurr in
 #'   results
-#' @param regex Logical, whether \code{stoplist}/\code{positivelist} is interpreted as regular
-#'   expression.
+#' @param regex Logical, whether \code{stoplist}/\code{positivelist} is
+#'   interpreted as regular expression.
 #' @param verbose A \code{logical} value, whether to print messages.
 #' @param progress A \code{logical} value, whether to show progress bar.
 #' @param ... Further arguments, used to ensure backwards compatibility. If
@@ -264,7 +303,7 @@ setMethod("kwic", "context", function(.Object, s_attributes = getOption("polmine
   
   if ("meta" %in% names(list(...))) s_attributes <- list(...)[["meta"]]
   
-  DT <- copy(.Object@cpos) # do not accidentily store things
+  DT <- copy(.Object@cpos) # do not accidentily modify things
   setorderv(DT, cols = c("match_id", "cpos"))
   p_attr_decoded <- cl_id2str(
     corpus = .Object@corpus, p_attribute = .Object@p_attribute[1],
@@ -283,11 +322,12 @@ setMethod("kwic", "context", function(.Object, s_attributes = getOption("polmine
     p_attribute = .Object@p_attribute,
     metadata = if (length(s_attributes) == 0L) character() else s_attributes,
     encoding = .Object@encoding,
-    cpos = if (cpos) DT else data.table(),
+    cpos = DT,
     stat = data.table()
   )
-  
-  enrich(y, table = TRUE, s_attributes = s_attributes)
+  y <- enrich(y, table = TRUE, s_attributes = s_attributes)
+  if (isFALSE(cpos)) y@cpos <- data.table()
+  y
 })
 
 
@@ -378,7 +418,7 @@ setMethod("kwic", "corpus", function(
   
   hits <- cpos(.Object, query = query, cqp = cqp, check = check, p_attribute = p_attribute, verbose = FALSE)
   if (is.null(hits)){
-    message("sorry, not hits for query: ", query);
+    message("No hits for query: ", query);
     return(invisible(NULL))
   }
   
@@ -444,13 +484,19 @@ setMethod("kwic", "character", function(
 
 #' @rdname kwic
 setMethod("kwic", "remote_corpus", function(.Object, ...){
-  ocpu_exec(fn = "kwic", server = .Object@server, do.call = FALSE, .Object = .Object@corpus, ...)
+  ocpu_exec(fn = "kwic", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, do.call = FALSE, .Object = as(.Object, "corpus"), ...)
 })
 
 #' @rdname kwic
 setMethod("kwic", "remote_partition", function(.Object, ...){
-  ocpu_exec(fn = "kwic", server = .Object@server, .Object = as(.Object, "partition"), ...)
+  ocpu_exec(fn = "kwic", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "partition"), ...)
 })
+
+#' @rdname kwic
+setMethod("kwic", "remote_subcorpus", function(.Object, ...){
+  ocpu_exec(fn = "kwic", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "subcorpus"), ...)
+})
+
 
 #' @rdname kwic-class
 #' @examples
@@ -493,3 +539,41 @@ setMethod("merge", "kwic_bundle", function(x){
     annotation_cols = character()
   )
 })
+
+
+#' @details Applying the \code{kwic}-method on a \code{partition_bundle} or
+#'   \code{subcorpus_bundle} will return a single \code{kwic} object that
+#'   includes a column 'subcorpus_name' with the name of the \code{subcorpus}
+#'   (or \code{partition}) in the input object where the match for a concordance
+#'   occurs.
+#' @examples
+#' # Apply kwic on partition_bundle/subcorpus_bundle
+#' gparl_2009_11_10_speeches <- corpus("GERMAPARLMINI") %>%
+#'   subset(date == "2009-11-10") %>%
+#'   as.speeches(s_attribute_name = "speaker", progress = FALSE, verbose = FALSE)
+#' k <- kwic(gparl_2009_11_10_speeches, query = "Integration")
+#' @rdname kwic
+setMethod("kwic", "partition_bundle", function(.Object, ..., verbose = FALSE){
+  strucs_combined <- unlist(lapply(.Object@objects, slot, "strucs"))
+  strucs_obj_name <- unname(unlist(lapply(.Object@objects, function(obj) rep(obj@name, times = length(obj@strucs)))))
+  
+  if (verbose) message("... merging subcorpora/partitions into one single subcorpus")
+  sc <- merge(.Object)
+  
+  k <- kwic(sc, ..., verbose = FALSE)
+  cols_old <- copy(colnames(k))
+  k_cpos <- k@cpos[k@cpos[["position"]] == 0][, {.SD[.SD[["cpos"]] == min(.SD[["cpos"]])]}, by = "match_id"]
+  k_cpos[, c("match_id", "cpos")][k@stat, on = "match_id"]
+  match_strucs <- cl_cpos2struc(
+    corpus = get_corpus(sc),
+    s_attribute = sc@s_attribute_strucs,
+    cpos = k_cpos[["cpos"]],
+    registry = registry()
+  )
+  k@stat[, "subcorpus_name" := strucs_obj_name[match(match_strucs, unname(strucs_combined))]]
+  setcolorder(k@stat, neworder = c("subcorpus_name", cols_old))
+  k
+})
+
+#' @rdname kwic
+setMethod("kwic", "subcorpus_bundle", function(.Object, ...) callNextMethod())

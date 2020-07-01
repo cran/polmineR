@@ -6,8 +6,8 @@
 \alias{count-method}
 \alias{count,partition-method}
 \alias{count,subcorpus-method}
-\alias{count,slice-method}
 \alias{count,partition_bundle-method}
+\alias{count,subcorpus_bundle-method}
 \alias{count,corpus-method}
 \alias{count,character-method}
 \alias{count,vector-method}
@@ -17,37 +17,89 @@
 \usage{
 count(.Object, ...)
 
-\S4method{count}{partition}(.Object, query = NULL, cqp = is.cqp,
-  check = TRUE, breakdown = FALSE, decode = TRUE,
+\S4method{count}{partition}(
+  .Object,
+  query = NULL,
+  cqp = is.cqp,
+  check = TRUE,
+  breakdown = FALSE,
+  decode = TRUE,
   p_attribute = getOption("polmineR.p_attribute"),
-  mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE,
-  ...)
+  mc = getOption("polmineR.cores"),
+  verbose = TRUE,
+  progress = FALSE,
+  phrases = NULL,
+  ...
+)
 
-\S4method{count}{subcorpus}(.Object, query = NULL, cqp = is.cqp,
-  check = TRUE, breakdown = FALSE, decode = TRUE,
+\S4method{count}{subcorpus}(
+  .Object,
+  query = NULL,
+  cqp = is.cqp,
+  check = TRUE,
+  breakdown = FALSE,
+  decode = TRUE,
   p_attribute = getOption("polmineR.p_attribute"),
-  mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE,
-  ...)
+  mc = getOption("polmineR.cores"),
+  verbose = TRUE,
+  progress = FALSE,
+  phrases = NULL,
+  ...
+)
 
-\S4method{count}{slice}(.Object, query = NULL, cqp = is.cqp,
-  check = TRUE, breakdown = FALSE, decode = TRUE,
+\S4method{count}{partition_bundle}(
+  .Object,
+  query = NULL,
+  cqp = FALSE,
+  p_attribute = NULL,
+  phrases = NULL,
+  freq = FALSE,
+  total = TRUE,
+  mc = FALSE,
+  progress = FALSE,
+  verbose = FALSE,
+  ...
+)
+
+\S4method{count}{subcorpus_bundle}(
+  .Object,
+  query = NULL,
+  cqp = FALSE,
+  p_attribute = NULL,
+  phrases = NULL,
+  freq = FALSE,
+  total = TRUE,
+  mc = FALSE,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)
+
+\S4method{count}{corpus}(
+  .Object,
+  query = NULL,
+  cqp = is.cqp,
+  check = TRUE,
   p_attribute = getOption("polmineR.p_attribute"),
-  mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE,
-  ...)
+  breakdown = FALSE,
+  sort = FALSE,
+  decode = TRUE,
+  verbose = TRUE,
+  ...
+)
 
-\S4method{count}{partition_bundle}(.Object, query = NULL, cqp = FALSE,
-  p_attribute = NULL, freq = FALSE, total = TRUE, mc = FALSE,
-  progress = TRUE, verbose = FALSE, ...)
-
-\S4method{count}{corpus}(.Object, query = NULL, cqp = is.cqp,
-  check = TRUE, p_attribute = getOption("polmineR.p_attribute"),
-  breakdown = FALSE, sort = FALSE, decode = TRUE, verbose = TRUE,
-  ...)
-
-\S4method{count}{character}(.Object, query = NULL, cqp = is.cqp,
-  check = TRUE, p_attribute = getOption("polmineR.p_attribute"),
-  breakdown = FALSE, sort = FALSE, decode = TRUE, verbose = TRUE,
-  ...)
+\S4method{count}{character}(
+  .Object,
+  query = NULL,
+  cqp = is.cqp,
+  check = TRUE,
+  p_attribute = getOption("polmineR.p_attribute"),
+  breakdown = FALSE,
+  sort = FALSE,
+  decode = TRUE,
+  verbose = TRUE,
+  ...
+)
 
 \S4method{count}{vector}(.Object, corpus, p_attribute, ...)
 
@@ -87,6 +139,9 @@ if query is NULL).}
 
 \item{progress}{Logical, whether to show progress bar.}
 
+\item{phrases}{A \code{phrases} object. If provided, the denoted regions will
+be concatenated as phrases.}
+
 \item{freq}{Logical, if \code{FALSE}, counts will be reported, if TRUE,
 (relative) frequencies are added to table.}
 
@@ -109,16 +164,25 @@ Count all tokens, or number of occurrences of a query (CQP syntax may be
 used), or matches for the query.
 }
 \details{
-If .Object is a \code{partiton_bundle}, the data.table returned will have the
-queries in the columns, and as many rows as there are in the
+If \code{.Object} is a \code{partiton_bundle}, the \code{data.table} returned will
+have the queries in the columns, and as many rows as there are in the
 \code{partition_bundle}.
 
-If .Object is a length-one character vector and query is NULL, the count is
-performed for the whole partition.
+If \code{.Object} is a length-one \code{character} vector and \code{query} is
+\code{NULL}, the count is performed for the whole partition.
 
 If \code{breakdown} is \code{TRUE} and one query is supplied, the function
 returns a frequency breakdown of the results of the query. If several queries
 are supplied, frequencies for the individual queries are retrieved.
+
+Multiple queries can be used for argument \code{query}. Some care may be
+necessary when summing up the counts for the individual queries. When the
+CQP syntax is used, different queries may yield the same match result, so that
+the sum of all individual query matches may overestimate the true number of
+unique matches. In the case of overlapping matches, a warning message is
+issued. Collapsing multiple CQP queries into a single query (separating the
+individual queries by "|" and wrapping everything in round brackets) solves
+this problem.
 }
 \examples{
 use("polmineR")
@@ -130,7 +194,7 @@ count("GERMAPARLMINI", query = c("Migration", "Integration"), p_attribute = "wor
 
 debates <- partition_bundle(
   "GERMAPARLMINI", s_attribute = "date", values = NULL,
-  regex = TRUE, mc = FALSE, verbose = FALSE
+  mc = FALSE, verbose = FALSE
 )
 y <- count(debates, query = "Arbeit", p_attribute = "word")
 y <- count(debates, query = c("Arbeit", "Migration", "Zukunft"), p_attribute = "word")
@@ -139,13 +203,28 @@ count("GERMAPARLMINI", '"Integration.*"', breakdown = TRUE)
 
 P <- partition("GERMAPARLMINI", date = "2009-11-11")
 count(P, '"Integration.*"', breakdown = TRUE)
+
+sc <- corpus("GERMAPARLMINI") \%>\% subset(party == "SPD")
+phr <- cpos(sc, query = '"Deutsche.*" "Bundestag.*"', cqp = TRUE) \%>\%
+  as.phrases(corpus = "GERMAPARLMINI", enc = "latin1")
+cnt <- count(sc, phrases = phr, p_attribute = "word")
+
+# Multiple queries and overlapping query matches. The first count 
+# operation will issue a warning that matches overlap, see the second 
+# example for a solution.
+corpus("REUTERS") \%>\%
+  count(query = c('".*oil"', '"turmoil"'), cqp = TRUE)
+corpus("REUTERS") \%>\% 
+  count(query = '"(.*oil|turmoil)"', cqp =TRUE)
 }
 \references{
 Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, p. 47-69 (ch. 3).
 }
 \seealso{
-For a metadata-based breakdown of counts
-(i.e. tabulation by s-attributes), see \code{dispersion}.
-
-count
+For a metadata-based breakdown of counts (i.e. tabulation by
+  s-attributes), see \code{\link{dispersion}}. The \code{\link{hits}} is the
+  worker behind the \code{dispersion} method and offers a similar, yet more
+  low-level functionality as compared to the \code{count} method. Using the
+  \code{\link{hits}} method may be useful to obtain the data required for
+  flexible cross-tabulations.
 }

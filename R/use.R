@@ -38,7 +38,7 @@ NULL
 #' @importFrom stringi stri_enc_mark
 use <- function(pkg, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
   
-  if (!pkg %in% unname(installed.packages(lib.loc = lib.loc)[,"Package"]))
+  if (nchar(system.file(package = pkg)) == 0L)
     stop("Could not find package specified. Please check for typos,",
          "and/or whether it is installed for the R version you are using.")
   
@@ -47,7 +47,14 @@ use <- function(pkg, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
   
   for (corpus in list.files(registry_dir)){
     
-    .message(sprintf("activating corpus: %s", toupper(corpus)), verbose = verbose)
+    properties <- registry_get_properties(corpus, registry = registry_dir)
+    additional_info <- c(
+      if ("version" %in% names(properties)) sprintf("version: %s", properties[["version"]]) else character(),
+      if ("build_date" %in% names(properties)) sprintf("build date: %s", properties[["build_date"]]) else character()
+    )
+    additional_info <- paste(additional_info, collapse = " | ")
+    if (nchar(additional_info) > 0L) additional_info <- sprintf(" (%s)", additional_info)
+    .message(sprintf("activating corpus: %s%s", toupper(corpus), additional_info), verbose = verbose)
     
     corpus_data_srcdir <- system.file(
       "extdata", "cwb", "indexed_corpora", tolower(corpus),
@@ -87,7 +94,6 @@ use <- function(pkg, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
       registry_new = registry(),
       home_dir_new = corpus_data_targetdir
     )
-    set_template(toupper(corpus))
   }
   
   # If CQP has been initialized before, it will not yet now about the

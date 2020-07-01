@@ -125,7 +125,7 @@ setMethod("enrich", "kwic", function(.Object, s_attributes = NULL, extra = NULL,
   
   if (table){
     if (nrow(.Object@cpos) > 0L){
-      .fn <- function(.SD) paste(.SD[[.Object@p_attribute]], collapse = " ")
+      .fn <- function(.SD) paste(.SD[[.Object@p_attribute[1]]], collapse = " ")
       table_ext <- .Object@cpos[, .fn(.SD), by = c("match_id", "direction"), with = TRUE]
       .Object@stat <- dcast(data = table_ext, formula = match_id ~ direction, value.var = "V1")
       setnames(.Object@stat, old = "0", new = "node")
@@ -249,4 +249,28 @@ setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute
     
   }
   .Object
+})
+
+#' @export
+#' @rdname all-cooccurrences-class
+#' @details The \code{enrich}-method will add columns 'a_count' and 'b_count' to the 
+#'   \code{data.table} in the 'stat' slot of the \code{Cooccurrences} object. If the
+#'   count for the subcorpus/partition from which the cooccurrences are derived is 
+#'   not yet present, the count is performed first.
+setMethod("enrich", "Cooccurrences", function(.Object){
+  
+  cnt <- if (nrow(.Object@partition@stat) > 0L){
+    .Object@partition@stat
+  } else {
+    count(.Object@partition, p_attribute = .Object@p_attribute, decode = FALSE)@stat
+  }
+  
+  setkeyv(cnt, paste(.Object@p_attribute, "id", sep = "_"))
+  
+  setkeyv(.Object@stat, cols = "a_id")
+  .Object@stat[, "a_count" := cnt[.Object@stat][["count"]] ]
+  
+  setkeyv(.Object@stat, cols = "b_id")
+  .Object@stat[, "b_count" := cnt[.Object@stat][["count"]] ]
+  invisible(.Object)
 })

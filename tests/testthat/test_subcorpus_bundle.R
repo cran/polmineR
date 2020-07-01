@@ -63,17 +63,14 @@ test_that(
       count(p_attribute = "word")
     y1 <- features(cois, ref, included = TRUE, method = "chisquare", progress = TRUE)
     
-    pb <- partition_bundle(
-      "GERMAPARLMINI",
-      s_attribute = "speaker"
-    )
+    pb <- partition_bundle("GERMAPARLMINI", s_attribute = "speaker")
+    
     pb <- pb[[c("Angela Dorothea Merkel", "Hubertus Heil")]]
     pb <- enrich(pb, p_attribute = "word")
     y2 <- features(pb, "GERMAPARLMINI", included = TRUE, method = "chisquare")
     
     for (i in seq_along(y1@objects)) y1@objects[[i]]@stat[, "id" := NULL]
     
-    for (i in seq_along(y2@objects)) y2@objects[[i]]@stat[, "name" := names(y2)[[i]]]
     for (i in seq_along(y2@objects)) y2@objects[[i]]@stat[, "word_id.y" := NULL]
     for (i in seq_along(y2@objects)) data.table::setnames(y2@objects[[i]]@stat, old = "word_id.x", new = "word_id")
     for (i in seq_along(y2@objects)) data.table::setcolorder(y2@objects[[i]]@stat, neworder = colnames(y1@objects[[i]]@stat))
@@ -113,12 +110,8 @@ test_that(
   "merge-method for subcorpus_bundle",
   {
     a <- corpus("GERMAPARLMINI") %>% subset(interjection == "speech")
-    b <- split(a, s_attribute = "speaker")
-    y <- as(as(merge(b), "subcorpus"), "plpr_subcorpus")
-    y@cpos <- y@cpos[order(y@cpos[,1]),]
-    attr(y@cpos, "dimnames") <- NULL # a hack, should not be necessary
-
-    expect_identical(a@cpos, y@cpos)
+    b <- split(a, s_attribute = "speaker") %>% merge(b)
+    expect_identical(a@cpos, b@cpos)
   }
 )
 

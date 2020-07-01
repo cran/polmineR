@@ -4,16 +4,15 @@ NULL
 
 #' @rdname partition_bundle-class
 setMethod("show", "partition_bundle", function (object) {
-  cat('** partition_bundle object: **\n')
-  cat(sprintf('%-25s', 'Number of partitions:'), length(object@objects), '\n')
+  message('** partition_bundle object: **')
+  message(sprintf('%-25s', 'Number of partitions:'), length(object@objects))
   # same code as in show-method for partition
   sFix <- unlist(lapply(
     names(object@s_attributes_fixed),
     function(x) paste(x, "=", paste(object@s_attributes_fixed[[x]], collapse="/"))
   ))
-  cat(sprintf("%-25s", "s-attributes Fixed:"), sFix[1], '\n')
-  if (length(sFix) > 1) for (i in length(sFix)) cat(sprintf("%-25s", " "), sFix[i], '\n')
-  cat("\n")
+  message(sprintf("%-25s", "s-attributes fixed:"), sFix[1])
+  if (length(sFix) > 1) for (i in length(sFix)) message(sprintf("%-25s\n"), sFix[i])
 })
 
 #' @rdname partition_bundle-class
@@ -36,29 +35,68 @@ setMethod("summary", "partition_bundle", function (object, progress = FALSE){
 #' details on the class.
 #' @exportMethod merge
 #' @rdname partition_bundle-class
-setMethod("merge", "partition_bundle", function(x, name = "", verbose = TRUE){
-  y <- new("partition")
-  .message('number of partitions to be merged: ', length(x@objects), verbose = verbose)
-  y@corpus <- unique(vapply(x@objects, FUN.VALUE = "characer", function(p) p@corpus))
-  if (length(y@corpus) >  1) warning("WARNING: This function will not work correctly, as the bundle comprises different corpora")
-  y@xml <- unique(vapply(x@objects, function(p) p@xml, FUN.VALUE = "character"))
-  y@encoding <- unique(vapply(x@objects, function(p) p@encoding, FUN.VALUE = "character"))
-  y@s_attribute_strucs <- unique(vapply(x@objects, function(p) p@s_attribute_strucs, FUN.VALUE = "character"))
-  .message('merging the struc vectors', verbose = verbose)
-  for (name in names(x@objects)) y@strucs <- union(y@strucs, x@objects[[name]]@strucs)
-  .message('generating corpus positions', verbose = verbose)
-  cpos <- data.matrix(t(data.frame(lapply(
-    y@strucs,
-    function(s) cl_struc2cpos(corpus = y@corpus, s_attribute = y@s_attribute_strucs, struc = s, registry = registry()) )
-  )))
-  rownames(cpos) <- NULL
-  y@cpos <- cpos
+#' @examples 
+#' 
+#' # merge partition_bundle into one partition
+#' gparl <- corpus("GERMAPARLMINI") %>%
+#'   split(s_attribute = "date") %>% 
+#'   merge()
+setMethod("merge", "partition_bundle", function(x, name = "", verbose = FALSE){
+  corpus_id <- get_corpus(x)
+  if (length(corpus_id) >  1L){
+    warning(
+      "WARNING: Merging will not work correctly, ",
+      "as the objects within the bundle are derived from different corpora."
+    )
+  }
+  
+  obj_type <- unique(unname(sapply(x@objects, class)))
+  if (length(obj_type) > 1L) stop("Class of the objects within the bundle is not unique.")
+
+  .message('number of objects to be merged: ', length(x@objects), verbose = verbose)
+  
+  s_attr <- unique(unname(unlist(lapply(x@objects, slot,  "s_attribute_strucs"))))
+  strucs_combined <- unname(unlist(lapply(x@objects, slot,  "strucs")))
+  if (any(table(strucs_combined) > 1L)) stop("The objects are not non-overlapping.")
+  strucs_combined <- unique(strucs_combined)
+  strucs_combined <- strucs_combined[order(strucs_combined)]
+
+  y <- new(
+    obj_type,
+    corpus = corpus_id, xml = x[[1]]@xml, encoding = x[[1]]@encoding,
+    s_attribute_strucs = s_attr, strucs = strucs_combined,
+    name = name
+  )
+  y@cpos <- get_region_matrix(corpus = corpus_id, s_attribute = s_attr, strucs = strucs_combined, registry = registry())
   y@size <- size(y)
-  y@explanation = c(paste("this partition is a merger of the partitions", paste(names(x@objects), collapse=', ')))
-  y@name <- name
   y
 })
 
+
+#' @param name The name of the new \code{subcorpus} object.
+#' @rdname subcorpus_bundle
+setMethod("merge", "subcorpus_bundle", function(x, name = "", verbose = FALSE){
+  y <- callNextMethod()
+  y@type <- get_type(y@corpus)
+  y@data_dir <- registry_get_home(corpus = y@corpus, registry = registry())
+  y
+})
+
+
+#' @param ... Further \code{subcorpus} objects to be merged with \code{x} and \code{y}.
+#' @param y A \code{subcorpus} to be merged with \code{x}.
+#' @examples
+#' 
+#' # Merge multiple subcorpus objects
+#' a <- corpus("GERMAPARLMINI") %>% subset(date == "2009-10-27")
+#' b <- corpus("GERMAPARLMINI") %>% subset(date == "2009-10-28")
+#' c <- corpus("GERMAPARLMINI") %>% subset(date == "2009-11-10")
+#' y <- merge(a, b, c)
+#' s_attributes(y, "date")
+#' @rdname subcorpus_bundle
+setMethod("merge", "subcorpus", function(x, y, ...){
+  merge(as(c(list(x), c(y, list(...))), "bundle"), name = "", verbose = FALSE)
+})
 
 
 #' @details Using brackets can be used to retrieve the count for a token from the 
@@ -123,7 +161,8 @@ NULL
 #' @examples
 #' use("polmineR")
 #' bt2009 <- partition("GERMAPARLMINI", date = "2009-.*", regex = TRUE)
-#' pb <- partition_bundle(bt2009, s_attribute = "date", progress = TRUE, p_attribute = "word")
+#' pb <- partition_bundle(bt2009, s_attribute = "date", progress = TRUE)
+#' pb <- enrich(pb, p_attribute = "word")
 #' dtm <- as.DocumentTermMatrix(pb, col = "count")
 #' summary(pb)
 #' pb <- partition_bundle("GERMAPARLMINI", s_attribute = "date")
@@ -136,28 +175,33 @@ setMethod("partition_bundle", "partition", function(
   mc = getOption("polmineR.mc"), verbose = TRUE, progress = FALSE,
   type = get_type(.Object), ...
 ) {
-  
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-  
-  bundle <- new(
-    "partition_bundle",
-    corpus = .Object@corpus, s_attributes_fixed = .Object@s_attributes,
-    encoding = .Object@encoding, call = deparse(match.call())
-  )
-  if (is.null(values)){
-    .message('getting values for s-attribute ', s_attribute, verbose = verbose)
-    values <- s_attributes(.Object, s_attribute)
-    .message('number of partitions to be generated: ', length(values), verbose = verbose)
-  }
-  bundle@objects <- blapply(
-    lapply(setNames(values, rep(s_attribute, times = length(values))), function(x) setNames(x, s_attribute)),
-    f = function(def, .Object, verbose = FALSE, type, ...) partition(.Object = .Object, def = def, type = type, verbose = FALSE, ...),
-    .Object = .Object, progress = progress, verbose = if (progress) FALSE else verbose,  mc = mc, type = type,
+  split(
+    x = as(.Object, "subcorpus"), s_attribute = s_attribute, values = values, prefix = prefix,
+    mc = mc, verbose = verbose, progress = progress,
+    type = type,
     ...
   )
-  names(bundle@objects) <- paste(as.corpusEnc(prefix, corpusEnc = bundle@encoding), values, sep = "")
-  for (i in 1L:length(bundle@objects)) bundle@objects[[i]]@name <- names(bundle@objects)[[i]]
-  bundle
+})
+
+#' @exportMethod partition_bundle
+#' @rdname partition_bundle-method
+setMethod("partition_bundle", "corpus", function(
+  .Object, s_attribute, values = NULL, prefix = "",
+  mc = getOption("polmineR.mc"), verbose = TRUE, progress = FALSE, xml = "flat", type = get_type(.Object),
+  ...
+){
+  split(
+    x = .Object,
+    s_attribute = s_attribute,
+    values = values,
+    prefix = prefix,
+    mc = mc, 
+    verbose = verbose,
+    progress = progress,
+    xml = xml,
+    type = type,
+    ...
+  )
 })
 
 
@@ -167,56 +211,11 @@ setMethod("partition_bundle", "character", function(
   mc = getOption("polmineR.mc"), verbose = TRUE, progress = FALSE, xml = "flat", type = get_type(.Object),
   ...
 ) {
-  
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-  
-  bundle <- new(
-    Class = "partition_bundle",
-    corpus = .Object,
-    encoding = registry_get_encoding(.Object)
+  partition_bundle(
+    .Object = corpus(.Object), s_attribute = s_attribute, values = values, prefix = prefix,
+    mc = mc, verbose = verbose, progress = progress,
+    xml = xml, type = type, ...
   )
-  strucs <- 0L:(cl_attribute_size(corpus = .Object, attribute = s_attribute, attribute_type = "s", registry = registry()) - 1L)
-  names(strucs) <- cl_struc2str(corpus = .Object, s_attribute = s_attribute, struc = strucs, registry = registry())
-  if (!is.null(values)) {
-    valuesToKeep <- values[which(values %in% names(strucs))]
-    strucs <- strucs[valuesToKeep]
-  }
-  
-  values <- names(strucs)
-  Encoding(values) <- bundle@encoding
-  strucs <- unname(strucs)
-  
-  .message("getting matrix with regions for s-attribute: ", s_attribute, verbose = verbose)
-  cposMatrix <- RcppCWB::get_region_matrix(
-    corpus = .Object, s_attribute = s_attribute, strucs = strucs,
-    registry = Sys.getenv("CORPUS_REGISTRY")
-  )
-  
-  cposList <- split(cposMatrix, f = values)
-  cposList <- lapply(cposList, function(x) matrix(x, ncol = 2))
-  
-  .message("generating the partitions", verbose = verbose)
-  .makeNewPartition <- function(i, corpus, encoding, s_attribute, cposList, xml, type, ...){
-    newPartition <- new(
-      Class = paste(c(type, "partition"), collapse = "_"),
-      corpus = corpus, encoding = encoding,
-      stat = data.table(),
-      cpos = cposList[[i]],
-      size = sum(apply(cposList[[i]], 1, function(row) row[2] - row[1] + 1L)),
-      name = names(cposList)[i],
-      s_attributes = setNames(list(names(cposList)[i]), s_attribute),
-      s_attribute_strucs = s_attribute,
-      xml = xml,
-      strucs = cl_cpos2struc(corpus = .Object, s_attribute = s_attribute, cpos = cposList[[i]][,1], registry = registry())
-    )
-  }
-  bundle@objects <- blapply(
-    setNames(as.list(1L:length(cposList)), names(cposList)),
-    f = .makeNewPartition,
-    corpus = .Object, encoding = bundle@encoding, s_attribute = s_attribute, cposList, xml = xml,
-    mc = mc, progress = progress, verbose = verbose, type = type, ...
-  )
-  bundle
 })
 
 

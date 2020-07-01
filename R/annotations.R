@@ -43,7 +43,7 @@ NULL
 #' @aliases annotations,kwic-method
 #' @examples 
 #' use("polmineR")
-#' 
+#' a <- 2
 #' # upon initializing a kwic object, there is a minimal labels object
 #' # in the labels slot of the kwic object, which we can get using the
 #' # annotations-method
@@ -161,7 +161,9 @@ setMethod("edit", "textstat", function(name, viewer = shiny::paneViewer(minHeigh
     
     output$hot <- rhandsontable::renderRHandsontable({
       data <- reactiveData()
-      if (rhandsontable:::isErrorMessage(data)) return(NULL)
+      # Identical result with rhandsontable:::isErrorMessage(data), 
+      # using the ::: can be avoided thereby
+      if (inherits(data, "error_message")) return(NULL)
       df <- if (is.null(input$hot)) data else rhandsontable::hot_to_r(input$hot)
       .reset_values(df)
       rht <- rhandsontable::rhandsontable(df, allowedTags = "<font><div><u>",  height = 500, ...)

@@ -4,6 +4,7 @@
 \name{reexports}
 \alias{reexports}
 \alias{\%>\%}
+\alias{as.data.table}
 \title{Objects exported from other packages}
 \keyword{internal}
 \description{
@@ -11,6 +12,8 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{magrittr}{\code{\link[magrittr]{\%>\%}}}
+  \item{data.table}{\code{\link[data.table]{as.data.table}}}
+
+  \item{magrittr}{\code{\link[magrittr:pipe]{\%>\%}}}
 }}
 

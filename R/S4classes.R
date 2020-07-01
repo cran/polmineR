@@ -115,7 +115,7 @@ setReplaceMethod("name", signature = "bundle", function(x, value) {
 #'   colnames,textstat-method rownames,textstat-method names,textstat-method
 #'   as.DataTables,textstat-method head,textstat-method tail,textstat-method
 #'   dim,textstat-method nrow,textstat-method ncol,textstat-method
-#'   colnames,textstat-method as.data.table,textstat-method as.data.frame,textstat-method
+#'   colnames,textstat-method as.data.frame,textstat-method
 #'   round,textstat-method sort,textstat-method [,textstat,ANY,ANY,ANY-method [[,textstat-method
 #'   name name<-
 #' @docType class
@@ -151,7 +151,6 @@ setReplaceMethod("name", signature = "bundle", function(x, value) {
 #' y[which(y[["word"]] %in% c("Arbeit", "Sozial"))]
 #' y[ y[["word"]] %in% c("Arbeit", "Sozial") ]
 #' }
-#' @aliases as.data.table
 setClass("textstat",
          representation(
            corpus = "character",
@@ -369,7 +368,7 @@ setMethod("length", "count", function(x) x@size)
 #' respective documentation to learn more.
 setClass(
   "partition",
-  representation(
+  slots = c(
     s_attributes = "list",
     explanation = "character",
     cpos = "matrix",
@@ -382,6 +381,10 @@ setClass(
     call = "character",
     key = "character"
   ),
+  prototype = list(
+    size = NA_integer_,
+    stat = data.table()
+  ),
   contains = "count"
 )
 
@@ -389,7 +392,10 @@ setClass(
 #' @rdname partition_class
 setClass(
   "remote_partition",
-  slots = c(server = "character"),
+  slots = c(
+    server = "character",
+    restricted = "logical"
+  ),
   contains = "partition"
 )
 
@@ -621,8 +627,12 @@ setClass("kwic_bundle", contains = "bundle")
 #'   corpus.
 #' @slot data_dir The directory where the files for the indexed corpus are.
 #' @slot type The type of the corpus (e.g. "plpr" for a corpus of plenary protocols).
-#' @slot name An additional name for the object that may be more telling than the corpus ID.
-#' @slot encoding The encoding of the corpus, given as a length-one \code{character} vector.
+#' @slot name An additional name for the object that may be more telling than
+#'   the corpus ID.
+#' @slot encoding The encoding of the corpus, given as a length-one
+#'   \code{character} vector.
+#' @slot size Number of tokens (size) of the corpus, a length-one \code{integer}
+#'   vector.
 #' @slot server The URL (can be IP address) of the OpenCPU server. The slot is
 #'   available only with the \code{remote_corpus} class inheriting from the
 #'   \code{corpus} class.
@@ -691,7 +701,8 @@ setClass(
     data_dir = "character",
     type = "character",
     encoding = "character",
-    name = "character"
+    name = "character",
+    size = "integer"
   )
 )
 
@@ -718,6 +729,7 @@ setAs(from = "corpus", to = "partition", def = function(from){
   )
 })
 
+
 #' @exportClass remote_corpus
 #' @docType class
 #' @rdname corpus-class
@@ -725,8 +737,7 @@ setClass(
   "remote_corpus",
   slots = c(
     server = "character",
-    user = "character",
-    password = "character"
+    restricted = "logical"
   ),
   contains = "corpus"
 )
@@ -788,14 +799,7 @@ setMethod("name", "corpus", function(x) x@name)
 #' R <- as.regions(P)
 #' @aliases regions-class
 #' @family classes to manage corpora
-setClass(
-  "regions",
-  slots = c(
-    cpos = "matrix",
-    size = "integer"
-  ),
-  contains = "corpus"
-)
+setClass("regions", slots = c(cpos = "matrix"), contains = "corpus")
 
 
 #' The S4 subcorpus class.
@@ -863,6 +867,7 @@ setClass(
 #' # keyword-in-context analysis (kwic)   
 #' k <- corpus("REUTERS") %>% subset(grep("kuwait", places)) %>% kwic("oil")
 #' 
+#' @exportClass subcorpus
 setClass(
   "subcorpus",
   slots = c(
@@ -882,9 +887,8 @@ setClass(
   "remote_subcorpus",
   slots = c(
     server = "character",
-    user = "character",
-    password = "character"
-    ),
+    restricted = "logical"
+  ),
   contains = "subcorpus"
 )
 
@@ -894,6 +898,17 @@ setAs(from = "subcorpus", to = "remote_subcorpus", def = function(from){
   for (x in slotNames(from)) slot(y, x) <- slot(from, x)
   y
 })
+
+setAs(from = "corpus", to = "subcorpus", def = function(from){
+  new(
+    "subcorpus",
+    corpus = from@corpus,
+    encoding = from@encoding,
+    cpos = matrix(data = c(0L, (size(from) - 1L)), nrow = 1L),
+    size = size(from)
+  )
+})
+
 
 setAs(from = "remote_subcorpus", to = "subcorpus", def = function(from){
   y <- new("subcorpus")
@@ -929,6 +944,55 @@ setClass("plpr_subcorpus", contains = "subcorpus")
 
 #' @rdname subcorpus-class
 setClass("press_subcorpus", contains = "subcorpus")
+
+
+
+#' Manage and use phrases
+#' 
+#' @description Class, methods and functionality for processing phrases (lexical
+#'   units, lexical items, multi-word expressions) beyond the token level. The
+#'   envisaged workflow at this stage is to detect phrases using the
+#'   \code{ngrams}-method and to generate a \code{phrases} class object from the
+#'   \code{ngrams} object using the \code{as.phrases} method. This object can be
+#'   passed into a call of \code{count}, see examples. Further methods and
+#'   functions documented here are used internally, but may be useful.
+#' @details The \code{phrases} considers a phrase as sequence as tokens that can
+#'   be defined by region, i.e. a left and a right corpus position. This
+#'   information is kept in a region matrix in the slot "cpos" of the
+#'   \code{phrases} class. The \code{phrases} class inherits from the
+#'   \code{\link{regions}} class (which inherits from the and the
+#'   \code{\link{corpus}} class), without adding further slots.
+#' @family classes to manage corpora
+#' @name phrases
+#' @rdname phrases-class
+#' @aliases phrases-class
+#' @examples
+#' # Workflow to create document-term-matrix with phrases
+#' 
+#' obs <- corpus("GERMAPARLMINI") %>%
+#'   count(p_attribute = "word")
+#' 
+#' phrases <- corpus("GERMAPARLMINI") %>%
+#'   ngrams(n = 2L, p_attribute = "word") %>%
+#'   pmi(observed = obs) %>% 
+#'   subset(ngram_count > 5L) %>%
+#'   subset(1:100) %>%
+#'   as.phrases()
+#' 
+#' dtm <- corpus("GERMAPARLMINI") %>%
+#'   as.speeches(s_attribute_name = "speaker", progress = TRUE) %>%
+#'   count(phrases = phrases, p_attribute = "word", progress = TRUE, verbose = TRUE) %>%
+#'   as.DocumentTermMatrix(col = "count", verbose = FALSE)
+#'   
+#' grep("erneuerbaren_Energien", colnames(dtm))
+#' grep("verpasste_Chancen", colnames(dtm))
+#' 
+setClass(
+  "phrases",
+  # slots = c(),
+  contains = "regions"
+)
+
 
 
 

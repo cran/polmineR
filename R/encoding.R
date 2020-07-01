@@ -65,7 +65,6 @@ setMethod("encoding", "subcorpus", function(object) callNextMethod())
 #' @param corpusEnc encoding of the corpus (e.g. "latin1", "UTF-8")
 #' @rdname encodings
 #' @export as.utf8
-#' @rdname encodings
 #' @name encodings
 as.utf8 <- function(x, from){
   Encoding(x) <- from
@@ -78,7 +77,7 @@ as.utf8 <- function(x, from){
 #' @rdname encodings
 as.nativeEnc <- function(x, from){
   Encoding(x) <- from
-  y <- enc2native(x)
+  y <- enc2native(x) # has been benchmarked, is faster than iconv and stringi::stri_encode
   Encoding(y) <- "unknown"
   y
 }

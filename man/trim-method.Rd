@@ -8,13 +8,20 @@
 \alias{trim,DocumentTermMatrix-method}
 \alias{punctuation}
 \title{trim an object}
-\format{An object of class \code{character} of length 13.}
+\format{
+An object of class \code{character} of length 13.
+}
 \usage{
 trim(object, ...)
 
-\S4method{trim}{TermDocumentMatrix}(object, termsToKeep = NULL,
-  termsToDrop = NULL, docsToKeep = NULL, docsToDrop = NULL,
-  verbose = TRUE)
+\S4method{trim}{TermDocumentMatrix}(
+  object,
+  termsToKeep = NULL,
+  termsToDrop = NULL,
+  docsToKeep = NULL,
+  docsToDrop = NULL,
+  verbose = TRUE
+)
 
 \S4method{trim}{DocumentTermMatrix}(object, ...)
 

@@ -11,54 +11,119 @@
 \alias{kwic,character-method}
 \alias{kwic,remote_corpus-method}
 \alias{kwic,remote_partition-method}
+\alias{kwic,remote_subcorpus-method}
+\alias{kwic,partition_bundle-method}
+\alias{kwic,subcorpus_bundle-method}
 \title{Perform keyword-in-context (KWIC) analysis.}
 \usage{
 kwic(.Object, ...)
 
-\S4method{kwic}{context}(.Object,
-  s_attributes = getOption("polmineR.meta"), cpos = TRUE,
-  verbose = FALSE, ...)
+\S4method{kwic}{context}(
+  .Object,
+  s_attributes = getOption("polmineR.meta"),
+  cpos = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{kwic}{slice}(.Object, query, cqp = is.cqp,
+\S4method{kwic}{slice}(
+  .Object,
+  query,
+  cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL,
-  positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word",
+  boundary = NULL,
+  cpos = TRUE,
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  verbose = TRUE,
+  ...
+)
 
-\S4method{kwic}{partition}(.Object, query, cqp = is.cqp,
+\S4method{kwic}{partition}(
+  .Object,
+  query,
+  cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL,
-  positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word",
+  boundary = NULL,
+  cpos = TRUE,
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  verbose = TRUE,
+  ...
+)
 
-\S4method{kwic}{subcorpus}(.Object, query, cqp = is.cqp,
+\S4method{kwic}{subcorpus}(
+  .Object,
+  query,
+  cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL,
-  positivelist = NULL, regex = FALSE, verbose = TRUE, ...)
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word",
+  boundary = NULL,
+  cpos = TRUE,
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  verbose = TRUE,
+  ...
+)
 
-\S4method{kwic}{corpus}(.Object, query, cqp = is.cqp, check = TRUE,
+\S4method{kwic}{corpus}(
+  .Object,
+  query,
+  cqp = is.cqp,
+  check = TRUE,
   left = as.integer(getOption("polmineR.left")),
   right = as.integer(getOption("polmineR.right")),
-  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL,
-  positivelist = NULL, regex = FALSE, verbose = TRUE,
-  progress = TRUE, ...)
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word",
+  boundary = NULL,
+  cpos = TRUE,
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  verbose = TRUE,
+  progress = TRUE,
+  ...
+)
 
-\S4method{kwic}{character}(.Object, query, cqp = is.cqp, check = TRUE,
+\S4method{kwic}{character}(
+  .Object,
+  query,
+  cqp = is.cqp,
+  check = TRUE,
   left = as.integer(getOption("polmineR.left")),
   right = as.integer(getOption("polmineR.right")),
-  s_attributes = getOption("polmineR.meta"), p_attribute = "word",
-  boundary = NULL, cpos = TRUE, stoplist = NULL,
-  positivelist = NULL, regex = FALSE, verbose = TRUE,
-  progress = TRUE, ...)
+  s_attributes = getOption("polmineR.meta"),
+  p_attribute = "word",
+  boundary = NULL,
+  cpos = TRUE,
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  verbose = TRUE,
+  progress = TRUE,
+  ...
+)
 
 \S4method{kwic}{remote_corpus}(.Object, ...)
 
 \S4method{kwic}{remote_partition}(.Object, ...)
+
+\S4method{kwic}{remote_subcorpus}(.Object, ...)
+
+\S4method{kwic}{partition_bundle}(.Object, ..., verbose = FALSE)
+
+\S4method{kwic}{subcorpus_bundle}(.Object, ...)
 }
 \arguments{
 \item{.Object}{A (length-one) \code{character} vector with the name of a CWB
@@ -72,8 +137,13 @@ necessary to state the names of all arguments to be passed explicity.}
 \item{s_attributes}{Structural attributes (s-attributes) to include into
 output table as metainformation.}
 
-\item{cpos}{Logical, if \code{TRUE}, the corpus positions ("cpos") if the hits will
-be included in the \code{kwic}-object that is returned.}
+\item{cpos}{Logical, if \code{TRUE}, a \code{data.table} with the corpus
+positions ("cpos") of the hits and their surrounding context will be
+assigned to the slot "cpos" of the \code{kwic}-object that is returned.
+Defaults to \code{TRUE}, as the availability of the cpos-\code{data.table}
+will often be a prerequisite for further operations on the \code{kwic}
+object. Omitting the table may however be useful to minimize memory
+consumption.}
 
 \item{verbose}{A \code{logical} value, whether to print messages.}
 
@@ -98,8 +168,8 @@ results.}
 \item{positivelist}{Terms or ids required for a concordance to occurr in
 results}
 
-\item{regex}{Logical, whether \code{stoplist}/\code{positivelist} is interpreted as regular
-expression.}
+\item{regex}{Logical, whether \code{stoplist}/\code{positivelist} is
+interpreted as regular expression.}
 
 \item{check}{A \code{logical} value, whether to check validity of CQP query
 using \code{check_cqp_query}.}
@@ -126,6 +196,12 @@ highlighted in the output table.
 
 If a \code{negativelist} is supplied, concordances are removed if any of the
 tokens of the \code{negativelist} occurrs in the context of the query match.
+
+Applying the \code{kwic}-method on a \code{partition_bundle} or
+  \code{subcorpus_bundle} will return a single \code{kwic} object that
+  includes a column 'subcorpus_name' with the name of the \code{subcorpus}
+  (or \code{partition}) in the input object where the match for a concordance
+  occurs.
 }
 \examples{
 use("polmineR")
@@ -170,6 +246,11 @@ if (interactive()) show(K)
 K <- kwic("GERMAPARLMINI", query = "Integration", positivelist = "[Ee]urop.*", regex = TRUE)
 K <- highlight(K, yellow = "[Ee]urop.*", regex = TRUE)
 
+# Apply kwic on partition_bundle/subcorpus_bundle
+gparl_2009_11_10_speeches <- corpus("GERMAPARLMINI") \%>\%
+  subset(date == "2009-11-10") \%>\%
+  as.speeches(s_attribute_name = "speaker", progress = FALSE, verbose = FALSE)
+k <- kwic(gparl_2009_11_10_speeches, query = "Integration")
 }
 \references{
 Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, pp. 71-93 (ch. 4).

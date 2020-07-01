@@ -47,9 +47,9 @@ setMethod("summary", "features", function(object) {
 #' @docType methods
 #' @rdname features-class
 setMethod("show", "features", function(object){
-  cat("the statistics table has", nrow(object@stat), "rows\n")
-  cat("pos attributest have been added: ")
-  if ("pos" %in% colnames(object@stat)) cat("YES\n") else "NO\n"
+  message("the statistics table has ", nrow(object@stat), " rows")
+  message("pos attributes have been added: ", appendLF = FALSE)
+  if ("pos" %in% colnames(object@stat)) message("YES\n") else "NO\n"
 })
 
 
@@ -244,9 +244,9 @@ setMethod(
       x@n == y@n,
       all(method %in% c("chisquare", "ll"))
     )
-    tokenColnames <- sapply(1:x@n, function(i) paste(i, x@p_attribute, sep = "_"))
+    token_colnames <- sapply(1L:x@n, function(i) paste(x@p_attribute, i, sep = "_"))
     z <- callNextMethod(
-      x = x, y = y, by = tokenColnames,
+      x = x, y = y, by = token_colnames,
       included = included, method = method, verbose = verbose
     )
     z <- as(z, "features_ngrams")

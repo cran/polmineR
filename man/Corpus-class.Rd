@@ -12,8 +12,7 @@
 \alias{corpus,missing-method}
 \title{Corpus class initialization}
 \usage{
-\S4method{corpus}{character}(.Object, server = NULL, user = NULL,
-  password = NULL)
+\S4method{corpus}{character}(.Object, server = NULL, restricted)
 
 \S4method{corpus}{missing}()
 }
@@ -26,11 +25,8 @@ locally. If provided, the name of an OpenCPU server (can be an IP address)
 that hosts a corpus, or several corpora. The \code{corpus}-method will then
 instantiate a \code{remote_corpus} object.}
 
-\item{user}{If the corpus resides on a remote server and requires
-authentication, the respective username.}
-
-\item{password}{If the corpus resides on a remote server and requires
-authentication, the respective username.}
+\item{restricted}{A \code{logical} value, whether access to a remote corpus is
+restricted (\code{TRUE}) or not (\code{FALSE}).}
 }
 \description{
 Corpora indexed using the Corpus Workbench (CWB) offer an efficient data
@@ -76,9 +72,14 @@ corpus.}
 
 \item{\code{type}}{The type of the corpus (e.g. "plpr" for a corpus of plenary protocols).}
 
-\item{\code{name}}{An additional name for the object that may be more telling than the corpus ID.}
+\item{\code{name}}{An additional name for the object that may be more telling than
+the corpus ID.}
 
-\item{\code{encoding}}{The encoding of the corpus, given as a length-one \code{character} vector.}
+\item{\code{encoding}}{The encoding of the corpus, given as a length-one
+\code{character} vector.}
+
+\item{\code{size}}{Number of tokens (size) of the corpus, a length-one \code{integer}
+vector.}
 
 \item{\code{server}}{The URL (can be IP address) of the OpenCPU server. The slot is
 available only with the \code{remote_corpus} class inheriting from the
@@ -144,7 +145,9 @@ Methods to extract basic information from a \code{corpus} object are
   \code{\link{kwic}}, \code{\link{cooccurrences}},
   \code{\link{as.TermDocumentMatrix}}.
 
-Other classes to manage corpora: \code{\link{regions}},
-  \code{\link{subcorpus}}
+Other classes to manage corpora: 
+\code{\link{phrases}},
+\code{\link{regions}},
+\code{\link{subcorpus}}
 }
 \concept{classes to manage corpora}

@@ -2,7 +2,7 @@ kwicUiInput <- function(drop = NULL){
   
   divs = list(
     go = actionButton("kwic_go", "", icon = icon("play", lib = "glyphicon")),
-    mail = actionButton("kwic_mail", "", icon = icon("envelope", lib = "glyphicon")),
+    code = actionButton("kwic_code", label = "", icon = icon("code", lib = "font-awesome")),
     br1 = br(),
     br2 = br(),
     object = radioButtons("kwic_object", "class", choices = list("corpus", "partition"), selected = "corpus", inline = TRUE),
@@ -27,7 +27,8 @@ kwicUiInput <- function(drop = NULL){
       choices = p_attributes(corpus()[["corpus"]][1]),
       selected = "word"
     ),
-    window = sliderInput("kwic_window", "window", min = 1, max = 25, value = getOption("polmineR.left")),
+    left = sliderInput("kwic_left", "left", min = 1, max = 25, value = getOption("polmineR.left")),
+    right = sliderInput("kwic_right", "right", min = 1, max = 25, value = getOption("polmineR.right")),
     br3 = br()
   )
   if (!is.null(drop)) for (x in drop) divs[[x]] <- NULL
@@ -61,7 +62,31 @@ kwicServer <- function(input, output, session, ...){
     updateSelectInput(session, "kwic_meta", choices = new_sAttr, selected = NULL)
   })
   
+  observeEvent(input$kwic_code, {
+    format_string <- if (input$kwic_positivelist == ""){
+      'kwic(\n  %s,\n  query = "%s",\n  cqp = %s,\n  %sleft = %s,\n  right = %s\n)' 
+    } else {
+      'kwic(\n  %s,\n  query = "%s",\n  cqp = %s,\n  positivelist = %s,\n  left = %s,\n  right = %s\n)' 
+    }
 
+    snippet <- sprintf(
+      format_string,
+      if (input$kwic_object == "corpus") sprintf('"%s"', input$kwic_corpus)  else input$kwic_partition,
+      input$kwic_query,
+      if (input$kwic_cqp == "yes") "TRUE" else "FALSE", 
+      if (input$kwic_positivelist != "") sprintf("c(%s)", paste(sprintf('"%s"', strsplit(x = input$kwic_positivelist, split = "(;\\s*|,\\s*)")[[1]]), collapse = ", ")) else "",
+      input$kwic_left,
+      input$kwic_right
+    )
+    snippet_html <- highlight::highlight(
+      parse.output = parse(text = snippet),
+      renderer = highlight::renderer_html(document = TRUE),
+      output = NULL
+    )
+    showModal(modalDialog(title = "Code", HTML(paste(snippet_html, collapse = ""))))
+  })
+  
+  
   output$kwic_table <- DT::renderDataTable({
     
     input$kwic_go
@@ -85,8 +110,8 @@ kwicServer <- function(input, output, session, ...){
               query = rectifySpecialChars(input$kwic_query),
               cqp = if (input$kwic_cqp == "yes") TRUE else FALSE,
               p_attribute = if (is.null(input$kwic_p_attribute)) "word" else input$kwic_p_attribute,
-              left = input$kwic_window,
-              right = input$kwic_window,
+              left = input$kwic_left,
+              right = input$kwic_right,
               meta = input$kwic_meta,
               verbose = "shiny",
               positivelist = poslist,
@@ -102,34 +127,27 @@ kwicServer <- function(input, output, session, ...){
         } else if (nrow(values[["kwic"]]@stat) == 0L){
           retval <- data.frame(left = character(), node = character(), right = character())
         } else {
-          tab <- values[["kwic"]]@stat
-          if ("match_id" %in% colnames(tab)) tab[, "match_id" := NULL]
-          if (length(input$kwic_meta) == 0L){
-            retval <- data.frame(no = 1L:nrow(tab), tab)
-          } else if (length(input$kwic_meta)){
-            metaRow <- unlist(lapply(
-              1L:nrow(tab),
-              function(i)paste(unlist(lapply(tab[i,1L:length(input$kwic_meta)], as.character)), collapse = " | ")
-            ))
-            retval <- data.frame(meta = metaRow, tab[,(length(input$kwic_meta) + 1L):ncol(tab)])
-          }
+          retval <- as(values[["kwic"]], "htmlwidget")
+          # tab <- values[["kwic"]]@stat
+          # if ("match_id" %in% colnames(tab)) tab[, "match_id" := NULL]
+          # if (length(input$kwic_meta) == 0L){
+          #   retval <- as()
+          # } else if (length(input$kwic_meta)){
+          #   metaRow <- unlist(lapply(
+          #     1L:nrow(tab),
+          #     function(i) paste(unlist(lapply(tab[i,1L:length(input$kwic_meta)], as.character)), collapse = " | ")
+          #   ))
+          #   retval <- data.frame(meta = metaRow, tab[,(length(input$kwic_meta) + 1L):ncol(tab)])
+          # }
         }
         
         
       } else {
         retval <- data.frame(left = character(), node = character(), right = character())
       }
-      
+      retval
     })
     
-    # format DataTable
-    retval <- DT::datatable(retval, selection = "single", rownames = FALSE, escape = FALSE)
-    retval <- DT::formatStyle(retval, "node", color = "#4863A0", textAlign = "center")
-    retval <- DT::formatStyle(retval, "left", textAlign = "right")
-    if (length(input$kwic_meta) > 0){
-      retval <- DT::formatStyle(
-        retval, "meta", fontStyle = "italic", textAlign = "left", borderRight = "1px solid DarkGray")
-    }
     retval
   })
   
@@ -155,15 +173,6 @@ kwicServer <- function(input, output, session, ...){
       }
     })
   
-  observeEvent(
-    input$kwic_mail,
-    {
-      success <- polmineR::mail(values[["kwic"]])
-      if (success) showNotification(
-        sprintf("Results have been sent successfully to %s", getOption("polmineR.email"))
-      )
-    }
-  )
 }
 
 

@@ -92,8 +92,24 @@ setMethod("subset", "textstat", function(x, subset){
 
 
 #' @rdname textstat-class
-#' @export as.data.table.textstat
-as.data.table.textstat <- function(x) x@stat
+#' @export
+#' @method as.data.table textstat
+#' @examples 
+#' 
+#' # Get statistics in textstat object as data.table
+#' count_dt <- corpus("REUTERS") %>%
+#'   subset(grep("saudi-arabia", places)) %>% 
+#'   count(p_attribute = "word") %>%
+#'   as.data.table()
+as.data.table.textstat <- function(x, ...){
+  if (length(list(...)) > 0L){
+    warning(
+      "Further arguments passed into the as.data.table method for textstat class objects ",
+      "or objects inheriting from the textstat class remain unused."
+    )
+  }
+  x@stat
+}
 
 #' @exportMethod as.data.frame
 setMethod("as.data.frame", "textstat", function(x) as.data.frame(x@stat) )
@@ -125,8 +141,15 @@ setMethod("[[", "textstat", function(x, i){
 #' @exportMethod [
 #' @importFrom data.table key
 setMethod("[", "textstat", function(x, i, j){
-  if (nrow(x@stat) == 0) warning("indexing is pointless because data.table is empty")
-  if (is.null(key(x@stat))) setkeyv(x@stat, cols = x@p_attribute)
+  if (nrow(x@stat) == 0L) warning("Indexing is not possible because data.table is empty.")
+
+  # Note that i cannot be a call/expression (such as word %in% c("price", "revenue"))
+  # in the context of a S4 method
+
+  if (is.character(i) && is.null(key(x@stat))){
+    if (x@p_attribute %in% colnames(x@stat)) setkeyv(x@stat, cols = x@p_attribute)
+  }
+
   if (missing(j)){
     x@stat <- x@stat[eval(i, envir = x@stat)]
     return(x)
@@ -135,26 +158,51 @@ setMethod("[", "textstat", function(x, i, j){
   }
 })
 
-setAs(from = "textstat", to = "htmlwidget", def = function(from){
-  DT::datatable(from@stat, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE))
-})
 
-setAs(from = "cooccurrences", to = "htmlwidget", def = function(from){
-  dt <- copy(round(from)@stat)
-  colnames(dt) <- gsub("count_", "n_", colnames(dt))
+# setAs(from = "textstat", to = "htmlwidget", def = function(from){
+#   DT::datatable(
+#     from@stat,
+#     options = list(
+#       pageLength = getOption("polmineR.pagelength"),
+#       lengthChange = FALSE)
+#   )
+# })
+
+setAs(from = "data.table", to = "htmlwidget", def = function(from){
   DT::datatable(
-    dt,
-    options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE),
-    rownames = FALSE
+    from,
+    extensions = "Buttons",
+    filter = "top",
+    options = c(list(
+      pageLength = getOption("polmineR.pagelength"),
+      lengthMenu = c(10,25,50,100,250),
+      lengthChange = TRUE
+    ),
+    if (getOption("polmineR.buttons")){
+      list(
+        dom = "<'row'<'col-md-3'l><'col-md-6'><'col-md-3'B>><'row'<'col-md-12't>><'row'<'col-md-6'i><'col-md-6'p>>",
+        buttons = c('copy', 'excel', 'pdf')
+      )
+    } else NULL
+    ),
+    rownames = FALSE,
+    selection = "single"
   )
 })
 
-setAs(from = "features", to = "htmlwidget", def = function(from){
-  dt <- copy(round(from)@stat)
-  for (i in grep("_id", colnames(dt), value = TRUE)) dt[, eval(i) := NULL]
+setAs(from = "textstat", to = "htmlwidget", def = function(from){
+  dt <- format(from)
   colnames(dt) <- gsub("count_", "n_", colnames(dt))
-  DT::datatable(dt, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE))
+  as(dt, "htmlwidget")
 })
+
+
+# setAs(from = "features", to = "htmlwidget", def = function(from){
+#   dt <- copy(round(from)@stat)
+#   for (i in grep("_id", colnames(dt), value = TRUE)) dt[, eval(i) := NULL]
+#   colnames(dt) <- gsub("count_", "n_", colnames(dt))
+#   DT::datatable(dt, options = list(pageLength = getOption("polmineR.pagelength"), lengthChange = FALSE))
+# })
 
 #' @importFrom knitr knit_print
 #' @exportMethod knit_print

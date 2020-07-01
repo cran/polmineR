@@ -21,25 +21,25 @@ setAs(from = "partition", to = "plpr_partition", function(from){
 #' @docType methods
 #' @noRd
 setMethod("show", "partition", function(object){
-  cat("** partition object **\n")
-  cat(sprintf("%-20s", "corpus:"), object@corpus, "\n")
-  cat(sprintf("%-20s", "name:"), object@name, "\n")
+  message("** partition object **")
+  message(sprintf("%-20s", "corpus:"), object@corpus)
+  message(sprintf("%-20s", "name:"), object@name)
   if (length(object@s_attributes) == 0L) {
-    cat(sprintf("%-20s", "s-attributes:"), "no specification\n")
+    message(sprintf("%-20s", "s-attributes:"), "no specification")
   } else {
     s <- unlist(lapply(
       names(object@s_attributes),
       function(x) paste(x, "=", paste(object@s_attributes[[x]], collapse = "/"))
     ))
-    cat(sprintf("%-20s", "s-attributes:"), s[1], '\n')
-    if (length(s)>1) {for (i in length(s)) cat(sprintf("%-20s", " "), s[i], '\n') }
+    message(sprintf("%-20s", "s-attributes:"), s[1])
+    if (length(s) > 1) {for (i in length(s)) message(sprintf("%-20s"), s[i]) }
   } 
-  cat(sprintf("%-21s", "cpos:"))
-  if (nrow(object@cpos) == 0L) cat("not available\n") else cat(nrow(object@cpos), "pairs of corpus positions\n")
-  cat(sprintf("%-21s", "size:"))
-  if (is.null(object@size)) cat("not available\n") else cat(object@size, "tokens\n")
-  cat(sprintf("%-21s", "count:"))
-  if (length(object@p_attribute) == 0L) cat("not available\n") else cat("available for ", object@p_attribute, "\n")
+  message(sprintf("%-21s", "cpos:"), appendLF = FALSE)
+  if (nrow(object@cpos) == 0L) message("not available") else message(nrow(object@cpos), " pairs of corpus positions")
+  message(sprintf("%-21s", "size:"), appendLF = FALSE)
+  if (is.null(object@size)) message("not available") else message(object@size, " tokens")
+  message(sprintf("%-21s", "count:"), appendLF = FALSE)
+  if (length(object@p_attribute) == 0L) message("not available") else message("available for ", object@p_attribute)
 })
 
 
@@ -401,7 +401,7 @@ setMethod("partition", "partition", function(.Object, def = NULL, name = "", reg
     )
     y@strucs <- .Object@strucs[hits]
   } else if (.Object@xml == "nested") {
-    cpos_vec <- unlist(apply(.Object@cpos, 1, function(x) x[1]:x[2]))
+    cpos_vec <- cpos(.Object@cpos)
     strucs_new <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = names(def)[1], cpos = cpos_vec, registry = registry())
     s_attr_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = names(def), struc = strucs_new, registry = registry())
     Encoding(s_attr_values) <- .Object@encoding
@@ -450,17 +450,19 @@ setMethod("partition", "context", function(.Object, node = TRUE){
 
 #' @rdname partition
 setMethod("partition", "remote_corpus", function(.Object, ...){
-  p <- ocpu_exec(fn = "partition", server = .Object@server, .Object = .Object@corpus, ...)
+  p <- ocpu_exec(fn = "partition", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "corpus"), ...)
   y <- as(p, "remote_partition")
   y@server <- .Object@server
+  y@restricted <- .Object@restricted
   y
 })
 
 
 #' @rdname partition
 setMethod("partition", "remote_partition", function(.Object, ...){
-  p <- ocpu_exec(fn = "partition", server = .Object@server, .Object = as(.Object, "partition", ...))
+  p <- ocpu_exec(fn = "partition", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "partition"), ...)
   y <- as(p, "remote_partition")
+  y@restricted <- .Object@restricted
   y@server <- .Object@server
   y
 })

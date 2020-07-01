@@ -11,54 +11,115 @@
 \alias{cooccurrences,context-method}
 \alias{cooccurrences,partition_bundle-method}
 \alias{cooccurrences,Cooccurrences-method}
+\alias{cooccurrences,remote_corpus-method}
+\alias{cooccurrences,remote_subcorpus-method}
 \title{Get cooccurrence statistics.}
 \usage{
 cooccurrences(.Object, ...)
 
-\S4method{cooccurrences}{corpus}(.Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
-  left = getOption("polmineR.left"),
-  right = getOption("polmineR.right"), stoplist = NULL,
-  positivelist = NULL, regex = FALSE, keep = NULL, cpos = NULL,
-  method = "ll", mc = getOption("polmineR.mc"), verbose = FALSE,
-  progress = FALSE, ...)
-
-\S4method{cooccurrences}{character}(.Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
-  left = getOption("polmineR.left"),
-  right = getOption("polmineR.right"), stoplist = NULL,
-  positivelist = NULL, regex = FALSE, keep = NULL, cpos = NULL,
-  method = "ll", mc = getOption("polmineR.mc"), verbose = FALSE,
-  progress = FALSE, ...)
-
-\S4method{cooccurrences}{slice}(.Object, query, cqp = is.cqp,
+\S4method{cooccurrences}{corpus}(
+  .Object,
+  query,
+  cqp = is.cqp,
+  p_attribute = getOption("polmineR.p_attribute"),
+  boundary = NULL,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
-  stoplist = NULL, positivelist = NULL, keep = NULL, method = "ll",
-  mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  keep = NULL,
+  cpos = NULL,
+  method = "ll",
+  mc = getOption("polmineR.mc"),
+  verbose = FALSE,
+  progress = FALSE,
+  ...
+)
 
-\S4method{cooccurrences}{partition}(.Object, query, cqp = is.cqp,
+\S4method{cooccurrences}{character}(
+  .Object,
+  query,
+  cqp = is.cqp,
+  p_attribute = getOption("polmineR.p_attribute"),
+  boundary = NULL,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
-  stoplist = NULL, positivelist = NULL, keep = NULL, method = "ll",
-  mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  keep = NULL,
+  cpos = NULL,
+  method = "ll",
+  mc = getOption("polmineR.mc"),
+  verbose = FALSE,
+  progress = FALSE,
+  ...
+)
 
-\S4method{cooccurrences}{subcorpus}(.Object, query, cqp = is.cqp,
+\S4method{cooccurrences}{slice}(
+  .Object,
+  query,
+  cqp = is.cqp,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
-  stoplist = NULL, positivelist = NULL, keep = NULL, method = "ll",
-  mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+  p_attribute = getOption("polmineR.p_attribute"),
+  boundary = NULL,
+  stoplist = NULL,
+  positivelist = NULL,
+  keep = NULL,
+  method = "ll",
+  mc = FALSE,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{cooccurrences}{context}(.Object, method = "ll",
-  verbose = FALSE)
+\S4method{cooccurrences}{partition}(
+  .Object,
+  query,
+  cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  p_attribute = getOption("polmineR.p_attribute"),
+  boundary = NULL,
+  stoplist = NULL,
+  positivelist = NULL,
+  keep = NULL,
+  method = "ll",
+  mc = FALSE,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{cooccurrences}{partition_bundle}(.Object, query,
-  mc = getOption("polmineR.mc"), ...)
+\S4method{cooccurrences}{subcorpus}(
+  .Object,
+  query,
+  cqp = is.cqp,
+  left = getOption("polmineR.left"),
+  right = getOption("polmineR.right"),
+  p_attribute = getOption("polmineR.p_attribute"),
+  boundary = NULL,
+  stoplist = NULL,
+  positivelist = NULL,
+  keep = NULL,
+  method = "ll",
+  mc = FALSE,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)
+
+\S4method{cooccurrences}{context}(.Object, method = "ll", verbose = FALSE)
+
+\S4method{cooccurrences}{partition_bundle}(.Object, query, mc = getOption("polmineR.mc"), ...)
 
 \S4method{cooccurrences}{Cooccurrences}(.Object, query)
+
+\S4method{cooccurrences}{remote_corpus}(.Object, ...)
+
+\S4method{cooccurrences}{remote_subcorpus}(.Object, ...)
 }
 \arguments{
 \item{.Object}{A \code{partition} object, or a \code{character} vector with a CWB corpus.}
@@ -72,8 +133,9 @@ cooccurrences(.Object, ...)
 
 \item{p_attribute}{The p-attribute of the tokens/the query.}
 
-\item{s_attribute}{If provided, it will be checked that corpus positions of
-windows do not extend beyond the region defined by the s-attribute.}
+\item{boundary}{If provided, it will be checked that the corpus positions of
+windows do not extend beyond the left and right boundaries of the region 
+defined by the s-attribute where the match occurs.}
 
 \item{left}{Number of tokens to the left of the query match.}
 

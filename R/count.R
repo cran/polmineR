@@ -8,20 +8,32 @@ NULL
 #' Count all tokens, or number of occurrences of a query (CQP syntax may be
 #' used), or matches for the query.
 #'
-#' If .Object is a \code{partiton_bundle}, the data.table returned will have the
-#' queries in the columns, and as many rows as there are in the
+#' If \code{.Object} is a \code{partiton_bundle}, the \code{data.table} returned will
+#' have the queries in the columns, and as many rows as there are in the
 #' \code{partition_bundle}.
 #'
-#' If .Object is a length-one character vector and query is NULL, the count is
-#' performed for the whole partition.
+#' If \code{.Object} is a length-one \code{character} vector and \code{query} is
+#' \code{NULL}, the count is performed for the whole partition.
 #'
 #' If \code{breakdown} is \code{TRUE} and one query is supplied, the function
 #' returns a frequency breakdown of the results of the query. If several queries
 #' are supplied, frequencies for the individual queries are retrieved.
 #' 
-#' @seealso  For a metadata-based breakdown of counts
-#' (i.e. tabulation by s-attributes), see \code{dispersion}.
+#' Multiple queries can be used for argument \code{query}. Some care may be
+#' necessary when summing up the counts for the individual queries. When the
+#' CQP syntax is used, different queries may yield the same match result, so that
+#' the sum of all individual query matches may overestimate the true number of
+#' unique matches. In the case of overlapping matches, a warning message is
+#' issued. Collapsing multiple CQP queries into a single query (separating the
+#' individual queries by "|" and wrapping everything in round brackets) solves
+#' this problem.
 #' 
+#' @seealso  For a metadata-based breakdown of counts (i.e. tabulation by
+#'   s-attributes), see \code{\link{dispersion}}. The \code{\link{hits}} is the
+#'   worker behind the \code{dispersion} method and offers a similar, yet more
+#'   low-level functionality as compared to the \code{count} method. Using the
+#'   \code{\link{hits}} method may be useful to obtain the data required for
+#'   flexible cross-tabulations.
 #' @param .Object A \code{partition} or \code{partition_bundle}, or a length-one
 #'   character vector providing the name of a corpus.
 #' @param query A character vector (one or multiple terms), CQP syntax can be
@@ -33,6 +45,8 @@ NULL
 #'   using \code{check_cqp_query}.
 #' @param p_attribute The p-attribute(s) to use.
 #' @param corpus The name of a CWB corpus.
+#' @param phrases A \code{phrases} object. If provided, the denoted regions will
+#'   be concatenated as phrases.
 #' @param decode Logical, whether to turn token ids into decoded strings (only
 #'   if query is NULL).
 #' @param sort Logical, whether to sort table with counts (in stat slot).
@@ -58,7 +72,6 @@ NULL
 #' @rdname count-method
 #' @name count
 #' @aliases count-method
-#' @seealso count
 #' @references 
 #' Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, p. 47-69 (ch. 3).
 #' @examples
@@ -71,7 +84,7 @@ NULL
 #' 
 #' debates <- partition_bundle(
 #'   "GERMAPARLMINI", s_attribute = "date", values = NULL,
-#'   regex = TRUE, mc = FALSE, verbose = FALSE
+#'   mc = FALSE, verbose = FALSE
 #' )
 #' y <- count(debates, query = "Arbeit", p_attribute = "word")
 #' y <- count(debates, query = c("Arbeit", "Migration", "Zukunft"), p_attribute = "word")
@@ -80,16 +93,35 @@ NULL
 #' 
 #' P <- partition("GERMAPARLMINI", date = "2009-11-11")
 #' count(P, '"Integration.*"', breakdown = TRUE)
+#' 
+#' sc <- corpus("GERMAPARLMINI") %>% subset(party == "SPD")
+#' phr <- cpos(sc, query = '"Deutsche.*" "Bundestag.*"', cqp = TRUE) %>%
+#'   as.phrases(corpus = "GERMAPARLMINI", enc = "latin1")
+#' cnt <- count(sc, phrases = phr, p_attribute = "word")
+#' 
+#' # Multiple queries and overlapping query matches. The first count 
+#' # operation will issue a warning that matches overlap, see the second 
+#' # example for a solution.
+#' corpus("REUTERS") %>%
+#'   count(query = c('".*oil"', '"turmoil"'), cqp = TRUE)
+#' corpus("REUTERS") %>% 
+#'   count(query = '"(.*oil|turmoil)"', cqp =TRUE)
 setGeneric("count", function(.Object, ...){standardGeneric("count")})
 
 #' @rdname count-method
-setMethod("count", "partition", function(
-  .Object, query = NULL, cqp = is.cqp, check = TRUE, breakdown = FALSE,
+setMethod("count", "partition", function(.Object, query = NULL, cqp = is.cqp, check = TRUE, breakdown = FALSE,
   decode = TRUE, p_attribute = getOption("polmineR.p_attribute"),
   mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE,
+  phrases = NULL,
   ...
   )
-  callNextMethod()
+  count(
+    .Object = as(.Object, "subcorpus"), query = query, cqp = cqp, check = check, breakdown = breakdown,
+    decode = decode, p_attribute = p_attribute,
+    mc = mc, verbose = verbose, progress = progress,
+    ...
+    
+  )
 )
 
 
@@ -98,96 +130,86 @@ setMethod("count", "subcorpus", function(
   .Object, query = NULL, cqp = is.cqp, check = TRUE, breakdown = FALSE,
   decode = TRUE, p_attribute = getOption("polmineR.p_attribute"),
   mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE,
-  ...
-)
-  callNextMethod()
-)
-
-
-
-#' @rdname count-method
-setMethod("count", "slice", function(
-  .Object, query = NULL, cqp = is.cqp, check = TRUE, breakdown = FALSE,
-  decode = TRUE, p_attribute = getOption("polmineR.p_attribute"),
-  mc = getOption("polmineR.cores"), verbose = TRUE, progress = FALSE,
+  phrases = NULL,
   ...
 ){
-  
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   
-  stopifnot( is.logical(breakdown) == TRUE)
+  stopifnot(isTRUE(is.logical(breakdown)))
   if (!is.null(query)){
     if (progress) verbose <- FALSE
-    if (breakdown){
-      dts <- lapply(
+    if (class(cqp) == "function") cqp <- cqp(query)
+    if (length(cqp) > 1L) stop("length of cqp is larger than 1, it needs to be 1")
+    if (isTRUE(cqp)){
+      if (breakdown){
+        dts <- lapply(
+          query,
+          function(x){
+            region_matrix <- cpos(.Object = .Object, query = x, cqp = cqp, check = check, p_attribute = p_attribute)
+            if (is.null(region_matrix)) return(NULL)
+            token <- get_token_stream(cpos(region_matrix), corpus = .Object@corpus, p_attribute = p_attribute, encoding = .Object@encoding)
+            ids <- unlist(Map(rep, 1:nrow(region_matrix), region_matrix[,2] - region_matrix[,1] + 1))
+            matches_cnt <- table(sapply(split(token, ids), paste, collapse = " "))
+            dt <- data.table(query = x, match = names(matches_cnt), count = as.vector(unname(matches_cnt)))
+            if (nrow(dt) == 0L) return(NULL)
+            setorderv(dt, cols = "count", order = -1L)
+            dt[, "share" := round(dt[["count"]] / sum(dt[["count"]]) * 100, 2)]
+            dt
+          }
+        )
+        return( rbindlist(dts) )
+      } else if (isFALSE(breakdown)){
+        callNextMethod()
+      }
+    } else if (isFALSE(cqp)){
+      count_vec <- sapply(
         query,
         function(x){
-          cposHits <- cpos(.Object = .Object, query = x, cqp = cqp, check = check, p_attribute = p_attribute)
-          if (is.null(cposHits)) return( NULL )
-          hitsString <- apply(
-            cposHits, 1,
-            function(x)
-              paste(
-                cl_cpos2str(corpus = .Object@corpus, p_attribute = p_attribute, cpos = x[1]:x[2], registry = registry()),
-                collapse = ' '
-              )
-          )
-          result <- table(hitsString)
-          dt <- data.table(query = x, match = names(result), count = as.vector(unname(result)))
-          if (nrow(dt) > 0){
-            Encoding(dt[["match"]]) <- .Object@encoding
-            dt[["match"]] <- as.nativeEnc(dt[["match"]], from = .Object@encoding)
-            setorderv(dt, cols = "count", order = -1L)
-            dt[["share"]] <- round(dt[["count"]] / sum(dt[["count"]]) * 100, 2)
-          } else {
-            dt <- NULL
-          }
-          dt
+          region_matrix <- cpos(.Object = .Object, query = x, cqp = cqp, check = check, p_attribute = p_attribute)
+          if (is.null(region_matrix)) 0L else nrow(region_matrix)
         }
       )
-      return( rbindlist(dts) )
-    } else if (breakdown == FALSE){
-      .fn <- function(query, obj, cqp, p_attribute, ...) {
-        .message("processing query", query, verbose = verbose)
-        cposResult <- cpos(.Object = obj, query = query, cqp = cqp, check = check, p_attribute = p_attribute, verbose = FALSE)
-        if (is.null(cposResult)) return( 0 ) else return( nrow(cposResult) )
-      }
-      no <- as.integer(unlist(blapply(
-        as.list(query),
-        f = .fn,
-        obj = .Object, cqp = cqp, p_attribute = p_attribute,
-        mc = mc, verbose = verbose, progress = progress
-      )))
-      return( data.table(query = query, count = no, freq = no/.Object@size) )
+      dt <- data.table(query = query, match = query, count = count_vec, freq = count_vec / size(.Object))
+      return( dt )
     }
   } else {
-    pAttr_id <- paste(p_attribute, "id", sep = "_")
+    p_attr_id <- paste(p_attribute, "id", sep = "_")
     if (length(p_attribute) == 1L){
-      countMatrix <- RcppCWB::region_matrix_to_count_matrix(
-        corpus = .Object@corpus, p_attribute = p_attribute,
-        matrix = .Object@cpos
-      )
-      TF <- data.table::as.data.table(countMatrix)
-      setnames(TF, old = c("V1", "V2"), new = c(pAttr_id, "count"))
+      if (is.null(phrases)){
+        count_matrix <- RcppCWB::region_matrix_to_count_matrix(
+          corpus = .Object@corpus, p_attribute = p_attribute,
+          matrix = .Object@cpos
+        )
+        TF <- data.table::as.data.table(count_matrix)
+        setnames(TF, old = c("V1", "V2"), new = c(p_attr_id, "count"))
+      } else {
+        token_table <- decode(.Object, p_attributes = p_attribute, s_attributes = character(), verbose = FALSE)
+        token_table_min <- concatenate_phrases(token_table, phrases = phrases, col = p_attribute)
+        TF <- token_table_min[, .N, by = p_attribute]
+        setnames(TF, old = "N", new = "count")
+        decode <- FALSE
+      }
     } else {
-      cpos <- unlist(apply(.Object@cpos, 1, function(x) x[1]:x[2]))
-      idList <- lapply(p_attribute, function(p) cl_cpos2id(corpus = .Object@corpus, p_attribute = p, cpos = cpos, registry = registry()))
-      names(idList) <- paste(p_attribute, "id", sep = "_")
-      ID <- data.table::as.data.table(idList)
-      setkeyv(ID, cols = names(idList))
-      TF <- ID[, .N, by = c(eval(names(idList))), with = TRUE]
+      cpos <- cpos(.Object@cpos)
+      id_list <- lapply(p_attribute, function(p) cl_cpos2id(corpus = .Object@corpus, p_attribute = p, cpos = cpos, registry = registry()))
+      names(id_list) <- paste(p_attribute, "id", sep = "_")
+      ID <- data.table::as.data.table(id_list)
+      setkeyv(ID, cols = names(id_list))
+      TF <- ID[, .N, by = c(eval(names(id_list))), with = TRUE]
       setnames(TF, "N", "count")
     }
     if (decode){
       dummy <- lapply(
-        1L:length(p_attribute),
+        seq_along(p_attribute),
         function(i){
-          str <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attribute[i], id = TF[[pAttr_id[i]]], registry = registry())
+          str <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attribute[i], id = TF[[p_attr_id[i]]], registry = registry())
           TF[, eval(p_attribute[i]) := as.nativeEnc(str, from = .Object@encoding) , with = TRUE] 
         })
-      setcolorder(TF, neworder = c(p_attribute, pAttr_id, "count"))
+      setcolorder(TF, neworder = c(p_attribute, p_attr_id, "count"))
     } else {
-      setcolorder(TF, neworder = c(pAttr_id, "count"))
+      # Reordering is conditional because if phrases have been generated, not all colnames
+      # are necessarily present
+      if (all(p_attr_id %in% colnames(TF))) setcolorder(TF, neworder = c(p_attr_id, "count"))
     }
     y <- new(
       Class = "count",
@@ -205,7 +227,7 @@ setMethod("count", "slice", function(
 
 #' @rdname count-method
 #' @docType methods
-setMethod("count", "partition_bundle", function(.Object, query = NULL, cqp = FALSE, p_attribute = NULL, freq = FALSE, total = TRUE, mc = FALSE, progress = TRUE, verbose = FALSE, ...){
+setMethod("count", "partition_bundle", function(.Object, query = NULL, cqp = FALSE, p_attribute = NULL, phrases = NULL, freq = FALSE, total = TRUE, mc = FALSE, progress = FALSE, verbose = FALSE, ...){
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
 
@@ -217,17 +239,17 @@ setMethod("count", "partition_bundle", function(.Object, query = NULL, cqp = FAL
     
     # remove counts that are not in one of the partitions
     noPartition <- which(is.na(DT_cast[["partition"]]) == TRUE)
-    if (length(noPartition) > 0) DT_cast <- DT_cast[-noPartition]
+    if (length(noPartition) > 0L) DT_cast <- DT_cast[-noPartition]
     
     # add rows for partitions withous hits (all 0)
     missingPartitions <- names(.Object)[which(!names(.Object) %in% DT_cast[[1]])]
-    if (length(missingPartitions) > 0){
+    if (length(missingPartitions) > 0L){
       queryColnames <- colnames(DT_cast)[2L:ncol(DT_cast)]
       DTnewList <- c(
         list(partition = missingPartitions),
         lapply(setNames(queryColnames, queryColnames), function(Q) rep(0L, times = length(missingPartitions)))
       )
-      DTnomatch <- data.table(data.frame(DTnewList, stringsAsFactors = FALSE))
+      DTnomatch <- as.data.table(DTnewList)
       DT_cast <- rbindlist(list(DT_cast, DTnomatch))
     }
     
@@ -243,34 +265,59 @@ setMethod("count", "partition_bundle", function(.Object, query = NULL, cqp = FAL
     return(DT_cast)
   } else {
     
+    enc <- encoding(.Object)
     corpus <- get_corpus(.Object)
-    if (length(corpus) > 1L) stop("partitions in partition_bundle must be derived from the same corpus")
+    if (length(corpus) > 1L) stop("The objects in the bundle must be derived from the same corpus.")
     
     if (verbose) message("... creating data.table with corpus positions")
-    cpos_dt <- data.table(do.call(rbind, lapply(.Object@objects, slot, name = "cpos")))
-    cpos_dt[, "name" := do.call(
-      c,
-      lapply(seq_along(.Object@objects), function(i) rep(x = names(.Object@objects)[[i]], times = nrow(.Object@objects[[i]]@cpos)))
-      )]
-    DT <- cpos_dt[, {do.call(c, lapply(1L:nrow(.SD), function(i) .SD[[1]][i]:.SD[[2]][i]))}, by = "name"]
-    setnames(DT, old = "V1", new = "cpos")
-    rm(cpos_dt)
+    # cpos_dt <- data.table(do.call(rbind, lapply(.Object@objects, slot, name = "cpos")))
+    # cpos_dt[, "name" := do.call(
+    #   c,
+    #   lapply(
+    #     seq_along(.Object@objects),
+    #     function(i) rep(x = names(.Object@objects)[[i]], times = nrow(.Object@objects[[i]]@cpos))
+    #   )
+    #   )]
+    # DT <- cpos_dt[, {do.call(c, lapply(1L:nrow(.SD), function(i) .SD[[1]][i]:.SD[[2]][i]))}, by = "name"] # slow
+    # 
+    DT <- data.table(
+      cpos = cpos(do.call(rbind, lapply(.Object@objects, slot, "cpos"))),
+      name_id = do.call(c, Map(rep, 1:length(.Object@objects), unname(sapply(.Object@objects, slot, "size"))))
+    )
+    # 
+    # setnames(DT, old = "V1", new = "cpos")
+    # rm(cpos_dt)
     
-    if (verbose) message(sprintf("... adding ids for p-attribute '%s'", p_attribute))
-    DT[, "id" :=  cl_cpos2id(corpus = corpus, p_attribute = p_attribute, cpos = DT[["cpos"]], registry = registry())]
-    if (verbose) message("... performing count")
-    CNT <- DT[,.N, by = c("name", "id")]
-    rm(DT)
-    setnames(CNT, old = "N", new = "count")
-    
-    if (verbose) message("... adding decoded p-attribute")
-    str_raw <- cl_id2str(corpus = corpus, p_attribute = p_attribute, id = CNT[["id"]], registry = registry())
-    enc <- .Object@objects[[1]]@encoding
-    CNT[, eval(p_attribute) := if (localeToCharset()[1] == enc) str_raw else as.nativeEnc(str_raw, from = enc)]
-    rm(str_raw)
+    if (is.null(phrases)){
+      if (verbose) message(sprintf("... adding ids for p-attribute '%s'", p_attribute))
+      DT[, "id" :=  cl_cpos2id(corpus = corpus, p_attribute = p_attribute, cpos = DT[["cpos"]], registry = registry())]
+      
+      if (verbose) message("... performing count")
+      CNT <- DT[,.N, by = c("name_id", "id")]
+      rm(DT)
+      setnames(CNT, old = "N", new = "count")
+      
+      if (verbose) message("... adding decoded p-attribute")
+      str_raw <- cl_id2str(corpus = corpus, p_attribute = p_attribute, id = CNT[["id"]], registry = registry())
+      
+      CNT[, eval(p_attribute) := if (localeToCharset()[1] == enc) str_raw else as.nativeEnc(str_raw, from = enc)]
+      rm(str_raw)
+    } else {
+      if (verbose) message("... adding tokens")
+      DT[, eval(p_attribute) := get_token_stream(
+        DT[["cpos"]],
+        corpus = corpus, p_attribute = p_attribute,
+        encoding = .Object@objects[[1]]@encoding
+        )]
+      if (verbose) message("... generating phrases")
+      DT_min <- concatenate_phrases(DT, phrases = phrases, col = p_attribute) # in utils.R
+      if (verbose) message("... counting")
+      CNT <- DT_min[, .N, by = c("name_id", p_attribute)]
+      setnames(CNT, old = "N", new = "count")
+    }
     
     if (verbose) message("... creating bundle of count objects")
-    CNT_list <- split(CNT, by = "name")
+    CNT_list <- split(CNT, by = "name_id")
     rm(CNT)
     y <- new(Class = "count_bundle", p_attribute = p_attribute, corpus = corpus, encoding = enc)
     .fn <- function(i){
@@ -279,8 +326,8 @@ setMethod("count", "partition_bundle", function(.Object, query = NULL, cqp = FAL
         corpus = corpus,
         encoding = .Object@objects[[i]]@encoding,
         p_attribute = p_attribute,
-        stat = CNT_list[[i]],
-        name = .Object@objects[[ CNT_list[[i]][["name"]][[1]] ]]@name,
+        stat = CNT_list[[i]][, "name_id" := NULL],
+        name = .Object@objects[[i]]@name,
         size = size(.Object@objects[[i]])
       )
     }
@@ -290,9 +337,17 @@ setMethod("count", "partition_bundle", function(.Object, query = NULL, cqp = FAL
   }
 })
 
+
+#' @rdname count-method
+#' @export
+setMethod("count", "subcorpus_bundle", function(.Object, query = NULL, cqp = FALSE, p_attribute = NULL, phrases = NULL, freq = FALSE, total = TRUE, mc = FALSE, progress = TRUE, verbose = FALSE, ...){
+  callNextMethod()
+})
+
+
 #' @rdname count-method
 setMethod("count", "corpus", function(.Object, query = NULL, cqp = is.cqp, check = TRUE, p_attribute = getOption("polmineR.p_attribute"), breakdown = FALSE, sort = FALSE, decode = TRUE, verbose = TRUE, ...){
-
+  
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   
   if (is.null(query)){
@@ -305,11 +360,11 @@ setMethod("count", "corpus", function(.Object, query = NULL, cqp = is.cqp, check
       } else {
         TF <- data.table(
           count = RcppCWB::get_count_vector(corpus = .Object@corpus, p_attribute = p_attribute)
-          )
+        )
       }
       p_attr_col_id <- paste(p_attribute, "id", sep = "_")
       TF[, (p_attr_col_id) := 0L:(nrow(TF) - 1L)]
-
+      
       if (!decode){
         setkeyv(TF, p_attr_col_id)
         setcolorder(TF, c(p_attr_col_id, "count"))
@@ -369,38 +424,50 @@ setMethod("count", "corpus", function(.Object, query = NULL, cqp = is.cqp, check
     )
     return(y)
   } else {
-    total <- cl_attribute_size(corpus = .Object@corpus, attribute = p_attribute, attribute_type = "p", registry = registry())
     if (class(cqp) == "function") cqp <- cqp(query)
     if (length(cqp) > 1) stop("length of cqp is larger than 1, it needs to be 1")
-    if (cqp == FALSE){
+    if (isFALSE(cqp)){
       query <- as.corpusEnc(query, corpusEnc = encoding(.Object))
       count <- sapply(
         query,
         function(query){
           query_id <- cl_str2id(corpus = .Object@corpus, p_attribute = p_attribute, str = query, registry = registry())
           # if there is no id for query, query_id will be -5
-          if (query_id >= 0) cl_id2freq(corpus = .Object@corpus, p_attribute = p_attribute, id = query_id, registry = registry()) else 0
+          if (query_id >= 0){
+            cl_id2freq(corpus = .Object@corpus, p_attribute = p_attribute, id = query_id, registry = registry())
+          } else {
+            0
+          }
         }
       )
-      return(data.table(query = query, count = count, freq = count / total))
+      return(data.table(query = query, count = count, freq = count / size(.Object)))
     } else if (cqp){
-      if (!breakdown){
-        count <- sapply(
+      if (isFALSE(breakdown)){
+        region_matrices <- lapply(
           query,
-          function(query){
-            cpos_matrix <- cpos(.Object@corpus, query, cqp = cqp, check = check, p_attribute = p_attribute)
-            if (!is.null(cpos_matrix)){
-              return( nrow(cpos_matrix) )
-            } else {
-              return( 0 )
-            }
-            
-          })
-        return( data.table(query = query, count = count, freq = count / total) )
+          function(query) cpos(.Object, query = query, cqp = cqp, check = check, p_attribute = p_attribute, verbose = FALSE)
+        )
+        # If any corpus position in the region matrices occurrs more than once, there 
+        # is an overlap of matches obtained for queries. A warning shall prevent that 
+        # users sum up query matches and unknowingly overestimate the total number of 
+        # query matches.
+        if (any(table(unlist(lapply(region_matrices, cpos))) > 1L)){
+          warning(
+            "The CQP queries processed result in at least one overlapping query. ",
+            "Summing up the counts for the individual query matches may result in an ",
+            "overestimation of the total number of hits. To avoid this, ",
+            "consider collapsing multiple CQP queries into one single query.")
+        }
+        counts <- sapply(region_matrices, function(m) if (!is.null(m)) nrow(m) else 0L)
+        dt <- data.table(query = query, count = counts, freq = counts / size(.Object))
+        return(dt)
       } else {
-        C <- Corpus$new(.Object@corpus)
-        C$p_attribute <- p_attribute
-        retval <- count(.Object = C$as.partition(), query = query, cqp = cqp, p_attribute = p_attribute, breakdown = TRUE)
+        # To avoid implementing the count()-method with breakdown = TRUE, we rely
+        # on the method as it is implemented for the subcorpus class (which will
+        # call the method for the slice class. There is an additional check whether
+        # hits are within the regions defined by the subcorpus, but this extra 
+        # cost is minimal.
+        retval <- count(as(.Object, "subcorpus"), query = query, cqp = cqp, p_attribute = p_attribute, breakdown = TRUE)
         return( retval )
       }
     }
@@ -483,20 +550,12 @@ setMethod("hist", "count", function(x, ...) hist(x@stat[,"count"], ...) )
 
 #' @rdname count-method
 setMethod("count", "remote_corpus", function(.Object, ...){
-  ocpu_exec(
-    fn = "count",
-    server = .Object@server,
-    user = .Object@user,
-    password = .Object@password,
-    do.call = FALSE,
-    .Object = .Object@corpus,
-    ...
-  )
+  ocpu_exec(fn = "count", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "corpus"), ...)
 })
 
 
 #' @rdname count-method
 setMethod("count", "remote_subcorpus", function(.Object, ...){
-  ocpu_exec(fn = "count", server = .Object@server, do.call = FALSE, .Object = as(.Object, "subcorpus"), ...)
+  ocpu_exec(fn = "count", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "subcorpus"), ...)
 })
 

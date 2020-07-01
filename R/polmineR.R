@@ -10,7 +10,6 @@ NULL
 #' @importFrom data.table data.table setorderv dcast setnames setkeyv setcolorder as.data.table rbindlist setkey dcast.data.table
 #' @importFrom Matrix rowSums colSums
 #' @importFrom RcppCWB cqp_is_initialized cqp_initialize
-#' @importFrom R6 R6Class
 #' @importFrom RcppCWB cl_attribute_size cl_lexicon_size cl_cpos2struc cl_cpos2id cl_struc2cpos cl_id2str cl_struc2str
 #' @importFrom RcppCWB cl_id2str cl_struc2str cl_regex2id cl_str2id cl_cpos2str cl_id2freq cl_id2cpos cl_cpos2lbound cl_cpos2rbound
 #' @importFrom RcppCWB cqp_query cqp_dump_subcorpus
@@ -48,6 +47,43 @@ setOldClass("htmlwidget")
 #' The package includes a draft shiny app that can be called using
 #' \code{polmineR()}.
 #' 
+#' @section Package options:
+#' \itemize{
+#'   \item{\emph{polmineR.p_attribute}:} {The default attribute}
+#'   \item{\emph{polmineR.left}:} {Default value for left context.}
+#'   \item{\emph{polmineR.lineview}:} {A logical value, whether ...}
+#'   \item{\emph{polmineR.pagelength}:} {10L}
+#'   \item{\emph{polmineR.meta}:} {}
+#'   \item{\emph{polmineR.mc}:} {}
+#'   \item{\emph{polmineR.cores}:} {}
+#'   \item{\emph{polmineR.browse}:} {}
+#'   \item{\emph{polmineR.buttons}:} {}
+#'   \item{\emph{polmineR.specialChars}:} {}
+#'   \item{\emph{polmineR.cutoff}:} {}
+#'   \item{\emph{polmineR.corpus_registry}:} {The system corpus registry
+#'   directory defined by the environment variable CORPUS_REGISTRY before the
+#'   polmineR package has been loaded. The polmineR package uses a temporary
+#'   registry directory to be able to use corpora stored at multiple
+#'   locations in one session. The path to the system corpus registry directory
+#'   captures this setting to keep it available if necessary.}
+#'   \item{\emph{polmineR.shiny}:} {A \code{logical} value, whether polmineR is
+#'   used in the context of a shiny app. Used to control the apprearance of
+#'   progress bars depending on whether shiny app is running, or not.}
+#'   \item{\emph{polmineR.warn.size}:} {When generating HTML table widgets (e.g.
+#'   when preparing kwic output to be displayed in RStudio's Viewe pane), the
+#'   function \code{DT::datatable()} that is used internally will issue a
+#'   warning by default if the object size of the table is greater than 1500000.
+#'   The warning adresses a client-server scenario that is not applicable in the
+#'   context of a local RStudio session, so you may want to turn it of.
+#'   Internally, the warning can be suppressed by setting the option
+#'   \code{DT.warn.size} to \code{FALSE}. The polmineR option
+#'   \code{polmineR.warn.size} is processed by functions calling DT::datatable()
+#'   to set and reset the value of \code{DT.warn.size}. Please note: The
+#'   formulation of the warning does not match the scenario of a local RStudio
+#'   session, but it may still be useful to get a warning when tables are large
+#'   and slow to process. Therefore, the default value of the setting is
+#'   \code{FALSE}.}
+#'  }
 #' @author Andreas Blaette (andreas.blaette@@uni-due.de)
 #' @keywords package
 #' @docType package
@@ -108,7 +144,7 @@ polmineR <- function(){
     v <- tryCatch(utils::packageVersion(pkg), error = function(e) NA)
     if (is.na(v)) {
       msg <- sprintf("Package '%s' needed to run the shiny app.", pkg)
-      if (interactive()) {
+      if (interactive()){
         message(sprintf("%s Would you like to install it?", msg))
         if (utils::menu(c("Yes", "No")) == 1) {
           utils::install.packages(pkg)
@@ -123,8 +159,10 @@ polmineR <- function(){
   
   .conditional_install("shiny")
   .conditional_install("shinythemes")
+  .conditional_install("highlight")
 
-  if (requireNamespace("shiny", quietly = TRUE) && requireNamespace("shinythemes", quietly = TRUE)){
+  if (requireNamespace("shiny", quietly = TRUE) && requireNamespace("shinythemes", quietly = TRUE) && requireNamespace("highlight", quietly = TRUE)){
+    shiny::onStop(function() options(polmineR.shiny = FALSE))
     shiny::runApp(system.file("shiny", package = "polmineR"))
   }
 }

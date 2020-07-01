@@ -2,7 +2,8 @@
 #' @export countUiInput
 countUiInput <- function(){
   list(
-    go = actionButton("count_go", label="", icon = icon("play", lib = "glyphicon")),
+    go = actionButton("count_go", label = "", icon = icon("play", lib = "glyphicon")),
+    code = actionButton("count_code", label = "", icon = icon("code", lib = "font-awesome")),
     radioButtons("count_object", "class", choices = list("corpus", "partition"), selected = "corpus", inline = TRUE),
     cqp = radioButtons("count_cqp", "CQP", choices = list("yes", "no"), selected = "no", inline = TRUE),
     breakdown = radioButtons("count_breakdown", "breakdown", choices = list("yes", "no"), selected = "no", inline = TRUE),
@@ -53,7 +54,22 @@ countServer <- function(input, output, session){
     }
   )
   
-  
+  observeEvent(input$count_code, {
+    snippet <- sprintf(
+      'count(\n  %s,\n  query = "%s",\n  p_attribute = "%s",\n  cqp = %s,\n  breakdown = %s\n)',
+      if (input$count_object == "corpus") sprintf('"%s"', input$count_corpus)  else input$count_partition,
+      input$count_query,
+      input$count_p_attribute,
+      if (input$count_cqp == "yes") "TRUE" else "FALSE", 
+      if (input$count_breakdown == "yes") "TRUE" else "FALSE"
+    )
+    snippet_html <- highlight::highlight(
+      parse.output = parse(text = snippet),
+      renderer = highlight::renderer_html(document = TRUE),
+      output = NULL
+    )
+    showModal(modalDialog(title = "Code", HTML(paste(snippet_html, collapse = ""))))
+  })
 
   output$count_table <- DT::renderDataTable({
     input$count_go
@@ -82,9 +98,8 @@ countServer <- function(input, output, session){
             )
         }
         id_cols <- grep("_id", colnames(retval))
-        if (length(id_cols) > 0L) for (colname in id_cols) retval[[colname]] <- NULL
-        return(retval)
-
+        if (length(id_cols) > 0L) for (colname in id_cols) retval[, (colname) := NULL]
+        return(as(retval, "htmlwidget"))
       } else {
         return(data.frame(word = character(), count = integer()))
       }

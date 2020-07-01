@@ -28,7 +28,7 @@
 
 \S4method{summary}{partition_bundle}(object, progress = FALSE)
 
-\S4method{merge}{partition_bundle}(x, name = "", verbose = TRUE)
+\S4method{merge}{partition_bundle}(x, name = "", verbose = FALSE)
 
 \S4method{[}{partition_bundle,ANY,ANY,ANY}(x, i)
 
@@ -38,8 +38,7 @@
 
 \S4method{partition_bundle}{environment}(.Object)
 
-\S4method{enrich}{partition_bundle}(.Object, mc = FALSE,
-  progress = TRUE, verbose = FALSE, ...)
+\S4method{enrich}{partition_bundle}(.Object, mc = FALSE, progress = TRUE, verbose = FALSE, ...)
 
 \S4method{s_attributes}{partition_bundle}(.Object, s_attribute, ...)
 
@@ -105,6 +104,11 @@ Using brackets can be used to retrieve the count for a token from the
 }}
 
 \examples{
+
+# merge partition_bundle into one partition
+gparl <- corpus("GERMAPARLMINI") \%>\%
+  split(s_attribute = "date") \%>\% 
+  merge()
 pb <- partition_bundle("REUTERS", s_attribute = "id")
 barplot(pb, las = 2)
 

@@ -10,7 +10,7 @@
 cooccurrencesUiInput <- function(){
   list(
     actionButton("cooccurrences_go", "", icon = icon("play", lib = "glyphicon")),
-    actionButton("cooccurrences_mail", "", icon = icon("envelope", lib = "glyphicon")),
+    code = actionButton("cooccurrences_code", label = "", icon = icon("code", lib = "font-awesome")),
     br(), br(),
     radioButtons("cooccurrences_object", "class", choices = list("corpus", "partition"), selected = "corpus", inline = TRUE),
     conditionalPanel(
@@ -70,6 +70,22 @@ cooccurrencesServer <- function(input, output, session){
     }
   )
   
+  observeEvent(input$cooccurrences_code, {
+    snippet <- sprintf(
+      'cooccurrences(\n  %s,\n  query = "%s",\n  cqp = %s,\n  p_attribute = "%s",\n  window = %s\n)',
+      if (input$cooccurrences_object == "corpus") sprintf('"%s"', input$cooccurrences_corpus)  else input$cooccurrences_partition,
+      input$cooccurrences_query,
+      if (input$cooccurrences_cqp == "yes") "TRUE" else "FALSE", 
+      input$cooccurrences_p_attribute,
+      input$cooccurrences_window
+    )
+    snippet_html <- highlight::highlight(
+      parse.output = parse(text = snippet),
+      renderer = highlight::renderer_html(document = TRUE),
+      output = NULL
+    )
+    showModal(modalDialog(title = "Code", HTML(paste(snippet_html, collapse = ""))))
+  })
   
   
   output$cooccurrences_table <- DT::renderDataTable({
@@ -97,7 +113,7 @@ cooccurrencesServer <- function(input, output, session){
           })
         
         if (!is.null(values[["cooccurrences"]])){
-          return(DT::datatable(format(values[["cooccurrences"]])[!is.na(ll)], selection = "single", rownames = FALSE))
+          return(as(values[["cooccurrences"]], "htmlwidget"))
         } else {
           y <- data.frame(
             word = character(), count_window = character(), count_partition = character(),
@@ -135,7 +151,8 @@ cooccurrencesServer <- function(input, output, session){
         }
         updateSelectInput(session, "kwic_cqp", selected = input$cooccurrences_cqp)
         updateTextInput(session, "kwic_query", value = input$cooccurrences_query)
-        updateSelectInput(session, "kwic_window", selected = input$cooccurrences_window)
+        updateSelectInput(session, "kwic_left", selected = input$cooccurrences_window)
+        updateSelectInput(session, "kwic_right", selected = input$cooccurrences_window)
         updateSelectInput(session, "kwic_p_attribute", selected = input$cooccurrences_p_attribute)
         updateNavbarPage(session, "polmineR", selected = "kwic")
         values[["kwic_go"]] <- as.character(Sys.time()) # will initiate kwic preparation & display

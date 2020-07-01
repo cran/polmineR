@@ -4,6 +4,7 @@
 \name{partition_bundle}
 \alias{partition_bundle}
 \alias{partition_bundle,partition-method}
+\alias{partition_bundle,corpus-method}
 \alias{partition_bundle,character-method}
 \alias{partition_bundle,context-method}
 \alias{partition_bundle,partition_bundle-method}
@@ -11,21 +12,53 @@
 \usage{
 partition_bundle(.Object, ...)
 
-\S4method{partition_bundle}{partition}(.Object, s_attribute,
-  values = NULL, prefix = "", mc = getOption("polmineR.mc"),
-  verbose = TRUE, progress = FALSE, type = get_type(.Object), ...)
+\S4method{partition_bundle}{partition}(
+  .Object,
+  s_attribute,
+  values = NULL,
+  prefix = "",
+  mc = getOption("polmineR.mc"),
+  verbose = TRUE,
+  progress = FALSE,
+  type = get_type(.Object),
+  ...
+)
 
-\S4method{partition_bundle}{character}(.Object, s_attribute,
-  values = NULL, prefix = "", mc = getOption("polmineR.mc"),
-  verbose = TRUE, progress = FALSE, xml = "flat",
-  type = get_type(.Object), ...)
+\S4method{partition_bundle}{corpus}(
+  .Object,
+  s_attribute,
+  values = NULL,
+  prefix = "",
+  mc = getOption("polmineR.mc"),
+  verbose = TRUE,
+  progress = FALSE,
+  xml = "flat",
+  type = get_type(.Object),
+  ...
+)
 
-\S4method{partition_bundle}{context}(.Object, node = TRUE,
-  progress = TRUE, mc = 1L)
+\S4method{partition_bundle}{character}(
+  .Object,
+  s_attribute,
+  values = NULL,
+  prefix = "",
+  mc = getOption("polmineR.mc"),
+  verbose = TRUE,
+  progress = FALSE,
+  xml = "flat",
+  type = get_type(.Object),
+  ...
+)
 
-\S4method{partition_bundle}{partition_bundle}(.Object, s_attribute,
-  prefix = character(), progress = TRUE,
-  mc = getOption("polmineR.mc"))
+\S4method{partition_bundle}{context}(.Object, node = TRUE, progress = TRUE, mc = 1L)
+
+\S4method{partition_bundle}{partition_bundle}(
+  .Object,
+  s_attribute,
+  prefix = character(),
+  progress = TRUE,
+  mc = getOption("polmineR.mc")
+)
 }
 \arguments{
 \item{.Object}{A \code{partition}, a length-one \code{character} vector supplying a CWB corpus, or a \code{partition_bundle}}
@@ -69,7 +102,8 @@ The argument \code{prefix} can be used to achieve a more descriptive name.
 \examples{
 use("polmineR")
 bt2009 <- partition("GERMAPARLMINI", date = "2009-.*", regex = TRUE)
-pb <- partition_bundle(bt2009, s_attribute = "date", progress = TRUE, p_attribute = "word")
+pb <- partition_bundle(bt2009, s_attribute = "date", progress = TRUE)
+pb <- enrich(pb, p_attribute = "word")
 dtm <- as.DocumentTermMatrix(pb, col = "count")
 summary(pb)
 pb <- partition_bundle("GERMAPARLMINI", s_attribute = "date")

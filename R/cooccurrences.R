@@ -45,8 +45,9 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 #' @param cpos integer vector with corpus positions, defaults to NULL - then the
 #'   corpus positions for the whole corpus will be used
 #' @param p_attribute The p-attribute of the tokens/the query.
-#' @param s_attribute If provided, it will be checked that corpus positions of
-#'   windows do not extend beyond the region defined by the s-attribute.
+#' @param boundary If provided, it will be checked that the corpus positions of
+#'   windows do not extend beyond the left and right boundaries of the region 
+#'   defined by the s-attribute where the match occurs.
 #' @param left Number of tokens to the left of the query match.
 #' @param right Number of tokens to the right of the query match.
 #' @param stoplist Exclude a query hit from analysis if stopword(s) is/are in
@@ -103,7 +104,7 @@ setGeneric("cooccurrences", function(.Object, ...) standardGeneric("cooccurrence
 #' @rdname cooccurrences
 setMethod("cooccurrences", "corpus", function(
   .Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   keep = NULL, cpos = NULL, method = "ll",
@@ -111,12 +112,11 @@ setMethod("cooccurrences", "corpus", function(
   ...
 ){
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-  
+
   if (missing(query)) stop("query missing - it is not possible to calculate cooccurrences")
   ctxt <- context(
     .Object = .Object, query = query, cqp = is.cqp,
-    p_attribute = p_attribute, s_attribute = s_attribute,
+    p_attribute = p_attribute, boundary = boundary,
     left = left, right = right,
     stoplist = stoplist, positivelist = positivelist, regex = regex,
     count = TRUE, 
@@ -130,7 +130,7 @@ setMethod("cooccurrences", "corpus", function(
 #' @rdname cooccurrences
 setMethod("cooccurrences", "character", function(
   .Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+  p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   keep = NULL, cpos = NULL, method = "ll",
@@ -142,7 +142,7 @@ setMethod("cooccurrences", "character", function(
     query = query,
     cqp = cqp,
     p_attribute = p_attribute,
-    s_attribute = s_attribute,
+    boundary = boundary,
     left = left,
     right = right,
     stoplist = stoplist,
@@ -166,17 +166,16 @@ setMethod(
   function(
     .Object, query, cqp = is.cqp,
     left = getOption("polmineR.left"), right = getOption("polmineR.right"),
-    p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+    p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
     stoplist = NULL, positivelist = NULL, keep = NULL,
     method = "ll",
     mc = FALSE, progress = TRUE, verbose = FALSE,
     ...
   ){
     if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-    if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
     y <- context(
       .Object = .Object, query = query, cqp = is.cqp,
-      p_attribute = p_attribute, s_attribute = s_attribute,
+      p_attribute = p_attribute, boundary = boundary,
       left = left, right = right,
       stoplist = stoplist, positivelist = positivelist,
       count = TRUE, 
@@ -192,7 +191,7 @@ setMethod(
   function(
     .Object, query, cqp = is.cqp,
     left = getOption("polmineR.left"), right = getOption("polmineR.right"),
-    p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+    p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
     stoplist = NULL, positivelist = NULL, keep = NULL,
     method = "ll",
     mc = FALSE, progress = TRUE, verbose = FALSE,
@@ -207,7 +206,7 @@ setMethod(
   function(
     .Object, query, cqp = is.cqp,
     left = getOption("polmineR.left"), right = getOption("polmineR.right"),
-    p_attribute = getOption("polmineR.p_attribute"), s_attribute = NULL,
+    p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
     stoplist = NULL, positivelist = NULL, keep = NULL,
     method = "ll",
     mc = FALSE, progress = TRUE, verbose = FALSE,
@@ -410,13 +409,30 @@ setGeneric("Cooccurrences", function(.Object, ...) standardGeneric("Cooccurrence
 #' @exportMethod Cooccurrences
 #' @rdname all_cooccurrences
 #' @aliases Cooccurrences
+setMethod("Cooccurrences", "corpus", function(
+  .Object, p_attribute, left, right,
+  stoplist = NULL,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE
+){
+  Cooccurrences(
+    as(.Object, "subcorpus"),
+    p_attribute = p_attribute,
+    left = left, right = right, stoplist = stoplist,
+    mc = mc, verbose = verbose, progress = progress)
+})
+
+
+
+#' @exportMethod Cooccurrences
+#' @rdname all_cooccurrences
+#' @aliases Cooccurrences
 setMethod("Cooccurrences", "character", function(
   .Object, p_attribute, left, right,
   stoplist = NULL,
   mc = getOption("polmineR.mc"), verbose = FALSE, progress = FALSE
 ){
   Cooccurrences(
-    Corpus$new(.Object)$as.partition(),
+    corpus(.Object),
     p_attribute = p_attribute,
     left = left, right = right, stoplist = stoplist,
     mc = mc, verbose = verbose, progress = progress)
@@ -614,10 +630,7 @@ setMethod("Cooccurrences", "slice", function(
     id_list <- lapply(
       1L:nrow(.Object@cpos),
       function(j)
-        RcppCWB::cl_cpos2id(
-          corpus = .Object@corpus,
-          p_attribute = p_attribute,
-          cpos = .Object@cpos[j,1]:.Object@cpos[j,2]
+        RcppCWB::cl_cpos2id(corpus = .Object@corpus, p_attribute = p_attribute, cpos = .Object@cpos[j,1]:.Object@cpos[j,2]
         )
     )
 
@@ -626,7 +639,13 @@ setMethod("Cooccurrences", "slice", function(
       stoplist_ids <- unique(stoplist_ids[which(stoplist_ids >= 0)])
     }
 
-    for (i in c(-left:-1L, 1L:right)){
+    positions <- c(
+      if (left >= 1L) -left:-1L else integer(),
+      if (right >= 1L) 1L:right else integer()
+    )
+    if (length(positions) == 0L) stop("Are arguments left and right zero? No positions to iterate!")
+    
+    for (i in positions){
       
       if (verbose) message("Processing tokens at position: ", i)
 
@@ -664,7 +683,7 @@ setMethod("Cooccurrences", "slice", function(
       a_id <- 0L; b_id <- 0L # to pass R CMD check
       if (!is.null(stoplist)) dt <- dt[!a_id %in% stoplist_ids]
       
-      if (i == -left){
+      if (identical(y@stat, data.table())){
         y@window_sizes <- dt[, {sum(.SD[["N"]])}, by = "a_id"]
         setnames(y@window_sizes, old = "V1", new = "size_coi")
         setkeyv(y@window_sizes, cols = "a_id")
@@ -1053,3 +1072,45 @@ setMethod("kwic", "Cooccurrences", function(
 
   invisible(.Object)
 })
+
+
+# The coerce method to generate a kwic object from a cooccurrences class object is used 
+# internally. It can be used to 
+#' @export
+setAs(from = "cooccurrences", to = "kwic", function(from){
+  # Prepare a data.table that links match_id and word_id (i.e. which tokens occurr in a match?)
+  tbl <- from@cpos[, {.SD[.SD[["word_id"]] %in% from[["word_id"]]][["word_id"]]}, by = "match_id"]
+  setnames(tbl, old = "V1", new = "word_id")
+  setorderv(tbl, cols = c("match_id", "word_id"))
+  
+  # Reduce kwic to those concordances with tokens that are statistically significant, and
+  # highlight these tokens
+  y <- kwic(from)
+  y@stat <- y@stat[y@stat[["match_id"]] %in% tbl[["match_id"]]]
+  y@cpos <- y@cpos[y@cpos[["match_id"]] %in% tbl[["match_id"]]]
+  y <- highlight(y, yellow = from[["word"]])
+  
+  # Add word_id to concordances
+  y@stat <- tbl[y@stat, on = "match_id"]
+  p_attr_decoded <- cl_id2str(
+    corpus = from@corpus, p_attribute = from@p_attribute[1],
+    id = y@stat[[paste(from@p_attribute[1], "id", sep = "_")]],
+    registry = registry()
+  )
+  y@stat[, from@p_attribute[1] := as.nativeEnc(p_attr_decoded, from = from@encoding), with = TRUE]
+  y@stat[, "word_id" := NULL]
+  y
+})
+
+
+#' @rdname cooccurrences
+setMethod("cooccurrences", "remote_corpus", function(.Object, ...){
+  ocpu_exec(fn = "cooccurrences", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "corpus"), ...)
+})
+
+#' @rdname cooccurrences
+setMethod("cooccurrences", "remote_subcorpus", function(.Object, ...){
+  ocpu_exec(fn = "cooccurrences", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "subcorpus"), ...)
+})
+
+

@@ -22,6 +22,7 @@
 \alias{as.matrix,bundle-method}
 \alias{subset,bundle-method}
 \alias{as.list,bundle-method}
+\alias{as.list.bundle}
 \alias{get_corpus,bundle-method}
 \title{Bundle Class}
 \usage{
@@ -53,13 +54,15 @@
 
 \S4method{as.bundle}{textstat}(object)
 
-\method{as.data.table}{bundle}(x, col)
+\method{as.data.table}{bundle}(x, keep.rownames, col, ...)
 
 \S4method{as.matrix}{bundle}(x, col)
 
 \S4method{subset}{bundle}(x, ...)
 
 \S4method{as.list}{bundle}(x)
+
+\method{as.list}{bundle}(x, ...)
 
 \S4method{get_corpus}{bundle}(x)
 }
@@ -81,6 +84,9 @@
 \item{object}{A \code{bundle} object.}
 
 \item{...}{Further parameters}
+
+\item{keep.rownames}{Required argument to safeguard consistency with S3
+method definition in the \code{data.table} package. Unused in this context.}
 
 \item{col}{columns of the \code{data.table} to use to generate an object.}
 }
@@ -126,13 +132,10 @@ pb$SPD # access partition names "SPD" in partition_bundle pb
 pb <- partition_bundle("GERMAPARLMINI", s_attribute = "party")
 pb$"NA" <- NULL # quotation needed if name is "NA"
 use("polmineR")
-Ps <- partition_bundle(
-  "REUTERS", s_attribute = "id",
-  values = s_attributes("REUTERS", "id")
-)
-Cs <- cooccurrences(Ps, query = "oil", cqp = FALSE, verbose = FALSE, progress = TRUE)
-dt <- polmineR:::as.data.table.bundle(Cs, col = "ll")
-m <- as.matrix(Cs, col = "ll")
+pb <- partition_bundle("REUTERS", s_attribute = "id")
+coocs <- cooccurrences(pb, query = "oil", cqp = FALSE)
+dt <- as.data.table(coocs, col = "ll")
+m <- as.matrix(dt[, 2:ncol(dt)], rownames = dt[["token"]])
 }
 \author{
 Andreas Blaette

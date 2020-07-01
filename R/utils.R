@@ -10,6 +10,8 @@
 #' to a CQP query by putting the individual strings in quotation marks.
 #' 
 #' @param query A \code{character} vector with at least one CQP query.
+#' @param warn A (length-one) \code{logical} value, whether to issue a warning if
+#'   a query may be buggy.
 #' @name cqp
 #' @references CQP Query Language Tutorial (\url{http://cwb.sourceforge.net/files/CQP_Tutorial.pdf})
 #' @rdname cqp
@@ -40,12 +42,11 @@ is.cqp <- function(query){
 #'   of CQP and the R session.
 #' @examples
 #' 
-#' 
 #' check_cqp_query('"Integration.*"') # TRUE, the query is ok
 #' check_cqp_query('"Integration.*') # FALSE, closing quotation mark is missing
 #' check_cqp_query("'Integration.*") # FALSE, closing quotation mark is missing
 #' check_cqp_query(c("'Integration.*", '"Integration.*')) # FALSE too
-check_cqp_query <- function(query){
+check_cqp_query <- function(query, warn = TRUE){
   msg <- paste(c(
     "An issue occurred when checking query: %s\n",
     paste(
@@ -56,18 +57,26 @@ check_cqp_query <- function(query){
     )
   ), collapse = "")
   
-  check_results <- sapply(
+  sapply(
     query,
     function(q){
       query_ok <- TRUE
       chars <- strsplit(q, split = "")[[1]]
       if (length(which(chars == '"')) %% 2 != 0) query_ok <- FALSE
       if (length(which(chars == "'")) %% 2 != 0) query_ok <- FALSE
-      if (!query_ok) warning(sprintf(msg, q))
+      if (!query_ok && isTRUE(warn)) warning(sprintf(msg, q))
+      if (length(which(chars == '(')) != length(which(chars == ')'))){
+        query_ok <- FALSE
+        if (isTRUE(warn)) warning("Opening brackets are not matched by closing brackets in CQP query: ", q)
+      }
+      if (length(which(chars == '[')) != length(which(chars == ']'))){
+        query_ok <- FALSE
+        if (isTRUE(warn)) warning("Number of opening squarebrackets are not matched by closing brackets in CQP query: ", q)
+      }
+      
       query_ok
     }
   )
-  any(check_results)
 }
 
 
@@ -182,63 +191,6 @@ flatten <- function(object){
 }
 
 
-
-
-
-#' @export .importPolMineCorpus
-.importPolMineCorpus <- function(corpus, user, pw, binaryDir=NULL){
-  urlRegistry <- paste("http://polmine.sowi.uni-due.de/cwb/", tolower(corpus), "/", tolower(corpus), sep="")
-  urlBinaries <- paste("http://polmine.sowi.uni-due.de/cwb/", tolower(corpus), "/", tolower(corpus), ".tar.gz", sep="")
-  registryFilename <- file.path(Sys.getenv("CORPUS_REGISTRY"), tolower(corpus))
-  pathElements <- unlist(strsplit(Sys.getenv("CORPUS_REGISTRY"), split="/"))
-  cwbDir <- paste(pathElements[2:(length(pathElements)-1)], collapse="/")
-  cwbDir <- paste('/', cwbDir, sep='')
-  dirs <- list.dirs(cwbDir, recursive=FALSE)
-  binaryDir <- dirs[grep("indexed", dirs)]
-  cat('... destination for corpus binary files: ', binaryDir, '\n')
-  tarFilename <- file.path(binaryDir, paste(tolower(corpus), ".tar.gz", sep=""))
-  download.file(
-    url=urlRegistry,
-    destfile=file.path(Sys.getenv("CORPUS_REGISTRY"), tolower(corpus)),
-    method="wget",
-    extra=paste("--http-user=", user, " --http-passwd=", pw, sep="")
-  )
-  
-  download.file(
-    url=urlBinaries,
-    destfile=tarFilename,
-    method="wget",
-    extra=paste("--http-user=", user, " --http-passwd=", pw, sep="")
-  )
-  system(paste(system("which tar", intern=TRUE), "xzfv", tarFilename))
-  untar(tarFilename, tar=system("which tar", intern=TRUE), exdir=binaryDir)
-  registry <- scan(registryFilename, what="character", blank.lines.skip=FALSE, sep="\n", quiet=TRUE)
-  lineHome <- grep("^HOME", registry)
-  registry[lineHome] <- paste("HOME ", binaryDir, "/", tolower(corpus), sep="")
-  lineInfo <- grep("^INFO", registry)
-  registry[lineInfo] <- paste("INFO ", binaryDir, "/", tolower(corpus), "/.info", sep="")
-  cat(registry, file=registryFilename, sep="\n")
-  cat('Corpus "', corpus, '" has been installed\n', sep="")
-  cat("registry at:", registryFilename, "\n")
-  cat("corpus binaries at:", binaryDir, "\n\n")
-  remove <- readline(paste("Remove", tarFilename, " (yes/no) ? \n"))
-  if (grepl(".*yes.*", remove)==TRUE) {
-    system(paste("rm", tarFilename))
-  }
-  cat("** enjoy the mining and the drilling! **\n")
-  
-}
-
-
-
-.progressBar <- function(i, total, barLength=80) {
-  no <- floor(barLength * (i/total))
-  if (i>1) cat(paste(rep("\b", times=barLength+2+8), collapse=""))
-  cat(paste("0% [", paste(rep("=", times=no), collapse=""), paste(rep(" ", times=barLength-no), collapse=""),  "] 100%", sep=""))
-  if (i == total) cat("\n")
-}
-
-
 # used by features,cooccurrences-method
 # listed here because it may be used by other methods
 .minMaxId <- function(row){
@@ -318,5 +270,10 @@ round.data.table <- function(x, digits = 2L){
 .list_corpora = function() toupper(list.files( registry() ))
 
 #' @importFrom magrittr %>%
-#' @export
+#' @export %>%
 magrittr::`%>%`
+
+#' @importFrom data.table as.data.table
+#' @export as.data.table
+data.table::as.data.table
+

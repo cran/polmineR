@@ -11,7 +11,7 @@
 dispersionUiInput <- function(){
   list(
     actionButton("dispersion_go", "", icon = icon("play", lib = "glyphicon")),
-    # actionButton("dispersion_mail", "", icon = icon("envelope", lib = "glyphicon")),
+    code = actionButton("dispersion_code", label = "", icon = icon("code", lib = "font-awesome")),
     br(), br(),
     radioButtons("dispersion_object", "class", choices = list("corpus", "partition"), selected = "corpus", inline = TRUE),
     conditionalPanel(
@@ -73,7 +73,23 @@ dispersionServer <- function(input, output, session){
     updateSelectInput(session, "dispersion_s_attribute_1", choices = new_sAttr, selected = NULL)
   })
   
-
+  observeEvent(input$dispersion_code, {
+    snippet <- sprintf(
+      'dispersion(\n  %s,\n  query = "%s",\n  freq = %s,\n  cqp = %s,\n  p_attribute = "%s",\n  s_attribute = "%s"\n)',
+      if (input$dispersion_object == "corpus") sprintf('"%s"', input$dispersion_corpus)  else input$dispersion_partition,
+      input$dispersion_query,
+      if (input$dispersion_freq == "yes") "TRUE" else "FALSE", 
+      if (input$dispersion_cqp == "yes") "TRUE" else "FALSE", 
+      input$dispersion_p_attribute,
+      input$dispersion_s_attribute_1
+    )
+    snippet_html <- highlight::highlight(
+      parse.output = parse(text = snippet),
+      renderer = highlight::renderer_html(document = TRUE),
+      output = NULL
+    )
+    showModal(modalDialog(title = "Code", HTML(paste(snippet_html, collapse = ""))))
+  })
 
   observeEvent(
     input$dispersion_go,
@@ -125,21 +141,10 @@ dispersionServer <- function(input, output, session){
         )
       }
       
-      output$dispersion_table <- DT::renderDataTable(as.data.frame(tab))
+      output$dispersion_table <- DT::renderDataTable(as(as.data.table(tab), "htmlwidget"))
       
     })
   )
-  
-  # observeEvent(
-  #   input$dispersion_mail,
-  #   {
-  #     if (input$dispersion_mail > 0){
-  #       polmineR:::mail(
-  #         values[["cooccurrences"]]
-  #       )
-  #     }
-  #   }
-  # )
   
 }
 

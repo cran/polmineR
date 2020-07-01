@@ -9,32 +9,82 @@
 \alias{dispersion,corpus-method}
 \alias{dispersion,character-method}
 \alias{dispersion,hits-method}
+\alias{dispersion,remote_corpus-method}
+\alias{dispersion,remote_subcorpus-method}
 \title{Dispersion of a query or multiple queries.}
 \usage{
 dispersion(.Object, ...)
 
-\S4method{dispersion}{slice}(.Object, query, s_attribute, cqp = FALSE,
-  p_attribute = getOption("polmineR.p_attribute"), freq = FALSE,
-  mc = FALSE, progress = FALSE, verbose = FALSE, ...)
+\S4method{dispersion}{slice}(
+  .Object,
+  query,
+  s_attribute,
+  cqp = FALSE,
+  p_attribute = getOption("polmineR.p_attribute"),
+  freq = FALSE,
+  mc = FALSE,
+  progress = FALSE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{dispersion}{partition}(.Object, query, s_attribute,
-  cqp = FALSE, p_attribute = getOption("polmineR.p_attribute"),
-  freq = FALSE, mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+\S4method{dispersion}{partition}(
+  .Object,
+  query,
+  s_attribute,
+  cqp = FALSE,
+  p_attribute = getOption("polmineR.p_attribute"),
+  freq = FALSE,
+  mc = FALSE,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{dispersion}{subcorpus}(.Object, query, s_attribute,
-  cqp = FALSE, p_attribute = getOption("polmineR.p_attribute"),
-  freq = FALSE, mc = FALSE, progress = TRUE, verbose = FALSE, ...)
+\S4method{dispersion}{subcorpus}(
+  .Object,
+  query,
+  s_attribute,
+  cqp = FALSE,
+  p_attribute = getOption("polmineR.p_attribute"),
+  freq = FALSE,
+  mc = FALSE,
+  progress = TRUE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{dispersion}{corpus}(.Object, query, s_attribute, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), freq = FALSE,
-  mc = FALSE, progress = FALSE, verbose = FALSE, ...)
+\S4method{dispersion}{corpus}(
+  .Object,
+  query,
+  s_attribute,
+  cqp = is.cqp,
+  p_attribute = getOption("polmineR.p_attribute"),
+  freq = FALSE,
+  mc = FALSE,
+  progress = FALSE,
+  verbose = FALSE,
+  ...
+)
 
-\S4method{dispersion}{character}(.Object, query, s_attribute,
-  cqp = is.cqp, p_attribute = getOption("polmineR.p_attribute"),
-  freq = FALSE, mc = FALSE, progress = TRUE, verbose = TRUE, ...)
+\S4method{dispersion}{character}(
+  .Object,
+  query,
+  s_attribute,
+  cqp = is.cqp,
+  p_attribute = getOption("polmineR.p_attribute"),
+  freq = FALSE,
+  mc = FALSE,
+  progress = TRUE,
+  verbose = TRUE,
+  ...
+)
 
-\S4method{dispersion}{hits}(.Object, source, s_attribute, freq = FALSE,
-  verbose = TRUE, ...)
+\S4method{dispersion}{hits}(.Object, source, s_attribute, freq = FALSE, verbose = TRUE, ...)
+
+\S4method{dispersion}{remote_corpus}(.Object, ...)
+
+\S4method{dispersion}{remote_subcorpus}(.Object, ...)
 }
 \arguments{
 \item{.Object}{A \code{partition} object or a corpus provided by a character

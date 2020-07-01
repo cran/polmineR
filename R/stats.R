@@ -2,7 +2,8 @@
 NULL
 
 #' @rdname pmi
-setGeneric("pmi", function(.Object) standardGeneric("pmi") )
+#' @param ... Arguments methods may require.
+setGeneric("pmi", function(.Object, ...) standardGeneric("pmi") )
 
 #' Calculate Pointwise Mutual Information (PMI).
 #' 
@@ -42,6 +43,62 @@ setMethod("pmi", "context", function(.Object){
   invisible(.Object)
 })
 
+
+#' @rdname pmi
+#' @export
+setMethod("pmi", "Cooccurrences", function(.Object){
+  if (!"a_count" %in% colnames(.Object) || !"b_count" %in% colnames(.Object)) enrich(.Object)
+  p_ab <- .Object@stat[["ab_count"]] / .Object@partition@size
+  p_a <- .Object@stat[["a_count"]] / .Object@partition@size
+  p_b <- .Object@stat[["b_count"]] / .Object@partition@size
+  .Object@stat[, "pmi" := log2(p_ab / (p_a * p_b))]
+  setorderv(.Object@stat, cols = "pmi", order = -1L, na.last = TRUE)
+  .Object@stat[, "rank_pmi" := 1L:nrow(.Object@stat)]
+  .Object@method <- c(.Object@method, "pmi")
+  invisible(.Object)
+})
+
+#' @param p_attribute The positional attribute which shall be considered. Relevant only
+#'   if ngrams have been calculated for more than one p-attribute.
+#' @param observed A \code{count}-object with the numbers of the observed
+#'   occurrences of the tokens in the input \code{ngrams} object.
+#' @rdname pmi
+#' @export
+#' @examples 
+#' use("polmineR")
+#' dt <- decode(
+#'   "REUTERS",
+#'   p_attribute = "word",
+#'   s_attribute = character(), 
+#'   to = "data.table",
+#'   verbose = FALSE
+#' )
+#' n <- ngrams(dt, n = 2L, p_attribute = "word")
+#' obs <- count("REUTERS", p_attribute = "word")
+#' phrases <- pmi(n, observed = obs)
+setMethod("pmi", "ngrams", function(.Object, observed, p_attribute = p_attributes(.Object)[1]){
+  if (length(p_attribute) > 1L) stop("pmi-method for ngrams objects not yet implemented for length(p_attribute) > 1")
+  
+  setkeyv(observed@stat, cols = p_attribute)
+  setnames(.Object@stat, old = "count", new = "ngram_count")
+  
+  for (i in 1L:.Object@n){
+    setkeyv(.Object@stat, cols = paste(p_attribute, i, sep = "_"))
+    .Object@stat <- .Object@stat[observed@stat[,c(p_attribute, "count"), with = FALSE]]
+    setnames(.Object@stat, old = "count", new = paste(p_attribute, i, "count", sep = "_"))
+  }
+  
+  p_ngram <- .Object@stat[["ngram_count"]] / observed@size
+  denominator <- 1L
+  for (i in 1L:.Object@n){
+    denominator <- denominator * .Object@stat[[paste(p_attribute, i, "count", sep = "_")]] / observed@size
+  }
+  
+  .Object@stat[, "pmi" := log2(p_ngram / denominator)]
+  setorderv(.Object@stat, cols = "pmi", order = -1L)
+  .Object@stat[, "rank_pmi" := 1L:nrow(.Object@stat)]
+  invisible(.Object)
+})
 
 
 #' Compute Log-likelihood Statistics.
@@ -274,7 +331,7 @@ setMethod("ll", "Cooccurrences", function(.Object, verbose = TRUE){
   dt[, "ll" := ll * direction]
   dt[, "ll" := ifelse(is.nan(ll), NA, ll)]
   
-  setorderv(dt, cols = "ll", order = -1)
+  setorderv(dt, cols = "ll", order = -1, na.last = TRUE)
   dt[, "rank_ll" := 1L:nrow(dt)]
   
   dt[, "o21" := NULL]
@@ -379,7 +436,8 @@ setMethod("chisquare", "features", function(.Object){
   count_notx_coi <- .Object@size_coi - .Object@stat[["count_coi"]]
   count_notx_ref <- .Object@size_ref - .Object@stat[["count_ref"]]
   count_notx_total <- size_total - count_x_total
-  options(digits = 20)
+  digits_restore_value <- options(digits = 20)
+  on.exit(digits_restore_value)
   exp_x_coi <- (count_x_total / size_total) * .Object@size_coi
   exp_x_ref <- (count_x_total / size_total) * .Object@size_ref
   exp_notx_coi <- (count_notx_total/size_total) * .Object@size_coi
@@ -390,7 +448,6 @@ setMethod("chisquare", "features", function(.Object){
   chi4 <- ((exp_notx_ref - count_notx_ref) ** 2) / exp_notx_ref
   chi <- chi1 + chi2 + chi3 + chi4
   chi <- chi * ifelse(.Object@stat[["count_coi"]] >= exp_x_coi, 1L, -1L)
-  options(digits = 7)
   .Object@stat[, "exp_coi" := exp_x_coi]
   .Object@stat[, "chisquare" := chi]
   setorderv(.Object@stat, cols = "chisquare", order = -1L)

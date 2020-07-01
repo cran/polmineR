@@ -95,7 +95,7 @@ setMethod(
     ...
   ){
     if (is.null(meta)){
-      templateMeta <- getOption("polmineR.templates")[[.Object@corpus]][["metadata"]]
+      templateMeta <- get_template(.Object)[["metadata"]]
       meta <- if (is.null(templateMeta)) names(.Object@s_attributes) else templateMeta
     }
     stopifnot(all(meta %in% s_attributes(.Object@corpus)))
@@ -142,9 +142,12 @@ setMethod("read", "hits", function(.Object, def, i = NULL, ...){
 })
 
 #' @rdname read-method
-setMethod("read", "kwic", function(.Object, i = NULL, type = registry_get_properties(get_corpus(.Object))[["type"]]){
+setMethod("read", "kwic", function(.Object, i = NULL, type){
   
-  # if registry file does not have 'type' corpus property, a named NA vector arrives
+  if (missing(type)){
+    corpus_properties <- registry_get_properties(get_corpus(.Object))
+    type <- if ("type" %in% names(corpus_properties)) corpus_properties[["type"]] else NULL
+  }
   if (length(type) > 0L) if (is.na(type)) type <- NULL
   if (!is.null(type)) type <- unname(type)
   

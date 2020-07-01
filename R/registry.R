@@ -43,8 +43,6 @@ registry_reset <- function(registryDir = registry(), verbose = TRUE) {
   } else {
     .message("status: FAIL", verbose = verbose)
   }
-  
-  set_template()
   invisible(oldRegistry)
 }
 
@@ -67,7 +65,6 @@ registry_reset <- function(registryDir = registry(), verbose = TRUE) {
 #' 
 #' @param corpus name of the CWB corpus
 #' @param registry directory of the registry (defaults to CORPUS_Registry environment variable)
-#' @importFrom utils installed.packages
 #' @importFrom stringi stri_match_all_regex
 #' @export registry_get_name
 #' @rdname registry_eval
@@ -123,8 +120,12 @@ registry_get_s_attributes = function(corpus, registry = Sys.getenv("CORPUS_REGIS
 #' @export registry_get_properties
 #' @rdname registry_eval
 registry_get_properties = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")) {
+  registry_file <- file.path(registry, tolower(corpus))
+  if (isFALSE(file.exists(registry_file))){
+    stop("There is no registry file for corpus ", corpus, ".")
+  }
   x <- stri_match_all_regex(
-    readLines(file.path(registry, tolower(corpus))),
+    readLines(registry_file),
     pattern = '^##::\\s*(.*?)\\s*=\\s*"(.*?)".*?$',
     omit_no_match = TRUE
   )
@@ -183,6 +184,12 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
 #'   that includes registry non-ASCII characters. On Windows, a call to
 #'   \code{utils::shortPathName} will generate the short MS-DOS path name that
 #'   circumvents resulting problems.
+#' @details Usage of the temporary registry directory can be suppress by setting
+#'   the environment variable POLMINER_USE_TMP_REGISTRY as 'false'. In this
+#'   case, the \code{registry} function will return the environment variable
+#'   CORPUS_REGISTRY unchanged. The \code{data_dir} function will return the
+#'   "indexed_corpus" directory that is assumed to live in the same parent
+#'   directory as the registry directory.
 #' 
 #' @param pkg A character string with the name of a single package; if \code{NULL} (default),
 #' the temporary registry and data directory is returned.
@@ -200,34 +207,37 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
 #' @importFrom stringi stri_enc_mark
 registry <- function(pkg = NULL){
   if (is.null(pkg)){
-    y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_registry", fsep = "/")
-    
-    # The user name may include special characters. On windows, a possible solutions to avoid
-    # error messages, is to use the DOS short path name.
-    if (stri_enc_mark(y) != "ASCII"){
-      if (.Platform$OS.type == "windows") y <- utils::shortPathName(y)
+    if (tolower(Sys.getenv("POLMINER_USE_TMP_REGISTRY")) != "false"){
+      y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_registry", fsep = "/")
+      
+      # The user name may include special characters. On windows, a possible solutions to avoid
+      # error messages, is to use the DOS short path name.
+      if (stri_enc_mark(y) != "ASCII"){
+        if (.Platform$OS.type == "windows") y <- utils::shortPathName(y)
+      }
+      return(y)
+    } else {
+      return(Sys.getenv("CORPUS_REGISTRY"))
     }
-    return(y)
   } else {
     stopifnot(
       is.character(pkg),
       length(pkg) == 1L
     )
-    if (!pkg %in% rownames(installed.packages())){
-      warning(sprintf("package '%s' does not exist", pkg))
+    
+    pkg_home <- system.file(package = pkg)
+    if (pkg_home == ""){
+      warning(sprintf("Package '%s' is not available for R version %s.", pkg, getRversion()))
       return( NULL )
-    } else {
-      y <- system.file(package = pkg, "extdata", "cwb", "registry")
-      if (y == ""){
-        warning(sprintf("no registry directory in package '%s'", pkg))
-        return( NULL )
-      } else {
-        if (stri_enc_mark(y) != "ASCII"){
-          if (.Platform$OS.type == "windows") y <- utils::shortPathName(y)
-        }
-        return( y )
-      }
     }
+    regdir <- file.path(pkg_home, "extdata", "cwb", "registry")
+    if (isFALSE(file.exists(regdir))){
+      warning(sprintf("Cannot find registry directory (%s) in package %s.", regdir, pkg))
+    }
+    if (stri_enc_mark(regdir) != "ASCII"){
+      if (.Platform$OS.type == "windows") regdir <- utils::shortPathName(regdir)
+    }
+    return(regdir)
   }
 }
 
@@ -236,24 +246,32 @@ registry <- function(pkg = NULL){
 #' @rdname registry
 data_dir <- function(pkg = NULL){
   if (is.null(pkg)){
-    y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_data_dir", fsep = "/")
+    if (tolower(Sys.getenv("POLMINER_USE_TMP_REGISTRY")) != "false"){
+      y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_data_dir", fsep = "/")
+    } else {
+      y <- file.path(dirname(Sys.getenv("CORPUS_REGISTRY")), "indexed_corpora")
+    }
     return(y)
   } else {
     stopifnot(
       is.character(pkg),
       length(pkg) == 1L
     )
-    if (!pkg %in% rownames(installed.packages())){
-      warning(sprintf("package '%s' does not exist", pkg))
+    
+    pkg_home <- system.file(package = pkg)
+    if (pkg_home == ""){
+      warning(sprintf("Package '%s' is not available for R version %s.", pkg, getRversion()))
       return( NULL )
-    } else {
-      y <- system.file(package = pkg, "extdata", "cwb", "indexed_corpora")
-      if (y == ""){
-        warning(sprintf("no registry directory in package '%s'", pkg))
-        return( NULL )
-      } else {
-        return( y )
-      }
     }
+    data_dir <- file.path(pkg_home, "extdata", "cwb", "indexed_corpora")
+    if (isFALSE(file.exists(data_dir))){
+      warning(sprintf("Cannot find data directory (%s) in package %s.", data_dir, pkg))
+    }
+    if (stri_enc_mark(data_dir) != "ASCII"){
+      if (.Platform$OS.type == "windows") data_dir <- utils::shortPathName(data_dir)
+    }
+    return(data_dir)
+    
+    
   }
 }
