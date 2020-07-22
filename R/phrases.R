@@ -32,7 +32,7 @@ setMethod("as.phrases", "ngrams", function(.Object, ...){
     list(fmt = paste(rep('"%s"', times = .Object@n), collapse = " ")),
     as.list(.Object@stat[, cols, with = FALSE])
   )
-  queries <- do.call(sprintf, args)
+  queries <- sprintf("%s;", do.call(sprintf, args))
   query_check_results <- check_cqp_query(queries)
   if (isFALSE(all(query_check_results))){
     queries <- queries[query_check_results]
@@ -49,11 +49,11 @@ setMethod("as.phrases", "ngrams", function(.Object, ...){
 #' # Derive phrases from explicitly stated CQP queries
 #' 
 #' cqp_phrase_queries <- c(
-#'   '"oil" "revenue"',
-#'   '"Sheikh" "Aziz"',
-#'   '"Abdul" "Aziz"',
-#'   '"Saudi" "Arabia"',
-#'   '"oil" "markets"'
+#'   '"oil" "revenue";',
+#'   '"Sheikh" "Aziz";',
+#'   '"Abdul" "Aziz";',
+#'   '"Saudi" "Arabia";',
+#'   '"oil" "markets";'
 #' )
 #' reuters_phrases <- cpos("REUTERS", cqp_phrase_queries, p_attribute = "word") %>%
 #'   as.phrases(corpus = "REUTERS", enc = "latin1")
@@ -99,11 +99,11 @@ setMethod("as.character", "phrases", function(x, p_attribute){
 #' # Use the concatenate_phrases() function on a data.table
 #'  
 #' lexical_units_cqp <- c(
-#'   '"Deutsche.*" "Bundestag.*"',
-#'   '"sozial.*" "Gerechtigkeit"',
-#'   '"Ausschuss" "für" "Arbeit" "und" "Soziales"',
-#'   '"soziale.*" "Marktwirtschaft"',
-#'   '"freiheitliche.*" "Grundordnung"'
+#'   '"Deutsche.*" "Bundestag.*";',
+#'   '"sozial.*" "Gerechtigkeit";',
+#'   '"Ausschuss" "f.r" "Arbeit" "und" "Soziales";',
+#'   '"soziale.*" "Marktwirtschaft";',
+#'   '"freiheitliche.*" "Grundordnung";'
 #' )
 #' 
 #' phr <- cpos("GERMAPARLMINI", query = lexical_units_cqp, cqp = TRUE) %>%

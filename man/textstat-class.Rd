@@ -79,7 +79,8 @@ of a \code{textstat} class object.}
 
 \item{object}{a textstat object}
 
-\item{...}{Further arguments.}
+\item{...}{Argument that will be passed into a call of the \code{format} method
+on the object \code{x}.}
 
 \item{e1}{A \code{texstat} object.}
 
@@ -130,6 +131,16 @@ The \code{round()}-method looks up all numeric columns in the
   \code{data.table} in the \code{stat}-slot of the \code{textstat} object and
   rounds values of these columns to the number of decimal places specified by
   argument \code{digits}.
+
+The \code{knit_print} method will be called by knitr to render
+  `textstat` objects or objects inheriting from the `textstat` class as a
+  DataTable  \code{htmlwidget} when rendering a R Markdown document as html.
+  It will usually be necessary to explicitly state "render = knit_print" in
+  the chunk options. The option `polmineR.pagelength` controls the number of
+  lines displayed in the resulting `htmlwidget`. Note that including
+  htmlwidgets in html documents requires that pandoc is installed. To avoid
+  an error, a formatted \code{data.table} is returned by \code{knit_print} if
+  pandoc is not available.
 
 The \code{format()}-method returns a pretty-printed and minimized
   version of the \code{data.table} in the \code{stat}-slot of the

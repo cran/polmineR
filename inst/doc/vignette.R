@@ -17,8 +17,8 @@ corpus()
 #  options()[grep("polmineR", names(options()))]
 
 ## -----------------------------------------------------------------------------
-options("polmineR.left" = 15)
-options("polmineR.right" = 15)
+options("polmineR.left" = 5)
+options("polmineR.right" = 5)
 options("polmineR.mc" = FALSE)
 
 ## ---- echo = FALSE, message = FALSE-------------------------------------------
@@ -27,13 +27,13 @@ options("polmineR.pagelength" = 3L)
 ## ---- eval = TRUE, render = knit_print----------------------------------------
 kwic("REUTERS", "oil")
 
-## ---- render = knit_print-----------------------------------------------------
+## ---- eval = TRUE, render = knit_print----------------------------------------
 kwic("REUTERS", "oil", s_attributes = "places")
 
-## ---- render = knit_print-----------------------------------------------------
+## ---- eval = TRUE, render = knit_print----------------------------------------
 kwic("REUTERS", "oil", s_attributes = c("id", "places"))
 
-## ---- render = knit_print-----------------------------------------------------
+## ---- eval = TRUE, render = knit_print----------------------------------------
 kwic("REUTERS", '"oil" "price.*"')
 
 ## ---- eval = TRUE-------------------------------------------------------------
@@ -45,7 +45,7 @@ count("REUTERS", c('"United" "States"', '"Saudi" "Arabia.*"'), cqp = TRUE)
 oil <- dispersion("REUTERS", query = "oil", s_attribute = "id", progress = FALSE)
 saudi_arabia <- dispersion(
   "REUTERS", query = '"Saudi" "Arabia.*"',
-  sAttribute = "id", cqp = TRUE, progress = FALSE
+  s_attribute = "id", cqp = TRUE, progress = FALSE
   )
 
 ## ---- eval = TRUE-------------------------------------------------------------
@@ -56,7 +56,7 @@ oil <- cooccurrences("REUTERS", query = "oil")
 sa <- cooccurrences("REUTERS", query = '"Saudi" "Arabia.*"', left = 10, right = 10)
 top5 <- subset(oil, rank_ll <= 5)
 
-## ---- render = knit_print-----------------------------------------------------
+## ---- eval = rmarkdown::pandoc_available(), render = knit_print---------------
 top5
 
 ## ---- eval = TRUE-------------------------------------------------------------
@@ -84,13 +84,13 @@ df[1:5, c("word", "ll", "rank_ll")]
 q1 <- dispersion(saudi_arabia, query = 'oil', s_attribute = "id", progress = FALSE)
 q2 <- dispersion(saudi_arabia, query = c("oil", "barrel"), s_attribute = "id", progress = FALSE)
 
-## ---- eval = TRUE, message = FALSE--------------------------------------------
+## ---- eval = TRUE, message = FALSE, render = knit_print-----------------------
 saudi_arabia <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
 saudi_arabia <- enrich(saudi_arabia, p_attribute = "word")
 
 saudi_arabia_features <- features(saudi_arabia, "REUTERS", included = TRUE)
 saudi_arabia_features_min <- subset(saudi_arabia_features, rank_chisquare <= 10.83 & count_coi >= 5)
-as(round(saudi_arabia_features_min), "htmlwidget")
+saudi_arabia_features_min
 
 ## ---- eval = TRUE, message = FALSE--------------------------------------------
 df <- as.data.frame(saudi_arabia_features_min)

@@ -33,12 +33,7 @@
 
 \S4method{show}{kwic}(object)
 
-\S4method{knit_print}{kwic}(
-  x,
-  pagelength = getOption("polmineR.pagelength"),
-  options = knitr::opts_chunk,
-  ...
-)
+\S4method{knit_print}{kwic}(x, options = knitr::opts_chunk)
 
 \S4method{as.character}{kwic}(x, fmt = "<i>\%s</i>")
 
@@ -78,10 +73,6 @@
 \item{...}{Used for backwards compatibility.}
 
 \item{object}{A \code{kwic} class object.}
-
-\item{pagelength}{An \code{integer} value, the number of kwic lines displayed
-per page in the \code{datatables} htmlwidget that is returned when
-\code{knit_print} is called on a \code{kwic} object.}
 
 \item{options}{Chunk options.}
 
@@ -129,10 +120,15 @@ Applying the \code{count}-method on a \code{kwic} object will return
   a \code{count} object with the evaluation of the left and right context of
   the match.
 
-The \code{knit_print} will be called by knitr when processing code
-  chunks in Rmarkdown documents to include a \code{htmlwidget} into the
-  resulting html document. It may be necessary to explicitly state
-  "render=knit_print" in the chunk options.
+The \code{knit_print} method will be called by knitr to render
+  `kwic` objects as a DataTable  \code{htmlwidget} when rendering a R
+  Markdown document as html. It will usually be necessary to explicitly state
+  "render = knit_print" in the chunk options. The option
+  `polmineR.pagelength` controls the number of lines displayed in the
+  resulting `htmlwidget`. Note that including htmlwidgets in html documents
+  requires that pandoc is installed. To avoid an error, a formatted
+  \code{data.table} is returned by \code{knit_print} if pandoc is not
+  available.
 
 The \code{as.character}-method will return a list of
   \code{character} vectors, concatenating the columns "left", "node" and

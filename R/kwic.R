@@ -58,20 +58,21 @@ setMethod("show", "kwic", function(object){
 })
 
 
-#' @details The \code{knit_print} will be called by knitr when processing code
-#'   chunks in Rmarkdown documents to include a \code{htmlwidget} into the
-#'   resulting html document. It may be necessary to explicitly state
-#'   "render=knit_print" in the chunk options.
+#' @details The \code{knit_print} method will be called by knitr to render
+#'   `kwic` objects as a DataTable  \code{htmlwidget} when rendering a R
+#'   Markdown document as html. It will usually be necessary to explicitly state
+#'   "render = knit_print" in the chunk options. The option
+#'   `polmineR.pagelength` controls the number of lines displayed in the
+#'   resulting `htmlwidget`. Note that including htmlwidgets in html documents
+#'   requires that pandoc is installed. To avoid an error, a formatted
+#'   \code{data.table} is returned by \code{knit_print} if pandoc is not
+#'   available.
 #' @importFrom knitr knit_print
 #' @exportMethod knit_print
 #' @rdname kwic-class
-#' @param pagelength An \code{integer} value, the number of kwic lines displayed
-#'   per page in the \code{datatables} htmlwidget that is returned when
-#'   \code{knit_print} is called on a \code{kwic} object.
 #' @param options Chunk options.   
-setMethod("knit_print", "kwic", function(x, pagelength = getOption("polmineR.pagelength"), options = knitr::opts_chunk, ...){
-  y <- as(x, "htmlwidget")
-  knit_print(y, options = options)
+setMethod("knit_print", "kwic", function(x, options = knitr::opts_chunk){
+  callNextMethod(x = x, options = options, node_color = character(), align = FALSE, lineview = FALSE)
 })
 
 
