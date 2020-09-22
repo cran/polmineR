@@ -1,8 +1,8 @@
 Package: polmineR
 Type: Package
 Title: Verbs and Nouns for Corpus Analysis
-Version: 0.8.4
-Date: 2020-07-22
+Version: 0.8.5
+Date: 2020-09-22
 Authors@R: c(
   person("Andreas", "Blaette", role = c("aut", "cre"), email = "andreas.blaette@uni-due.de", comment = c(ORCID = "0000-0001-8970-8010")),
   person("Christoph", "Leonhardt", role = "ctb")
@@ -28,7 +28,7 @@ Description: Package for corpus analysis using the Corpus Workbench
 BugReports: https://github.com/PolMine/polmineR/issues
 Biarch: true
 License: GPL-3
-URL: https://www.github.com/PolMine/polmineR
+URL: https://github.com/PolMine/polmineR
 Encoding: UTF-8
 Collate: 'polmineR.R' 'S4classes.R' 'p_attributes.R' 'textstat.R'
         'bundle.R' 'corpus.R' 'count.R' 'partition.R'
@@ -46,9 +46,9 @@ Collate: 'polmineR.R' 'S4classes.R' 'p_attributes.R' 'textstat.R'
         'weigh.R' 'zzz.R'
 RoxygenNote: 7.1.1
 NeedsCompilation: no
-Packaged: 2020-07-22 10:28:55 UTC; andreasblaette
+Packaged: 2020-09-22 06:55:13 UTC; andreasblaette
 Author: Andreas Blaette [aut, cre] (<https://orcid.org/0000-0001-8970-8010>),
   Christoph Leonhardt [ctb]
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
 Repository: CRAN
-Date/Publication: 2020-07-22 10:50:03 UTC
+Date/Publication: 2020-09-22 07:20:03 UTC
