@@ -18,17 +18,34 @@ kwicUiInput <- function(drop = NULL){
     cqp = radioButtons("kwic_cqp", "CQP", choices = list("yes", "no"), selected = "no", inline = TRUE),
     positivelist = textInput("kwic_positivelist", label = "positivelist", value = ""),
     s_attribute = selectInput(
-      "kwic_meta", "s_attribute",
+      "kwic_s_attributes", "s_attribute",
       choices = s_attributes(corpus()[["corpus"]][1]),
       multiple = TRUE
+    ),
+    region = conditionalPanel(
+      condition = "input.kwic_show_regions == 'show'",
+      radioButtons(
+        "kwic_region", "region", 
+        choices = as.list(c(
+          "none",
+          getOption("polmineR.segments")[getOption("polmineR.segments") %in% s_attributes(corpus()[["corpus"]][1])]
+        )),
+        selected = "none",
+        inline = TRUE
+      )
     ),
     p_attribute = selectInput(
       "kwic_p_attribute", "p_attribute",
       choices = p_attributes(corpus()[["corpus"]][1]),
       selected = "word"
     ),
-    left = sliderInput("kwic_left", "left", min = 1, max = 25, value = getOption("polmineR.left")),
-    right = sliderInput("kwic_right", "right", min = 1, max = 25, value = getOption("polmineR.right")),
+    left = sliderInput("kwic_left", "left", min = 0, max = 25, value = getOption("polmineR.left")),
+    right = sliderInput("kwic_right", "right", min = 0, max = 25, value = getOption("polmineR.right")),
+    boundary = selectInput(
+      "kwic_boundary", "boundary", 
+      choices = c("", s_attributes(corpus()[["corpus"]][1])),
+      multiple = FALSE
+    ),
     br3 = br()
   )
   if (!is.null(drop)) for (x in drop) divs[[x]] <- NULL
@@ -50,7 +67,23 @@ kwicServer <- function(input, output, session, ...){
       new_sAttr <- s_attributes(values$partitions[[input$kwic_partition]]@corpus)
       new_pAttr <- p_attributes(values$partitions[[input$kwic_partition]]@corpus)
       updateSelectInput(session, "kwic_p_attribute", choices = new_pAttr, selected = NULL)
-      updateSelectInput(session, "kwic_meta", choices = new_sAttr, selected = NULL)
+      updateSelectInput(session, "kwic_s_attributes", choices = new_sAttr, selected = NULL)
+      updateSelectInput(session, "kwic_boundary", choices = c("", new_sAttr), selected = NULL)
+      
+      updateRadioButtons(
+        session, "kwic_region",
+        choices = as.list(c(
+          "none",
+          getOption("polmineR.segments")[getOption("polmineR.segments") %in% new_sAttr]
+        )),
+        selected = "none", inline = TRUE
+      )
+      if (any(getOption("polmineR.segments") %in% new_sAttr)){
+        shinyjs::runjs('Shiny.onInputChange("kwic_show_regions", "show");')
+      } else {
+        shinyjs::runjs('Shiny.onInputChange("kwic_show_regions", "hide");')
+      }
+
     }
   })
   
@@ -59,14 +92,29 @@ kwicServer <- function(input, output, session, ...){
     new_sAttr <- s_attributes(input$kwic_corpus)
     new_pAttr <- p_attributes(input$kwic_corpus)
     updateSelectInput(session, "kwic_p_attribute", choices = new_pAttr, selected = NULL)
-    updateSelectInput(session, "kwic_meta", choices = new_sAttr, selected = NULL)
+    updateSelectInput(session, "kwic_s_attributes", choices = new_sAttr, selected = NULL)
+    updateSelectInput(session, "kwic_boundary", choices = c("", new_sAttr), selected = NULL)
+    
+    updateRadioButtons(
+      session, "kwic_region",
+      choices = as.list(c(
+        "none", getOption("polmineR.segments")[getOption("polmineR.segments") %in% new_sAttr]
+      )),
+      selected = "none", inline = TRUE
+    )
+    
+    if (any(getOption("polmineR.segments") %in% new_sAttr)){
+      shinyjs::runjs('Shiny.onInputChange("kwic_show_regions", "show");')
+    } else {
+      shinyjs::runjs('Shiny.onInputChange("kwic_show_regions", "hide");')
+    }
   })
   
   observeEvent(input$kwic_code, {
     format_string <- if (input$kwic_positivelist == ""){
-      'kwic(\n  %s,\n  query = "%s",\n  cqp = %s,\n  %sleft = %s,\n  right = %s\n)' 
+      'kwic(\n  %s,\n  query = "%s",\n  cqp = %s,\n  boundary = %s,\n  region = %s,\n  %sleft = %s,\n  right = %s\n)' 
     } else {
-      'kwic(\n  %s,\n  query = "%s",\n  cqp = %s,\n  positivelist = %s,\n  left = %s,\n  right = %s\n)' 
+      'kwic(\n  %s,\n  query = "%s",\n  cqp = %s,\n  boundary = %s,\n  region = %s,\n  positivelist = %s,\n  left = %s,\n  right = %s\n)' 
     }
 
     snippet <- sprintf(
@@ -74,7 +122,10 @@ kwicServer <- function(input, output, session, ...){
       if (input$kwic_object == "corpus") sprintf('"%s"', input$kwic_corpus)  else input$kwic_partition,
       input$kwic_query,
       if (input$kwic_cqp == "yes") "TRUE" else "FALSE", 
-      if (input$kwic_positivelist != "") sprintf("c(%s)", paste(sprintf('"%s"', strsplit(x = input$kwic_positivelist, split = "(;\\s*|,\\s*)")[[1]]), collapse = ", ")) else "",
+      if (input$kwic_boundary == "") "NULL" else sprintf('"%s"', input$kwic_boundary),
+      if (input$kwic_region == "none") "NULL" else sprintf('"%s"', input$kwic_region),
+      if (input$kwic_positivelist != "")
+        sprintf("c(%s)", paste(sprintf('"%s"', strsplit(x = input$kwic_positivelist, split = "(;\\s*|,\\s*)")[[1]]), collapse = ", ")) else "",
       input$kwic_left,
       input$kwic_right
     )
@@ -110,9 +161,11 @@ kwicServer <- function(input, output, session, ...){
               query = rectifySpecialChars(input$kwic_query),
               cqp = if (input$kwic_cqp == "yes") TRUE else FALSE,
               p_attribute = if (is.null(input$kwic_p_attribute)) "word" else input$kwic_p_attribute,
+              region = if (input$kwic_region == "none") NULL else input$kwic_region,
+              boundary = if (input$kwic_boundary == "") NULL else input$kwic_boundary,
               left = input$kwic_left,
               right = input$kwic_right,
-              meta = input$kwic_meta,
+              s_attributes = input$kwic_s_attributes,
               verbose = "shiny",
               positivelist = poslist,
               cpos = TRUE # required for reading
@@ -128,17 +181,6 @@ kwicServer <- function(input, output, session, ...){
           retval <- data.frame(left = character(), node = character(), right = character())
         } else {
           retval <- as(values[["kwic"]], "htmlwidget")
-          # tab <- values[["kwic"]]@stat
-          # if ("match_id" %in% colnames(tab)) tab[, "match_id" := NULL]
-          # if (length(input$kwic_meta) == 0L){
-          #   retval <- as()
-          # } else if (length(input$kwic_meta)){
-          #   metaRow <- unlist(lapply(
-          #     1L:nrow(tab),
-          #     function(i) paste(unlist(lapply(tab[i,1L:length(input$kwic_meta)], as.character)), collapse = " | ")
-          #   ))
-          #   retval <- data.frame(meta = metaRow, tab[,(length(input$kwic_meta) + 1L):ncol(tab)])
-          # }
         }
         
         
@@ -152,24 +194,66 @@ kwicServer <- function(input, output, session, ...){
   })
   
   observeEvent(
+    input$kwic_region,
+    {
+      if (input$kwic_region %in% getOption("polmineR.segments")){
+        updateSliderInput(inputId = "kwic_left", value = 0L)
+        updateSliderInput(inputId = "kwic_right", value = 0L)
+      } else {
+        updateSliderInput(
+          inputId = "kwic_left", value = getOption("polmineR.left")
+        )
+        updateSliderInput(
+          inputId = "kwic_right", value = getOption("polmineR.right")
+        )
+      }
+    }
+    
+  )
+  
+  observeEvent(
     input$kwic_table_rows_selected,
     {
       if (length(input$kwic_table_rows_selected) > 0){
         corpus_properties <- registry_get_properties(corpus = values[["kwic"]]@corpus)
         corpusType <- if ("type" %in% names(corpus_properties)) corpus_properties["type"] else NULL
         if (debug) assign("kwicObject", value = values[["kwic"]], envir = .GlobalEnv)
-        fulltext <- polmineR::html(
-          values[["kwic"]],
-          input$kwic_table_rows_selected,
-          type = corpusType,
-          verbose = TRUE
-          )
-        if (debug) message("html generated")
-        fulltext <- htmltools::HTML(gsub("<head>.*?</head>", "", as.character(fulltext)))
-        fulltext <- htmltools::HTML(gsub('<blockquote>', '<blockquote style="font-size:14px">', as.character(fulltext)))
-        output$read_fulltext <- renderUI(fulltext)
         
-        updateNavbarPage(session, "polmineR", selected = "read")
+        kwic_metadata <- values[["kwic"]]@metadata
+        template_metadata <- get_template(values[["kwic"]])[["metadata"]]
+        if (length(kwic_metadata) > 0L || length(template_metadata) > 0L){
+          withProgress(
+            fulltext <- polmineR::html(
+            values[["kwic"]],
+            input$kwic_table_rows_selected,
+            type = corpusType,
+            verbose = TRUE
+          ))
+          if (debug) message("html generated")
+          fulltext <- htmltools::HTML(gsub("<head>.*?</head>", "", as.character(fulltext)))
+          fulltext <- htmltools::HTML(gsub('<blockquote>', '<blockquote style="font-size:14px">', as.character(fulltext)))
+          output$read_fulltext <- renderUI(fulltext)
+          
+          updateNavbarPage(session, "polmineR", selected = "read")
+        } else {
+          showModal(
+            modalDialog(
+              title = "s-attribute definition missing",
+              HTML(
+                paste(
+                  c(
+                    "Generating fulltext output requires the definition of a ",
+                    "structural attribute that will define the region of the ",
+                    "query match to be displayed. This is possible either via ",
+                    "a template or s_attributes included in the kwic table. ",
+                    "Condition not met."
+                  ), collapse = ""
+                )
+              )
+            )
+          )
+        }
+        
       }
     })
   

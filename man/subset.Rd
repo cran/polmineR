@@ -33,13 +33,17 @@ for s-attributes must match exactly.}
 \item{...}{An expression that will be used to create a subcorpus from
 s-attributes.}
 }
+\value{
+A \code{subcorpus} object. If the expression provided by argument \code{subset}
+includes undefined s-attributes, a warning is issued and the return value
+is \code{NULL}.
+}
 \description{
 The structural attributes of a corpus (s-attributes) can be used
-  to generate subcorpora (i.e. a \code{subcorpus} class object) by applying
-  the \code{subset}-method. To obtain a \code{subcorpus}, the
-  \code{subset}-method can be applied on a corpus represented by a
-  \code{corpus} object, a length-one \code{character} vector (as a shortcut),
-  and on a \code{subcorpus} object.
+to generate subcorpora (i.e. a \code{subcorpus} class object) by applying the
+\code{subset}-method. To obtain a \code{subcorpus}, the \code{subset}-method can be
+applied on a corpus represented by a \code{corpus} object, a length-one
+\code{character} vector (as a shortcut), and on a \code{subcorpus} object.
 }
 \examples{
 use("polmineR")
@@ -47,13 +51,13 @@ use("polmineR")
 # examples for standard and non-standard evaluation
 a <- corpus("GERMAPARLMINI")
 
-# subsetting a corpus object using non-standard evaluation 
+# subsetting a corpus object using non-standard evaluation
 sc <- subset(a, speaker == "Angela Dorothea Merkel")
 sc <- subset(a, speaker == "Angela Dorothea Merkel" & date == "2009-10-28")
 sc <- subset(a, grepl("Merkel", speaker))
 sc <- subset(a, grepl("Merkel", speaker) & date == "2009-10-28")
 
-# subsetting corpus specified by character vector 
+# subsetting corpus specified by character vector
 sc <- subset("GERMAPARLMINI", grepl("Merkel", speaker))
 sc <- subset("GERMAPARLMINI", speaker == "Angela Dorothea Merkel")
 sc <- subset("GERMAPARLMINI", speaker == "Angela Dorothea Merkel" & date == "2009-10-28")
@@ -84,9 +88,9 @@ b <- lapply(
 sapply(b, size)
 }
 \seealso{
-The methods applicable for the \code{subcorpus} object resulting
-  from subsetting a corpus or subcorpus are described in the documentation of
-  the \code{\link{subcorpus-class}}. Note that the \code{subset}-method can also be
-  applied to \code{\link{textstat-class}} objects (and objects inheriting from
-  this class).
+The methods applicable for the \code{subcorpus} object resulting from
+subsetting a corpus or subcorpus are described in the documentation of the
+\verb{\link{subcorpus-class}}. Note that the \code{subset}-method can also be applied
+to \code{\link{textstat-class}} objects (and objects inheriting from this
+class).
 }

@@ -42,20 +42,24 @@ setMethod("format", "cooccurrences", function(x, digits = 2L){
 })
 
 
-#' @param x A \code{features} object.
+#' @param x A `features` object.
 #' @param digits Integer indicating the number of decimal places (round) or
 #'   significant digits (signif) to be used.
 #' @rdname features-class
 setMethod("format", "features", function(x, digits = 2L){
   dt <- copy(x@stat)
   round(dt, digits = digits)
-  cols_to_keep <- c(
+  
+  for (col in grep("_id\\.", colnames(dt), value = TRUE)) dt[, (col) := NULL]
+
+  colorder <- c(
     paste("rank", x@method, sep = "_"),
-    x@p_attribute,
+    grep(x@p_attribute, colnames(dt), value = TRUE),
     "count_coi", "count_ref", "exp_coi",
-    x@method
+    x@method,
+    x@annotation_cols
   )
-  dt[, cols_to_keep, with = FALSE]
+  dt[, colorder, with = FALSE]
 })
 
 

@@ -18,7 +18,8 @@
     "polmineR.cutoff" = 5000,
     "polmineR.corpus_registry" = Sys.getenv("CORPUS_REGISTRY"),
     "polmineR.shiny" = FALSE,
-    "polmineR.warn.size" = FALSE
+    "polmineR.warn.size" = FALSE,
+    "polmineR.segments" = c("s", "p")
   )
   
   # Upon loading the package, registry files available in the polmineR package, or in a directory
@@ -30,12 +31,12 @@
   # a subdirectory of the inst directory. Therefore both options are considered whether extdata
   # is in the inst directory, or immediately in main directory of the package.
   pkg_registry_dir_alternatives <- c(
-    file.path(normalizePath(libname, winslash = "/"), pkgname, "extdata", "cwb", "registry", fsep = "/"),
-    file.path(normalizePath(libname, winslash = "/"), pkgname, "inst", "extdata", "cwb", "registry", fsep = "/")
+    path(libname, pkgname, "extdata", "cwb", "registry"),
+    path(libname, pkgname, "inst", "extdata", "cwb", "registry")
   )
   pkg_registry_dir <- pkg_registry_dir_alternatives[dir.exists(pkg_registry_dir_alternatives)]
   
-  pkg_indexed_corpora_dir <- file.path(normalizePath(libname, winslash = "/"), pkgname, "extdata", "cwb", "indexed_corpora", fsep = "/")
+  pkg_indexed_corpora_dir <- path(libname, pkgname, "extdata", "cwb", "indexed_corpora")
   
   polmineR_registry_dir <- registry()
   
@@ -47,8 +48,8 @@
     if (Sys.getenv("CORPUS_REGISTRY") != ""){
       for (corpus in list.files(Sys.getenv("CORPUS_REGISTRY"), full.names = FALSE)){
         file.copy(
-          from = file.path(Sys.getenv("CORPUS_REGISTRY"), corpus),
-          to = file.path(polmineR_registry_dir, corpus)
+          from = path(Sys.getenv("CORPUS_REGISTRY"), corpus),
+          to = path(polmineR_registry_dir, corpus)
         )
       }
     }
@@ -58,7 +59,7 @@
         corpus = corpus,
         registry = pkg_registry_dir,
         registry_new = polmineR_registry_dir,
-        home_dir_new = file.path(pkg_indexed_corpora_dir, tolower(corpus))
+        home_dir_new = path(pkg_indexed_corpora_dir, tolower(corpus))
       )
     }
     
@@ -75,6 +76,15 @@
 #' @importFrom utils packageVersion
 .onAttach <- function(libname, pkgname){
 
+  if (isFALSE(l10n_info()[["UTF-8"]]) && is.na(localeToCharset()[1])){
+    packageStartupMessage(
+      "Cannot guess session character set by using 'localeToCharset()' (yields NA). ",
+      "To avoid errors, it will be assumed that 'UTF-8' is applicable. ",
+      "Please adjust locale to prevent unwanted behavior and note that LC_CTYPE needs to ",
+      "be set such that it can be processed by 'localeToCharset()'."
+    )
+  }
+  
   if (Sys.getlocale() == "C"){
     if (Sys.info()["sysname"] == "Darwin"){
       packageStartupMessage(
@@ -97,7 +107,7 @@
 
 }
 
-.onDetach <- function(libpath){
+.onUnload <- function(libpath){
   
   # Assign value of system variable CORPUS_REGISTRY it had before loading polmineR
   Sys.setenv("CORPUS_REGISTRY" = getOption("polmineR.corpus_registry"))

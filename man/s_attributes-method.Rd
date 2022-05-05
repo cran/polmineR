@@ -11,6 +11,7 @@
 \alias{s_attributes,call-method}
 \alias{s_attributes,remote_corpus-method}
 \alias{s_attributes,remote_partition-method}
+\alias{s_attributes,data.table-method}
 \title{Get s-attributes.}
 \usage{
 s_attributes(.Object, ...)
@@ -30,6 +31,8 @@ s_attributes(.Object, ...)
 \S4method{s_attributes}{remote_corpus}(.Object, ...)
 
 \S4method{s_attributes}{remote_partition}(.Object, ...)
+
+\S4method{s_attributes}{data.table}(.Object, corpus, s_attribute, registry)
 }
 \arguments{
 \item{.Object}{A \code{corpus}, \code{subcorpus}, \code{partition} object, or
@@ -51,6 +54,10 @@ value by applying a regex.}
 
 \item{corpus}{A \code{corpus}-object or a length one character vector
 denoting a corpus.}
+
+\item{registry}{The registry directory with the registry file defining
+\code{corpus}. If missing, the registry directory that can be derived using
+\code{RcppCWB::corpus_registry_dir()} is used.}
 }
 \value{
 A character vector (s-attributes, or values of s-attributes).
@@ -58,8 +65,8 @@ A character vector (s-attributes, or values of s-attributes).
 \description{
 Structural annotations (s-attributes) of a corpus capture metainformation for
 regions of tokens. The \code{s_attributes}-method offers high-level access to
-the s-attributes present in a \code{corpus} or \code{subcorpus}, or the values of
-s-attributes in a \code{corpus}/\code{partition}.
+the s-attributes present in a \code{corpus} or \code{subcorpus}, or the
+values of s-attributes in a \code{corpus}/\code{partition}.
 }
 \details{
 Importing XML into the Corpus Workbench (CWB) turns elements and element
@@ -76,15 +83,21 @@ If argument \code{unique} is \code{FALSE}, the full sequence of the
 s_attributes is returned, which is a useful building block for decoding a
 corpus.
 
-If argument \code{s_attributes} is a character providing several s-attributes, the method
-will return a \code{data.table}. If \code{unique} is \code{TRUE}, all unique
-combinations of the s-attributes will be reported by the \code{data.table}.
+If argument \code{s_attributes} is a character providing several
+s-attributes, the method will return a \code{data.table}. If \code{unique} is
+\code{TRUE}, all unique combinations of the s-attributes will be reported by
+the \code{data.table}.
+
+If the corpus is based on a nested XML structure, the order of items on the
+\code{s_attribute} vector matters. The method for \code{corpus} objects will take the
+first s-attribute as the benchmark and assume that further s-attributes are
+XML ancestors of the node.
 
 If \code{.Object} is a call, the \code{s_attributes}-method will
-  return a character vector with the s-attributes occurring in the call. This
-  usage is relevant internally to implement the \code{subset} method to
-  generate a \code{subcorpus} using non-standard evaluation. Usually it will
-  not be relevant in an interactive session.
+return a character vector with the s-attributes occurring in the call. This
+usage is relevant internally to implement the \code{subset} method to
+generate a \code{subcorpus} using non-standard evaluation. Usually it will
+not be relevant in an interactive session.
 }
 \examples{
 use("polmineR")

@@ -30,18 +30,23 @@ setMethod("split", "partition", function(x, gap, ...){
           strucs = struc_list[[i]],
           cpos = matrix(data = cpos_list[[i]], byrow = FALSE, ncol = 2L),
           corpus = x@corpus,
+          data_dir = x@data_dir,
+          registry_dir = x@registry_dir,
+          info_file = x@info_file,
+          template = x@template,
           encoding = x@encoding,
           s_attributes = x@s_attributes,
           xml = x@xml, s_attribute_strucs = x@s_attribute_strucs,
           explanation = "partition results from split, s-attributes do not necessarily define partition",
-          name = paste(x@name, i, collapse = "_", sep = ""),
+          name = paste(x@name, i, collapse = "_", sep = "_"),
+          # name = as.character(i),
           stat = data.table()
         )
         p@size <- size(p)
         p
       })
   } else {
-    x@name <- paste(x@name, 1, collapse = "_", sep = "")
+    x@name <- paste(x@name, 1, collapse = "_", sep = "_")
     y_list <- list(x)
   }
   names(y_list) <- unlist(lapply(y_list, function(y) y@name))
@@ -72,16 +77,20 @@ setMethod("split", "subcorpus", function(
   retval_class <- if (isTRUE(partition_bundle_call)) "partition_bundle" else "subcorpus_bundle"
   obj_type <- if (isTRUE(partition_bundle_call)) "partition" else "subcorpus"
   new_class <- if (length(x@type) == 0L) obj_type else paste(x@type, obj_type, sep = "_")
-
-  y <- new(
-    retval_class,
-    corpus = x@corpus, s_attributes_fixed = x@s_attributes, encoding = x@encoding
-  )
+  
+  y <- as(as(x, "corpus"), retval_class)
+  y@s_attributes_fixed <- x@s_attributes
   
   if (x@xml == "nested") stop("splitting not yet implemented for nested XML")
   
-  strucs <- cl_cpos2struc(corpus = x@corpus, s_attribute = s_attribute, cpos = x@cpos[,1], registry = registry())
-  strucs_values <- cl_struc2str(corpus = x@corpus, s_attribute = s_attribute, struc = strucs, registry = registry())
+  strucs <- cl_cpos2struc(
+    corpus = x@corpus, registry = x@registry_dir,
+    s_attribute = s_attribute, cpos = x@cpos[,1]
+  )
+  strucs_values <- cl_struc2str(
+    corpus = x@corpus, registry = x@registry_dir,
+    s_attribute = s_attribute, struc = strucs
+  )
   strucs_values <- as.nativeEnc(strucs_values, from = x@encoding)
   
   cpos_list <- split(x@cpos, strucs_values)
@@ -93,23 +102,19 @@ setMethod("split", "subcorpus", function(
     seq_along(cpos_list),
     function(i){
       m <- matrix(cpos_list[[i]], ncol = 2L, byrow = FALSE)
-      y <- new(
-        new_class,
-        corpus = x@corpus,
-        encoding = x@encoding,
-        name = names(cpos_list)[[i]],
-        cpos = m,
-        strucs = struc_list[[i]],
-        s_attribute_strucs = s_attribute,
-        s_attributes = c(x@s_attributes, setNames(list(names(cpos_list)[[i]]), s_attribute)),
-        xml = "flat",
-        size = sum((m[,2] + 1L) - m[,1])
+      y <- as(x, new_class)
+      y@name <- names(cpos_list)[[i]]
+      y@cpos <- m
+      y@strucs <- struc_list[[i]]
+      y@s_attribute_strucs <- s_attribute
+      y@s_attributes <- c(
+        x@s_attributes,
+        setNames(list(names(cpos_list)[[i]]), s_attribute)
       )
-      if (grepl("subcorpus", obj_type)){
-        y@data_dir = x@data_dir
-        y@type = x@type
-        
-      }
+      y@xml = "flat"
+      y@size = sum((m[,2] + 1L) - m[,1])
+      y@type = x@type
+      
       y
     }
   )
@@ -138,13 +143,30 @@ setMethod("split", "corpus", function(
   partition_bundle_call <- if (5L %in% which(call_history == "partition_bundle")) TRUE else FALSE
   retval_class <- if (isTRUE(partition_bundle_call)) "partition_bundle" else "subcorpus_bundle"
   obj_type <- if (isTRUE(partition_bundle_call)) "partition" else "subcorpus"
-  new_class <- if (length(x@type) == 0L) obj_type else paste(x@type, obj_type, sep = "_")
+  new_class <- if (is.na(x@type)) obj_type else paste(x@type, obj_type, sep = "_")
   
-  y <- new(retval_class, corpus = x@corpus, encoding = x@encoding)
-  struc_size <- cl_attribute_size(corpus = x@corpus, attribute = s_attribute, attribute_type = "s", registry = registry())
+  y <- new(
+    retval_class,
+    corpus = x@corpus,
+#    registry_dir = x@registry_dir,
+#    data_dir = x@data_dir,
+#    info_file = x@info_file,
+#    template = x@template,
+    encoding = x@encoding
+  )
+  struc_size <- cl_attribute_size(
+    corpus = x@corpus, registry = x@registry_dir,
+    attribute = s_attribute, attribute_type = "s"
+  )
   strucs <- 0L:(struc_size - 1L)
-  cpos_matrix <- get_region_matrix(corpus = x@corpus, s_attribute = s_attribute, strucs = strucs, registry = registry())
-  strucs_values <- cl_struc2str(corpus = x@corpus, s_attribute = s_attribute, struc = strucs, registry = registry())
+  cpos_matrix <- get_region_matrix(
+    corpus = x@corpus, registry = x@registry_dir,
+    s_attribute = s_attribute, strucs = strucs
+  )
+  strucs_values <- cl_struc2str(
+    corpus = x@corpus, registry = x@registry_dir,
+    s_attribute = s_attribute, struc = strucs
+  )
   strucs_values <- as.nativeEnc(strucs_values, from = x@encoding)
   
   cpos_list <- split(cpos_matrix, strucs_values)
@@ -158,22 +180,16 @@ setMethod("split", "corpus", function(
     seq_along(cpos_list),
     function(i){
       m <- matrix(cpos_list[[i]], ncol = 2L, byrow = FALSE)
-      y <- new(
-        new_class,
-        corpus = x@corpus,
-        encoding = x@encoding,
-        name = names(cpos_list)[[i]],
-        cpos = m,
-        strucs = struc_list[[i]],
-        s_attributes = setNames(list(names(cpos_list)[[i]]), s_attribute),
-        s_attribute_strucs = s_attribute,
-        xml = xml,
-        size = sum((m[,2] + 1L) - m[,1])
-      )
-      if (obj_type == "subcorpus"){
-        y@data_dir = x@data_dir
-        y@type = x@type
-      }
+      y <- as(x, new_class)
+      
+      y@name <- names(cpos_list)[[i]]
+      y@cpos = m
+      y@strucs = struc_list[[i]]
+      y@s_attributes <- setNames(list(names(cpos_list)[[i]]), s_attribute)
+      y@s_attribute_strucs <- s_attribute
+      y@xml = xml
+      y@size = sum((m[,2] + 1L) - m[,1])
+      y@type = x@type
       y
     }
   )

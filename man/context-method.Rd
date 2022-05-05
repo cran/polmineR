@@ -24,13 +24,14 @@ context(.Object, ...)
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   stoplist = NULL,
   positivelist = NULL,
   regex = FALSE,
   count = TRUE,
   mc = getOption("polmineR.mc"),
-  verbose = TRUE,
+  verbose = FALSE,
   progress = TRUE,
   ...
 )
@@ -43,13 +44,14 @@ context(.Object, ...)
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   stoplist = NULL,
   positivelist = NULL,
   regex = FALSE,
   count = TRUE,
   mc = getOption("polmineR.mc"),
-  verbose = TRUE,
+  verbose = FALSE,
   progress = TRUE,
   ...
 )
@@ -62,24 +64,34 @@ context(.Object, ...)
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   stoplist = NULL,
   positivelist = NULL,
   regex = FALSE,
   count = TRUE,
   mc = getOption("polmineR.mc"),
-  verbose = TRUE,
+  verbose = FALSE,
   progress = TRUE,
   ...
 )
 
-\S4method{context}{matrix}(.Object, corpus, left, right)
+\S4method{context}{matrix}(
+  .Object,
+  corpus,
+  left,
+  right,
+  p_attribute,
+  region = NULL,
+  boundary = NULL
+)
 
 \S4method{context}{corpus}(
   .Object,
   query,
   cqp = is.cqp,
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
@@ -88,7 +100,7 @@ context(.Object, ...)
   regex = FALSE,
   count = TRUE,
   mc = getOption("polmineR.mc"),
-  verbose = TRUE,
+  verbose = FALSE,
   progress = TRUE,
   ...
 )
@@ -98,6 +110,7 @@ context(.Object, ...)
   query,
   cqp = is.cqp,
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
@@ -106,32 +119,56 @@ context(.Object, ...)
   regex = FALSE,
   count = TRUE,
   mc = getOption("polmineR.mc"),
-  verbose = TRUE,
+  verbose = FALSE,
   progress = TRUE,
   ...
 )
 
-\S4method{context}{partition_bundle}(.Object, query, p_attribute, verbose = TRUE, ...)
+\S4method{context}{partition_bundle}(
+  .Object,
+  query,
+  p_attribute,
+  stoplist = NULL,
+  positivelist = NULL,
+  regex = FALSE,
+  verbose = TRUE,
+  ...
+)
 
 \S4method{context}{cooccurrences}(.Object, query, check = TRUE, complete = FALSE)
 }
 \arguments{
 \item{.Object}{a partition or a partition_bundle object}
 
-\item{...}{further parameters}
+\item{...}{Further parameters.}
 
 \item{query}{A query, which may by a character vector or a CQP query.}
 
 \item{cqp}{defaults to is.cqp-function, or provide TRUE/FALSE}
 
-\item{check}{A \code{logical} value, whether to check validity of CQP query
-using \code{check_cqp_query}.}
+\item{check}{A \code{logical} value, whether to check validity of CQP query using
+\code{check_cqp_query}.}
 
-\item{left}{Number of tokens to the left of the query match.}
+\item{left}{A single \code{integer} value defining the number of tokens to the
+left of the query match to include in the context. Advanced usage: (a) If
+\code{left} is a length-one \code{character} vector stating an s-attribute, the
+context will be expanded to the (left) boundary of the region where the
+match occurs. (b) If \code{left} is a named length-one \code{integer} vector, this
+value is the number regions of the structural attribute referred to by the
+vector's name  to the left of the query match that are included in the
+context.}
 
-\item{right}{Number of tokens to the right of the query match.}
+\item{right}{A single \code{integer} value, a length-one \code{character} vector or a
+named length-one \code{integer} value, with equivalent effects to argument
+\code{left}.}
 
 \item{p_attribute}{The p-attribute of the query.}
+
+\item{region}{An s-attribute, given by a length-one \code{character} vector.
+The context of query matches will be expanded to the left and right
+boundary of the region where the match is located. If arguments \code{left} and
+\code{right} are > 1, the left and right boundaries of the respective number of
+regions will be identified.}
 
 \item{boundary}{If provided, a length-one character vector specifying a
 s-attribute. It will be checked that corpus positions do not extend beyond
@@ -140,42 +177,45 @@ the region defined by the s-attribute.}
 \item{stoplist}{Exclude match for query if stopword(s) is/are are present in
 context. See positivelist for further explanation.}
 
-\item{positivelist}{character vector or numeric/integer vector: include a query hit
-only if token in positivelist is present. If positivelist is a character
-vector, it may include regular expressions (see parameter regex)}
+\item{positivelist}{A \code{character} vector or \code{numeric}/\code{integer} vector:
+include a query hit only if token in positivelist is present. If
+positivelist is a \code{character} vector, it may include regular expressions
+(see parameter regex).}
 
-\item{regex}{logical, defaults to FALSE - whether stoplist and/or positivelist are
-regular expressions}
+\item{regex}{A \code{logical} value, defaults to \code{FALSE} - whether \code{stoplist}
+and/or \code{positivelist} are regular expressions.}
 
 \item{count}{logical}
 
-\item{mc}{whether to use multicore; if NULL (default), the function will get
-the value from the options}
+\item{mc}{Whether to use multicore; if \code{NULL} (default), the function will get
+the value from the options.}
 
-\item{verbose}{report progress, defaults to TRUE}
+\item{verbose}{Report progress? A \code{logical} value, defaults to \code{TRUE}.}
 
-\item{progress}{logical, whether to show progress bar}
+\item{progress}{A \code{logical} value, whether to show progress bar.}
 
-\item{corpus}{A length-one \code{character} vector stating the corpus ID of a
-CWB corpus.}
+\item{corpus}{A length-one \code{character} vector stating a corpus ID.}
 
 \item{complete}{enhance completely}
 }
 \value{
-depending on whether a partition or a partition_bundle serves as
-  input, the return will be a context object, or a \code{context_bundle} object
+depending on whether a \code{partition} or a \code{partition_bundle} serves as
+input, the return will be a context object, or a \code{context_bundle} object.
+Note that the number of objects in the \code{context_bundle} may differ from the
+number of objects in the input \code{bundle} object: \code{NULL} objects that result
+if no hit is obtained are dropped.
 }
 \description{
-Retrieve the word context of a token, optionally checking for boundaries of a XML
-region.
+Retrieve the word context of a token, optionally checking for boundaries of a
+XML region.
 }
 \details{
 For formulating the query, CPQ syntax may be used (see
 examples). Statistical tests available are log-likelihood, t-test, pmi.
 
-If \code{.Object} is a \code{matrix}, the \code{context}-method will
-  unfold the \code{matrix} (interpreted as regions defining left and right
-  corpus positions) and return an elementary ... object.
+If \code{.Object} is a \code{matrix}, the \code{context}-method will call
+\code{RcppCWB::region_matrix_context()}, the worker behind the
+\code{context()}-method.
 }
 \examples{
 use("polmineR")

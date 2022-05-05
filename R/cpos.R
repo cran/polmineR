@@ -22,8 +22,11 @@ NULL
 #' 
 #' @param .Object A length-one \code{character} vector indicating a CWB corpus, a
 #'   \code{partition} object, or a \code{matrix} with corpus positions.
-#' @param query A \code{character} vector providing one or multiple queries
-#'   (token or CQP query). Token ids (i.e. \code{integer} values) are also accepted.
+#' @param query A `character` vector providing one or multiple queries (token to
+#'   look up, regular expression or CQP query). Token ids (i.e. `integer`
+#'   values) are also accepted. If `query` is neither a regular expression nor a
+#'   CQP query, a sanity check removes accidental leading/trailing whitespace,
+#'   issuing a respective warning.
 #' @param cqp Either logical (\code{TRUE} if query is a CQP query), or a function to
 #'   check whether query is a CQP query or not (defaults to \code{is.cqp} auxiliary
 #'   function).
@@ -78,28 +81,54 @@ setMethod("cpos", "corpus", function(.Object, query, p_attribute = getOption("po
   }
 
   query <- as.corpusEnc(query, corpusEnc = .Object@encoding)
-  if (class(cqp) == "function") cqp <- cqp(query)
+  if (is.function(cqp)) cqp <- cqp(query)
   if (length(cqp) > 1L) stop("length of cqp is more than 1, but needs to be exactly 1")
   if (!cqp) {
+    
+    .fn <- function(id){
+      regions <- cl_id2cpos(
+        corpus = .Object@corpus, registry = .Object@registry_dir,
+        p_attribute = p_attribute, id = id
+      )
+      matrix(c(regions, regions), ncol = 2L)
+    }
+
     hit_list <- lapply(
       query,
       function(q){
+        
+        if (is.character(q) && !regex){
+          if (grepl("^\\s+", q) || grepl("\\s+$", q)){
+            warning(
+              sprintf(
+                "Query '%s' includes leading and/or trailing whitespace. ",
+                q
+              ),
+              "Surplus whitespace is considered to be accidental and will be removedv for token lookup."
+            )
+            q <- gsub("^\\s*(.*?)\\s*$", "\\1", q)
+          }
+        }
+        
         regions <- try({
           if (is.character(q)){
             if (!regex){
-              ids <- cl_str2id(corpus = .Object@corpus, p_attribute = p_attribute, str = q, registry = registry())
+              ids <- cl_str2id(
+                corpus = .Object@corpus, registry = .Object@registry_dir,
+                p_attribute = p_attribute, str = q
+              )
             } else {
-              ids <- cl_regex2id(corpus = .Object@corpus, p_attribute = p_attribute, regex = q, registry = registry())
+              ids <- cl_regex2id(
+                corpus = .Object@corpus, registry = .Object@registry_dir,
+                p_attribute = p_attribute, regex = q
+              )
             }
           } else if (is.integer(q)){
             ids <- q
           } else {
             warning("Argument 'query' needs to be an integer value or a character vector.")
           }
-          .fn <- function(id){
-            regions <- cl_id2cpos(corpus = .Object@corpus, p_attribute = p_attribute, id = id, registry = registry())
-            matrix(c(regions, regions), ncol = 2L)
-          }
+          
           if (length(ids) == 1L){
             if (ids < 0L){ # CQP will return -1 or another negative value if there are no matches
               .message("no hits for query: ", q, verbose = verbose)
@@ -146,14 +175,23 @@ setMethod("cpos", "character", function(.Object, query, p_attribute = getOption(
   
 #' @rdname cpos-method
 setMethod("cpos", "slice", function(.Object, query, cqp = is.cqp, check = TRUE, p_attribute = getOption("polmineR.p_attribute"), verbose = TRUE, ...){
-  hits <- cpos(as(.Object, "corpus"), query = query, cqp = cqp, check = check, p_attribute = p_attribute, verbose = verbose, ...)
+  hits <- cpos(
+    as(.Object, "corpus"),
+    query = query, cqp = cqp, check = check,
+    p_attribute = p_attribute,
+    verbose = verbose, ...
+  )
+  
   if (!is.null(hits)){
     if (length(.Object@s_attribute_strucs) > 0L){
       # The incoming .Object may be a partition/subcorpus object that has been generated
       # from a corpus object. In this case, the slot s_attribute_strucs is an empty character
       # vector, and no filtering will be performed. This is used by the coocurrences-method
       # that is implemented for the partition class, but not for the corpus class.
-      struc_hits <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = .Object@s_attribute_strucs, cpos = hits[,1], registry = registry())
+      struc_hits <- cl_cpos2struc(
+        corpus = .Object@corpus,  registry = .Object@registry_dir,
+        s_attribute = .Object@s_attribute_strucs, cpos = hits[,1]
+      )
       hits <- hits[which(struc_hits %in% .Object@strucs),]
       if (is(hits)[1] == "integer") hits <- matrix(data = hits, ncol = 2L)
       if (nrow(hits) == 0L) hits <- NULL
@@ -184,8 +222,9 @@ setMethod("cpos", "subcorpus", function(.Object, query, cqp = is.cqp, check = TR
 #' the matrix. The \code{cpos}-method for \code{matrix} objects will performs
 #' this task robustly.
 #' @rdname cpos-method
+#' @importFrom RcppCWB ranges_to_cpos
 setMethod("cpos", "matrix", function(.Object)
-  do.call(c, lapply(1L:nrow(.Object), function(i) .Object[i,1]:.Object[i,2]))
+  ranges_to_cpos(.Object)
 )
 
 #' @rdname cpos-method

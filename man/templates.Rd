@@ -5,7 +5,6 @@
 \alias{get_template,subcorpus-method}
 \alias{get_template,character-method}
 \alias{get_template,corpus-method}
-\alias{get_template,partition-method}
 \title{Get template for reconstructing full text.}
 \usage{
 get_template(.Object, ...)
@@ -13,8 +12,6 @@ get_template(.Object, ...)
 \S4method{get_template}{character}(.Object, warn = FALSE)
 
 \S4method{get_template}{corpus}(.Object, warn = FALSE)
-
-\S4method{get_template}{partition}(.Object, warn = FALSE)
 
 \S4method{get_template}{subcorpus}(.Object, warn = FALSE)
 }
@@ -24,7 +21,7 @@ or a length-one \code{character} vector with a corpus ID.}
 
 \item{...}{Further arguments to be defined.}
 
-\item{warn}{A \code{logical} value, whether to issue a warning if template 
+\item{warn}{A \code{logical} value, whether to issue a warning if template
 is not available. Defaults to \code{FALSE}.}
 }
 \description{

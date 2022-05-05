@@ -134,12 +134,21 @@ cooccurrences(.Object, ...)
 \item{p_attribute}{The p-attribute of the tokens/the query.}
 
 \item{boundary}{If provided, it will be checked that the corpus positions of
-windows do not extend beyond the left and right boundaries of the region 
+windows do not extend beyond the left and right boundaries of the region
 defined by the s-attribute where the match occurs.}
 
-\item{left}{Number of tokens to the left of the query match.}
+\item{left}{A single \code{integer} value defining the number of tokens to the
+left of the query match to include in the context. Advanced usage: (a) If
+\code{left} is a length-one \code{character} vector stating an s-attribute, the
+context will be expanded to the (left) boundary of the region where the
+match occurs. (b) If \code{left} is a named length-one \code{integer} vector, this
+value is the number regions of the structural attribute referred to by the
+vector's name  to the left of the query match that are included in the
+context.}
 
-\item{right}{Number of tokens to the right of the query match.}
+\item{right}{A single \code{integer} value, a length-one \code{character} vector or a
+named length-one \code{integer} value, with equivalent effects to argument
+\code{left}.}
 
 \item{stoplist}{Exclude a query hit from analysis if stopword(s) is/are in
 context (relevant only if query is not \code{NULL}).}
@@ -186,14 +195,12 @@ e <- subset(c, ll >= 10.83)
 format(e)
 
 # using pipe operator may be convenient
-if (require(magrittr)){
 cooccurrences("REUTERS", query = "oil") \%>\%
   subset(!is.na(ll)) \%>\%
   subset(!word \%in\% tm::stopwords("en")) \%>\%
   subset(count_coi >= 5) \%>\%
   subset(ll >= 10.83) \%>\%
   format()
-}
 pb <- partition_bundle("GERMAPARLMINI", s_attribute = "speaker")
 pb_min <- pb[[ count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]] ]]
 y <- cooccurrences(pb_min, query = "Deutschland")
@@ -213,7 +220,7 @@ Processing}. MIT Press: Cambridge, Mass., pp. 151-189 (ch. 5).
 }
 \seealso{
 See the documentation for the \code{\link{ll}}-method for an
-  explanation of the computation of the log-likelihood statistic.
+explanation of the computation of the log-likelihood statistic.
 }
 \author{
 Andreas Blaette

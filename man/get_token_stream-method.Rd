@@ -30,7 +30,7 @@ get_token_stream(.Object, ...)
   ...
 )
 
-\S4method{get_token_stream}{matrix}(.Object, ...)
+\S4method{get_token_stream}{matrix}(.Object, split = FALSE, ...)
 
 \S4method{get_token_stream}{corpus}(.Object, left = NULL, right = NULL, ...)
 
@@ -47,6 +47,7 @@ get_token_stream(.Object, ...)
   p_attribute = "word",
   collapse = NULL,
   cpos = FALSE,
+  split = FALSE,
   ...
 )
 
@@ -73,8 +74,7 @@ worker.}
 
 \item{corpus}{A CWB indexed corpus.}
 
-\item{p_attribute}{A length-one \code{character} vector, the p-attribute to
-decode.}
+\item{p_attribute}{A \code{character} vector, the p-attribute(s) to decode.}
 
 \item{subset}{An expression applied on p-attributes, using non-standard
 evaluation. Note that symbols used in the expression may not be used
@@ -107,6 +107,11 @@ names of the tokens.}
 ids to character strings. Defaults to \code{TRUE}, if \code{FALSE}, an
 integer vector with token ids is returned.}
 
+\item{split}{A \code{logical} value, whether to return a \code{character}
+vector (when \code{split} is \code{FALSE}, default) or a \code{list} of
+\code{character} vectors; each of these vectors will then represent the
+tokens of a region defined by a row in a regions matrix.}
+
 \item{left}{Left corpus position.}
 
 \item{right}{Right corpus position.}
@@ -127,23 +132,23 @@ to export corpus data to other tools.
 }
 \details{
 CWB indexed corpora have a fixed order of tokens which is called the
-  \emph{token stream}. Every token is assigned to a unique \emph{corpus
-  position}, Subsets of the (entire) token stream defined by a left and a
-  right corpus position are called \emph{regions}. The
-  \code{get_token_stream}-method will extract the tokens (for regions) from a
-  corpus.
+\emph{token stream}. Every token is assigned to a unique \emph{corpus
+position}, Subsets of the (entire) token stream defined by a left and a
+right corpus position are called \emph{regions}. The
+\code{get_token_stream}-method will extract the tokens (for regions) from a
+corpus.
 
 The primary usage of this method is to return the token stream of a
-  (sub-)corpus as defined by a \code{corpus}, \code{subcorpus} or
-  \code{partition} object. The methods defined for a \code{numeric} vector or
-  a (two-column) \code{matrix} defining regions (i.e. left and right corpus
-  positions in the first and second column) are the actual workers for this
-  operation.
+(sub-)corpus as defined by a \code{corpus}, \code{subcorpus} or
+\code{partition} object. The methods defined for a \code{numeric} vector or
+a (two-column) \code{matrix} defining regions (i.e. left and right corpus
+positions in the first and second column) are the actual workers for this
+operation.
 
 The \code{get_token_stream} has been introduced so serve as a worker
-  by higher level methods such as \code{read}, \code{html}, and
-  \code{as.markdown}. It may however be useful for decoding a corpus so that
-  it can be exported to other tools.
+by higher level methods such as \code{read}, \code{html}, and
+\code{as.markdown}. It may however be useful for decoding a corpus so that
+it can be exported to other tools.
 }
 \examples{
 # Decode first words of GERMAPARLMINI corpus (first sentence)
@@ -152,8 +157,8 @@ get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word")
 # Decode first sentence and collapse tokens into single string
 get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word", collapse = " ")
 
-# Decode regions defined by two-column matrix
-region_matrix <- matrix(c(0,9,10,25), ncol = 2, byrow = TRUE)
+# Decode regions defined by two-column integer matrix
+region_matrix <- matrix(c(0L,9L,10L,25L), ncol = 2, byrow = TRUE)
 get_token_stream(region_matrix, corpus = "GERMAPARLMINI", p_attribute = "word", encoding = "latin1")
 
 # Use argument 'beautify' to remove surplus whitespace
@@ -186,9 +191,18 @@ pb_tokstr <- corpus("REUTERS") \%>\%
 pb <- partition_bundle("REUTERS", s_attribute = "id")
 ts_list <- get_token_stream(pb)
 
-# Workflow to filter decoded subcorpus_bundle
-\dontrun{
-sp <- corpus("GERMAPARLMINI") \%>\% as.speeches(s_attribute_name = "speaker", progress = FALSE)
+# Use two p-attributes
+sp <- corpus("GERMAPARLMINI") \%>\%
+  as.speeches(s_attribute_name = "speaker", progress = FALSE)
+p2 <- get_token_stream(sp, p_attribute = c("word", "pos"), verbose = FALSE)
+
+# Apply filter
+p_sub <- get_token_stream(
+  sp, p_attribute = c("word", "pos"),
+  subset = {!grepl("(\\\\$.$|ART)", pos)}
+)
+
+# Concatenate phrases and apply filter
 queries <- c('"freiheitliche" "Grundordnung"', '"Bundesrepublik" "Deutschland"' )
 phr <- corpus("GERMAPARLMINI") \%>\% cpos(query = queries) \%>\% as.phrases(corpus = "GERMAPARLMINI")
 
@@ -202,5 +216,4 @@ ts_phr <- get_token_stream(
   progress = FALSE,
   verbose = FALSE
 )
-}
 }

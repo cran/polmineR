@@ -66,38 +66,48 @@ setMethod("trim", "context", function(object, s_attribute = NULL, positivelist =
   
   if (!is.null(s_attribute)){
     stopifnot(length(s_attribute) == 1L)
-    sAttrCol <- paste(s_attribute, "int", sep = "_")
-    if (!sAttrCol %in% colnames(object@cpos)){
-      object <- enrich(object, s_attribute = s_attribute)
+    s_attr_col <- paste(s_attribute, "int", sep = "_")
+    if (!s_attr_col %in% colnames(object@cpos)){
+      enrich(object, s_attribute = s_attribute) # in-place operation
     }
-    setnames(object@cpos, old = sAttrCol, new = "struc")
-    
-    position <- 0 # work around to make data.table syntax pass R CMD check
-    struc <- 0 # work around to make data.table syntax pass R CMD check
-    
+    setnames(object@cpos, old = s_attr_col, new = "struc")
+
     .message("checking boundaries of regions", verbose = verbose)
     if (progress) pb <- txtProgressBar(min = 1, max = object@count, style = 3)
     .checkBoundary <- function(.SD, .GRP){
       if (progress) setTxtProgressBar(pb, value = .GRP)
-      struc_hit <- .SD[position == 0][["struc"]][1]
-      .SD[struc == struc_hit]
+      struc_hit <- .SD[.SD[["position"]] == 0][["struc"]][1]
+      .SD[.SD[["struc"]] == struc_hit]
     }
     object@cpos <- object@cpos[, .checkBoundary(.SD, .GRP), by = "match_id"]
     if (progress) close(pb)
-    setnames(object@cpos, old = "struc", new = sAttrCol)
+    setnames(object@cpos, old = "struc", new = s_attr_col)
   }
   
   if (!is.null(positivelist)){
     .message("filtering by positivelist", verbose = verbose)
     before <- length(unique(object@cpos[["match_id"]]))
-    positivelistIds <- .token2id(corpus = object@corpus, p_attribute = p_attribute, token = positivelist, regex = regex)
-    .fn <- function(.SD){
-      neighbors <- .SD[[paste(p_attribute[1], "id", sep = "_")]][.SD[["position"]] != 0]
-      if (any(neighbors %in% positivelistIds)) return( .SD ) else return( NULL )
+    if (is.matrix(positivelist)){
+      dt <- data.table(cpos = cpos(positivelist), positivelist = TRUE)
+      cpos_min <- dt[object@cpos[object@cpos[["position"]] != 0], on = "cpos"]
+      matches_to_keep <- cpos_min[,
+        if (any(!is.na(.SD$positivelist))) .SD else NULL,
+        by = "match_id"
+      ][["match_id"]]
+      object@cpos <- object@cpos[object@cpos[["match_id"]] %in% matches_to_keep]
+    } else {
+      positivelist_ids <- .token2id(
+        corpus = object@corpus, p_attribute = p_attribute,
+        token = positivelist, regex = regex
+      )
+      .fn <- function(.SD){
+        neighbors <- .SD[[paste(p_attribute[1], "id", sep = "_")]][.SD[["position"]] != 0]
+        if (any(neighbors %in% positivelist_ids)) return( .SD ) else return( NULL )
+      }
+      object@cpos <- object@cpos[, .fn(.SD), by = "match_id", with = TRUE]
     }
-    object@cpos <- object@cpos[, .fn(.SD), by = "match_id", with = TRUE]
     after <- length(unique(object@cpos[["match_id"]]))
-    .message("number of hits droped due to positivelist:", before - after, verbose = verbose)
+    .message("number of hits dropped due to positivelist:", before - after, verbose = verbose)
     if (nrow(object@cpos) == 0) {
       warning("no remaining hits after applying positivelist, returning NULL object")
       return( invisible(NULL) )
@@ -107,16 +117,16 @@ setMethod("trim", "context", function(object, s_attribute = NULL, positivelist =
   if (!is.null(stoplist)){
     .message("applying stoplist", verbose = verbose)
     before <- length(unique(object@cpos[["match_id"]]))
-    stoplistIds <- .token2id(corpus = object@corpus, p_attribute = p_attribute, token = stoplist, regex = regex)
+    stoplist_ids <- .token2id(corpus = object@corpus, p_attribute = p_attribute, token = stoplist, regex = regex)
     .fn <- function(.SD){
-      pAttr <- paste(p_attribute[1], "id", sep = "_")
-      negatives <- which(.SD[[pAttr]] %in% stoplistIds)
+      p_attr <- paste(p_attribute[1], "id", sep = "_")
+      negatives <- which(.SD[[p_attr]] %in% stoplist_ids)
       negatives <- negatives[ -which(.SD[["position"]] == 0) ] # exclude node
       if (any(negatives)) return( NULL ) else return( .SD ) # this is the only difference
     }
     object@cpos <- object@cpos[, .fn(.SD), by = "match_id", with = TRUE]
     after <- length(unique(object@cpos[["match_id"]]))
-    .message("number of hits droped due to stoplist:", before - after, verbose = verbose)
+    .message("number of hits dropped due to stoplist:", before - after, verbose = verbose)
     if (nrow(object@cpos) == 0) {
       warning("no remaining hits after applying stoplist, returning NULL object")
       return( NULL )

@@ -3,12 +3,13 @@ NULL
 
 #' Get Number of Tokens.
 #' 
-#' The method will get the number of tokens in a corpus or partition,
-#' or the dispersion across one or more s-attributes.
+#' The method will get the number of tokens in a `corpus`, `partition` or
+#' `subcorpus`, split up by an s-attribute if provided.
 #' 
-#' One or more s-attributes can be provided to get the dispersion of
-#' tokens across one or more dimensions. Two or more s-attributes
-#' can lead to reasonable results only if the corpus XML is flat.
+#' One or more s-attributes can be provided to get the dispersion of tokens
+#' across one or more dimensions. If the corpus XML is nested, the s-attributes
+#' defining a `subcorpus` or `partition` are required to be children of the
+#' s-attribute(s) provided. If, not, a warning will be issued.
 #' 
 #' @param x An object to get size(s) for.
 #' @param s_attribute A \code{character} vector with s-attributes (one or more).
@@ -60,23 +61,39 @@ setMethod("size", "corpus", function(x, s_attribute = NULL, verbose = TRUE, ...)
   if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
   
   if (is.null(s_attribute)){
-    return( cl_attribute_size(corpus = x@corpus, attribute = "word", attribute_type = "p", registry = registry()) )
+    return(
+      cl_attribute_size(
+        corpus = x@corpus, registry = x@registry_dir,
+        attribute = "word", attribute_type = "p"
+      )
+    )
   } else {
     stopifnot(all(s_attribute %in% s_attributes(x)))
     dt <- data.table::as.data.table(
       lapply(
         setNames(s_attribute, s_attribute),
         function(s_attr){
-          s_attr_max <- cl_attribute_size(corpus = x@corpus, attribute = s_attr, attribute_type = "s", registry = registry())
-          s_attr_vals <- cl_struc2str(corpus = x@corpus, s_attribute = s_attr, struc = 0L:(s_attr_max - 1L), registry = registry())
+          s_attr_max <- cl_attribute_size(
+            corpus = x@corpus, registry = x@registry_dir,
+            attribute = s_attr, attribute_type = "s"
+          )
+          s_attr_vals <- cl_struc2str(
+            corpus = x@corpus, registry = x@registry_dir,
+            s_attribute = s_attr, struc = 0L:(s_attr_max - 1L)
+          )
           as.nativeEnc(s_attr_vals, from = x@encoding)
         }
       )
     )
     cpos_matrix <- RcppCWB::get_region_matrix(
       corpus = x@corpus, s_attribute = s_attribute[1],
-      strucs = 0L:(cl_attribute_size(corpus = x@corpus, attribute = s_attribute[1], attribute_type = "s", registry = registry()) - 1L),
-      registry = Sys.getenv("CORPUS_REGISTRY")
+      strucs = 0L:(
+        cl_attribute_size(
+          corpus = x@corpus, registry = x@registry_dir,
+          attribute = s_attribute[1], attribute_type = "s"
+          ) - 1L
+      ),
+      registry = x@registry_dir
     )
     
     dt[, size := cpos_matrix[,2] - cpos_matrix[,1] + 1L]
@@ -103,14 +120,57 @@ setMethod("size", "slice", function(x, s_attribute = NULL, ...){
     return( sum(as.integer(x@cpos[,2L]) - as.integer(x@cpos[,1L]) + 1L) )
   } else {
     stopifnot(all(s_attribute %in% s_attributes(x)))
-    dt <- data.table::as.data.table(
-      lapply(
-        setNames(s_attribute, s_attribute),
-        function(sAttr) as.nativeEnc(cl_struc2str(corpus = x@corpus, s_attribute = sAttr, struc = x@strucs, registry = registry()), from = x@encoding)
-      )
+    
+    # Check whether s-attributes are nested by approximation: If s-attributes
+    # have same number of values, we assume that they cover same regions.
+    s_attr_sizes <- lapply(
+      c(x@s_attribute_strucs, s_attribute),
+      function(s_attr){
+        cl_attribute_size(
+          corpus = x@corpus, registry = x@registry_dir,
+          attribute = s_attr, attribute_type = "s" 
+        )
+      }
     )
-    dt[, size := x@cpos[,2] - x@cpos[,1] + 1L]
-    y <- dt[, sum(size), by = eval(s_attribute), with = TRUE]
+    if (do.call(identical, s_attr_sizes)){
+      .fn <- function(s_attr){
+        str <- cl_struc2str(
+          corpus = x@corpus, registry = x@registry_dir,
+          s_attribute = s_attr, struc = x@strucs
+        )
+        as.nativeEnc(str, from = x@encoding) 
+      }
+      dt <- data.table::as.data.table(lapply(setNames(s_attribute, s_attribute), .fn))
+      dt[, size := x@cpos[,2] - x@cpos[,1] + 1L]
+      y <- dt[, sum(size), by = eval(s_attribute), with = TRUE]
+    } else {
+      dt <- data.table(size = x@cpos[,2] - x@cpos[,1] + 1L)
+      for (s_attr in s_attribute){
+        strucs <- cl_cpos2struc(
+          corpus = x@corpus, registry = x@registry_dir,
+          s_attribute = s_attr, cpos = x@cpos[,1]
+        )
+        m <- get_region_matrix(
+          corpus = x@corpus, registry = x@registry_dir,
+          s_attribute = s_attr, strucs = strucs
+        )
+        if (all(m[,1] <= x@cpos[,1]) && all(m[,2] >= x@cpos[,2])){
+          str <- cl_struc2str(
+            corpus = x@corpus, registry = x@registry_dir,
+            s_attribute = s_attr, struc = strucs
+          )
+          dt[, (s_attr) := as.nativeEnc(str, from = x@encoding)]
+        } else {
+          warning(
+            sprintf(
+              "Structural attribute '%s' is required to be a child of attribute '%s' - not true.",
+              x@s_attribute_strucs, s_attr
+            )
+          )
+        }
+      }
+      y <- dt[, sum(size), by = eval(s_attribute), with = TRUE]
+    }
     setnames(y, old = "V1", new = "size")
     setkeyv(y, cols = s_attribute)
     return( y )

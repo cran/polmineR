@@ -6,6 +6,10 @@ setAs(from = "features", to = "features_ngrams", def = function(from){
   new(
     "features_ngrams",
     corpus = from@corpus,
+    registry_dir = from@registry_dir,
+    data_dir = from@data_dir,
+    info_file = from@info_file,
+    template = from@template,
     p_attribute = from@p_attribute,
     encoding = from@p_attribute,
     stat = from@stat,
@@ -123,6 +127,7 @@ setGeneric("features", function(x, y, ...) standardGeneric("features"))
 
 
 #' @rdname features
+#' @importFrom RcppCWB cqp_list_corpora
 setMethod("features", "partition", function(
   x, y,
   included = FALSE,
@@ -140,7 +145,7 @@ setMethod("features", "partition", function(
   # if y is a character vector, create a partition from corpus
   if (is.character(y)){
     stopifnot(length(y) == 1L) # can only compare to exactly one 
-    stopifnot(y %in% .list_corpora()) # make sure that it is a corpus that is available
+    stopifnot(y %in% cqp_list_corpora()) # make sure that it is a corpus that is available
     if (y == x@corpus && included == FALSE){
       included <- TRUE
       warning("x is derived from corpus y, but included is FALSE - setting to TRUE")
@@ -165,8 +170,13 @@ setMethod("features", "count", function(x, y, by = NULL, included = FALSE, metho
   )
   z <- new(
     "features",
-    encoding = x@encoding, included = included,
+    encoding = x@encoding,
+    included = included,
     corpus = unique(c(x@corpus, y@corpus)),
+    registry_dir = x@registry_dir,
+    data_dir = x@data_dir,
+    info_file = x@info_file,
+    template = x@template,
     size_coi = x@size,
     size_ref = if (included) y@size - x@size else y@size,
     p_attribute = x@p_attribute,

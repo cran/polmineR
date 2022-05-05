@@ -7,7 +7,6 @@ setGeneric("as.phrases", function(.Object, ...) standardGeneric("as.phrases"))
 #'   look up the matching corpus positions and return an \code{phrases}
 #'   object.
 #' @param .Object Input object, either a \code{ngrams} or a \code{matrix} object.
-#' @param ... Arguments passed into internal call of \code{cpos} method.
 #' @param enc Encoding of the corpus.
 #' @param x A \code{phrases} class object.
 #' @param p_attribute The positional attribute (p-attribute) to decode.
@@ -26,20 +25,52 @@ setGeneric("as.phrases", function(.Object, ...) standardGeneric("as.phrases"))
 #' 
 #' phr <- as.character(reuters_phrases, p_attribute = "word")
 #' 
-setMethod("as.phrases", "ngrams", function(.Object, ...){
-  cols <- paste(.Object@p_attribute, 1L:.Object@n, sep = "_")
-  args <- c(
-    list(fmt = paste(rep('"%s"', times = .Object@n), collapse = " ")),
-    as.list(.Object@stat[, cols, with = FALSE])
+setMethod("as.phrases", "ngrams", function(.Object){
+  # First, prepare data.table with token id representation of phrases to look up
+  li <- lapply(
+    paste(.Object@p_attribute, 1L:.Object@n, sep = "_"),
+    function(colname){
+      tokens <- as.corpusEnc(x = .Object@stat[[colname]], corpusEnc = .Object@encoding)
+      cl_str2id(corpus = .Object@corpus, p_attribute = .Object@p_attribute, str = tokens)
+    }
   )
-  queries <- sprintf("%s;", do.call(sprintf, args))
-  query_check_results <- check_cqp_query(queries)
-  if (isFALSE(all(query_check_results))){
-    queries <- queries[query_check_results]
-    warning("Queries dropped that are not valid CQP queries:", table(query_check_results)[["FALSE"]])
+  id_dt <- as.data.table(li)
+  
+  
+  # Anticipate whether memory will suffice
+  cnt_file <- path(
+    corpus_data_dir(.Object@corpus),
+    sprintf("%s.corpus.cnt", .Object@p_attribute)
+  )
+  cnt_file_size <- file.info(cnt_file)$size
+  cnt <- readBin(con = cnt_file, what = integer(), size = 4L, n = cnt_file_size, endian = "big")
+  if (sum(cnt[id_dt[[1]] + 1L]) > 2**31){
+    warning("Table to detect ngrams will exceed memory that can be allocated. The problem is likely ", 
+            "to result from very frequent tokens as first tokens of ngrams. More restrictive ",
+            "filtering of ngrams is recommended.")
   }
-  regions_matrix <- cpos(.Object@corpus, query = queries,  cqp = TRUE, check = FALSE, ...)
-  as.phrases(regions_matrix, corpus = .Object@corpus, enc = .Object@encoding)
+  
+  # Expand first token to corpus positions of initial token
+  cpos_dt <- data.table(unique(li[[1]]))[, list(cpos = RcppCWB::cl_id2cpos(corpus = .Object@corpus, p_attribute = .Object@p_attribute, id = .SD[["V1"]])), by = "V1", .SDcols = "V1"]
+  # allow.cartesian = TRUE appropriate because several different ngrams may start with same token (id)
+  y <- cpos_dt[id_dt, on = "V1", allow.cartesian = TRUE]   
+
+  # Get id for 2nd, 3rd ... nth token after start corpus position and limit table to those matching the id
+  # at the position
+  for (i in 2L:.Object@n){
+    nextid <- cpos2id(
+      x = .Object,
+      p_attribute = .Object@p_attribute,
+      cpos = (y[["cpos"]] + i - 1L)
+    )
+    y <- y[y[[paste("V", i, sep = "")]] == nextid]
+  }
+  
+  as.phrases(
+    matrix(data = c(y[["cpos"]], (y[["cpos"]] + .Object@n - 1L)), ncol = 2), 
+    corpus = .Object@corpus,
+    enc = .Object@encoding
+  )
 })
 
 
@@ -62,11 +93,16 @@ setMethod("as.phrases", "ngrams", function(.Object, ...){
 #'   will initialize a \code{phrases} object. The corpus and the encoding of the
 #'   corpus will be assigned to the object.
 setMethod("as.phrases", "matrix", function(.Object, corpus, enc = encoding(corpus)){
+  corpus_obj <- corpus(corpus)
   new(
     "phrases",
     cpos = .Object,
     corpus = corpus,
-    encoding = if (missing(enc)) encoding(corpus) else enc,
+    registry_dir = corpus_obj@registry_dir,
+    data_dir = corpus_obj@data_dir,
+    info_file = corpus_obj@info_file,
+    template = corpus_obj@template,
+    encoding = if (missing(enc)) corpus_obj@encoding else enc,
     size = sum(.Object[,2] - .Object[,1] + 1L)
   )
 })
@@ -78,7 +114,7 @@ setMethod("as.phrases", "matrix", function(.Object, corpus, enc = encoding(corpu
 #'   will return the decoded regions, concatenated using an underscore as
 #'   seperator.
 setMethod("as.character", "phrases", function(x, p_attribute){
-  tokens <- get_token_stream(x@cpos, x@corpus, p_attribute = p_attribute, encoding = x@encoding)
+  tokens <- get_token_stream(x@cpos, corpus = x@corpus, p_attribute = p_attribute, encoding = x@encoding)
   splitvec <-  cut(
     1L:length(tokens),
     breaks = c(1L, cumsum(x@cpos[,2] - x@cpos[,1] + 1L)),

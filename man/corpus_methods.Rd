@@ -39,22 +39,22 @@ A \code{corpus} object can have a name, which can be retrieved using
 the \code{name}-method.
 
 Use \code{get_corpus}-method to get the corpus ID from the slot
-  \code{corpus} of the \code{corpus} object.
+\code{corpus} of the \code{corpus} object.
 
 The \code{show}-method will show basic information on the
-  \code{corpus} object.
+\code{corpus} object.
 
-Applying the `$`-method on a corpus will return the values for the
-  s-attribute stated with argument \code{name}.
+Applying the \code{$}-method on a corpus will return the values for the
+s-attribute stated with argument \code{name}.
 
 Use \code{get_info} to get the the content of the info file for the
-  corpus (usually in the data directory of the corpus) and return it as a
-  \code{character} vector. Returns \code{NULL} if there is not info file.
+corpus (usually in the data directory of the corpus) and return it as a
+\code{character} vector. Returns \code{NULL} if there is not info file.
 
 The \code{show_info}-method will get the content of the info
-  file for a corpus, turn it into an html document, and show the result in
-  the viewer pane of RStudio. If the filename of the info file ends on "md",
-  the document is rendered as markdown.
+file for a corpus, turn it into an html document, and show the result in
+the viewer pane of RStudio. If the filename of the info file ends on "md",
+the document is rendered as markdown.
 }
 \examples{
 # get/show information on corpora
@@ -63,7 +63,7 @@ corpus("REUTERS") \%>\% show_info()
 corpus("GERMAPARLMINI") \%>\% get_info()
 corpus("GERMAPARLMINI") \%>\% show_info()
 
-# show-method 
+# show-method
 if (interactive()) corpus("REUTERS") \%>\% show()
 if (interactive()) corpus("REUTERS") # show is called implicitly
 
@@ -74,7 +74,7 @@ corpus("REUTERS") \%>\% get_corpus()
 use("polmineR")
 g <- corpus("GERMAPARLMINI")
 g$date
-corpus("GERMAPARLMINI")$date # 
+corpus("GERMAPARLMINI")$date #
 corpus("GERMAPARLMINI") \%>\% s_attributes(s_attribute = "date") # equivalent
 
 use("polmineR")

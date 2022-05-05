@@ -21,10 +21,10 @@ test_that(
     expect_identical(sc_p, sc2)
     
     # This is also a test whether special characters are digested properly.
-    if (localeToCharset()[1] != "UTF-8"){
+    if (encoding() != "UTF-8"){
       query <- "B\u00E4rbel H\u00F6hn"
       Encoding(query) <- "UTF-8"
-      sp <- iconv(query, from = "UTF-8", to = localeToCharset()[1])
+      sp <- iconv(query, from = "UTF-8", to = encoding())
       p <- partition("GERMAPARLMINI", speaker = sp)
       sc <- subset(gparl, speaker = sp)
     } else {
@@ -73,7 +73,22 @@ test_that(
 
 
 test_that(
-  "methods for subcorpus objects", {
+  "warnings if s-attributes are not valid",
+  {
+    expect_warning({a <- corpus("REUTERS") %>% subset(foo == "127")})
+    expect_null(a)
     
+    expect_warning({b <- corpus("REUTERS") %>% subset(lm == "127")})
+    expect_null(b)
+    
+    expect_warning({
+      c <- corpus("REUTERS") %>% subset(id == "127" & foo == "abc")
+    })
+    expect_null(c)
+    
+    expect_warning({
+      d <- corpus("REUTERS") %>% subset(lm == "127" & foo == "abc")
+    })
+    expect_null(d)
   }
 )

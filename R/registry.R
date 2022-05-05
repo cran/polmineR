@@ -47,7 +47,7 @@ registry_reset <- function(registryDir = registry(), verbose = TRUE) {
 }
 
 .registry_eval <- function(corpus, registry, regex){
-  a <- readLines(file.path(registry, tolower(corpus)))
+  a <- readLines(path(registry, tolower(corpus)))
   b <- stringi::stri_match_all_regex(str = a, pattern  = regex, omit_no_match = TRUE)
   do.call(rbind, b)[,2]
 }
@@ -56,12 +56,13 @@ registry_reset <- function(registryDir = registry(), verbose = TRUE) {
 #' Evaluate registry file.
 #' 
 #' Functions to extract information from a registry file describing a corpus.
-#' Several operations could be accomplished with the 'cwb-regedit' tool,
-#' the functions defined here ensure that manipulating the registry is 
-#' possible without a full installation of the CWB.
+#' Several operations could be accomplished with the 'cwb-regedit' tool, the
+#' functions defined here ensure that manipulating the registry is possible
+#' without a full installation of the CWB.
 #' 
-#' An appendix to the 'Corpus Encoding Tutorial' (http://cwb.sourceforge.net/files/CWB_Encoding_Tutorial.pdf)
-#' includes an explanation of the registry file format. 
+#' An appendix to the 'Corpus Encoding Tutorial'
+#' (https://cwb.sourceforge.io/files/CWB_Encoding_Tutorial.pdf) includes an
+#' explanation of the registry file format.
 #' 
 #' @param corpus name of the CWB corpus
 #' @param registry directory of the registry (defaults to CORPUS_Registry environment variable)
@@ -82,6 +83,11 @@ registry_get_id = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")){
 #' @export registry_get_home
 #' @rdname registry_eval
 registry_get_home = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")) {
+  lifecycle::deprecate_warn(
+    "0.8.6",
+    "registry_get_home()",
+    "RcppCWB::corpus_data_dir()"
+  )
   y <- .registry_eval(corpus = corpus, registry = registry, regex = '^HOME\\s+"?(.*?)"?\\s*$')
   normalizePath(path = y, winslash = "/", mustWork = FALSE)
 }
@@ -94,7 +100,7 @@ registry_get_info = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")) {
 }
 
 
-#' @details \code{registry_get_encoding} will parse the registry file for a
+#' @details `registry_get_encoding` will parse the registry file for a
 #'   corpus and return the encoding that is defined (corpus property "charset").
 #'   If parsing the registry does not yield a result (corpus property "charset"
 #'   not defined), the CWB standard encoding ("latin1") is assigned to prevent
@@ -103,9 +109,16 @@ registry_get_info = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")) {
 #'   parsing the registry file.
 #' @export registry_get_encoding
 #' @rdname registry_eval
+#' @importFrom lifecycle deprecate_warn
 #' @examples
 #' registry_get_encoding("REUTERS")
 registry_get_encoding = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")) {
+  lifecycle::deprecate_warn(
+    "0.8.6",
+    "registry_get_encoding()",
+    "RcppCWB::cl_charset_name()"
+  )
+  
   y <- .registry_eval(corpus = corpus, registry = registry, regex = '^.*charset\\s*=\\s*"(.+?)".*$')
   
   # use CWB standard corpus encoding if parsing registry yields no result
@@ -132,7 +145,7 @@ registry_get_s_attributes = function(corpus, registry = Sys.getenv("CORPUS_REGIS
 #' @export registry_get_properties
 #' @rdname registry_eval
 registry_get_properties = function(corpus, registry = Sys.getenv("CORPUS_REGISTRY")) {
-  registry_file <- file.path(registry, tolower(corpus))
+  registry_file <- path(registry, tolower(corpus))
   if (isFALSE(file.exists(registry_file))){
     stop("There is no registry file for corpus ", corpus, ".")
   }
@@ -156,14 +169,14 @@ registry_get_properties = function(corpus, registry = Sys.getenv("CORPUS_REGISTR
 #' @param home_dir_new The new home directory.
 #' @export registry_move
 registry_move <- function(corpus, registry, registry_new, home_dir_new){
-  registry <- readLines(file.path(registry, tolower(corpus)))
+  registry <- readLines(path(registry, tolower(corpus)))
   
   home_line_no <- grep("^HOME", registry)
-  registry[home_line_no] <- sprintf("HOME \"%s\"", file.path(home_dir_new))
+  registry[home_line_no] <- sprintf("HOME \"%s\"", path(home_dir_new))
   
   info_line_no <- grep("^INFO", registry)
   registry_info_file <- gsub('^INFO\\s+"?(.*?)"?\\s*$', "\\1", registry[info_line_no])
-  info_file_new <- file.path(home_dir_new, basename(registry_info_file), fsep = "/")
+  info_file_new <- path(home_dir_new, basename(registry_info_file))
   registry[info_line_no] <- sprintf("INFO \"%s\"", info_file_new)
   
   # RcppCWB v0.2.4 does not digest declarations of s-attributes when they are followed up
@@ -172,7 +185,7 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
   sattrs_declared <- gsub("^STRUCTURE\\s+(.*?)(\\s.*$|$)", "\\1", registry[sattr_lines])
   registry[sattr_lines] <- sprintf("STRUCTURE %s", sattrs_declared)
 
-  writeLines(text = registry, con = file.path(registry_new, corpus), sep = "\n")
+  writeLines(text = registry, con = path(registry_new, corpus), sep = "\n")
   invisible(NULL)
 }
 
@@ -220,7 +233,7 @@ registry_move <- function(corpus, registry, registry_new, home_dir_new){
 registry <- function(pkg = NULL){
   if (is.null(pkg)){
     if (tolower(Sys.getenv("POLMINER_USE_TMP_REGISTRY")) != "false"){
-      y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_registry", fsep = "/")
+      y <- path(tempdir(), "polmineR_registry")
       
       # The user name may include special characters. On windows, a possible solutions to avoid
       # error messages, is to use the DOS short path name.
@@ -242,7 +255,7 @@ registry <- function(pkg = NULL){
       warning(sprintf("Package '%s' is not available for R version %s.", pkg, getRversion()))
       return( NULL )
     }
-    regdir <- file.path(pkg_home, "extdata", "cwb", "registry")
+    regdir <- path(pkg_home, "extdata", "cwb", "registry")
     if (isFALSE(file.exists(regdir))){
       warning(sprintf("Cannot find registry directory (%s) in package %s.", regdir, pkg))
     }
@@ -259,9 +272,9 @@ registry <- function(pkg = NULL){
 data_dir <- function(pkg = NULL){
   if (is.null(pkg)){
     if (tolower(Sys.getenv("POLMINER_USE_TMP_REGISTRY")) != "false"){
-      y <- file.path(normalizePath(tempdir(), winslash = "/"), "polmineR_data_dir", fsep = "/")
+      y <- path(tempdir(), "polmineR_data_dir")
     } else {
-      y <- file.path(dirname(Sys.getenv("CORPUS_REGISTRY")), "indexed_corpora")
+      y <- path(dirname(Sys.getenv("CORPUS_REGISTRY")), "indexed_corpora")
     }
     return(y)
   } else {
@@ -275,7 +288,7 @@ data_dir <- function(pkg = NULL){
       warning(sprintf("Package '%s' is not available for R version %s.", pkg, getRversion()))
       return( NULL )
     }
-    data_dir <- file.path(pkg_home, "extdata", "cwb", "indexed_corpora")
+    data_dir <- fs::path(pkg_home, "extdata", "cwb", "indexed_corpora")
     if (isFALSE(file.exists(data_dir))){
       warning(sprintf("Cannot find data directory (%s) in package %s.", data_dir, pkg))
     }

@@ -5,7 +5,7 @@
 \alias{hits_class}
 \alias{hits-class}
 \alias{sample,hits-method}
-\title{Hits class.}
+\title{S4 class to represent hits for queries.}
 \usage{
 \S4method{sample}{hits}(x, size)
 }
@@ -15,21 +15,38 @@
 \item{size}{A non-negative integer giving the number of items to choose.}
 }
 \description{
-Hits class.
+S4 class to represent hits for queries.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{stat}}{a \code{"data.table"}}
+\item{\code{stat}}{A \code{data.table} with the following columns:
+\describe{
+\item{query}{The query (optionally using CQP syntax) that evoked
+a hit.}
+\item{count}{Number of matches in corpus/subcorpus.}
+\item{freq}{Relative frequency of matches in corpus/subcorpus (optional,
+presence depends on usage of argument \code{freq} of the \code{hits} method).}
+\item{size}{Total number of tokens in corpus/subcorpus (optional, presence
+depends on usage of argument \code{size} of the \code{hits} method).}
+}
+If argument \code{s_attribute} has been used in the call of the \code{hits}
+method, the \code{data.table} will include additional columns with the
+s-attributes. The values in the columns will be the values these s-attributes
+assume. Columns \code{count}, \code{freq} and \code{size} will be based on
+subcorpora defined by (combinations of) s-attributes.}
 
-\item{\code{corpus}}{a \code{"character"} vector}
+\item{\code{corpus}}{A length-one \code{"character"} vector, ID of the corpus with
+hits for query or queries.}
 
-\item{\code{query}}{Object of class \code{"character"}}
+\item{\code{query}}{Object of class \code{"character"}, query or queries for}
 
-\item{\code{p_attribute}}{p-attribute that has been queried}
+\item{\code{p_attribute}}{The p-attribute that has been queried, a length-one
+\code{character} vector.}
 
-\item{\code{encoding}}{encoding of the corpus}
+\item{\code{encoding}}{Length-one \code{character} vector, the encoding of the
+corpus.}
 
-\item{\code{name}}{name of the object}
+\item{\code{name}}{Length-one \code{characte} vector, name of the object.}
 }}
 

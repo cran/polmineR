@@ -11,7 +11,6 @@ test_that(
     sc <- subset("GERMAPARLMINI", speaker == "Angela Dorothea Merkel")
     r2 <- as(sc, "regions")
     
-    r2@data_dir <- character()
     expect_identical(r1, r2)
   }
 )

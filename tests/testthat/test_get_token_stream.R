@@ -94,11 +94,11 @@ test_that(
 test_that(
   "get_token_stream()-method for matrix input",
   {
-    region_matrix <- matrix(c(0,9,10,25), ncol = 2, byrow = TRUE)
-    ts_rm <- get_token_stream(region_matrix, corpus = "GERMAPARLMINI", p_attribute = "word", encoding = "latin1", collapse = " ")
+    rngs <- matrix(c(0L,9L,10L,25L), ncol = 2L, byrow = TRUE)
+    ts_rm <- get_token_stream(rngs, corpus = "GERMAPARLMINI", p_attribute = "word", encoding = "latin1", collapse = " ")
     expect_identical(nchar(ts_rm), 159L)
     
-    r <- new("regions", cpos = region_matrix, corpus = "GERMAPARLMINI", encoding = "latin1")
+    r <- new("regions", cpos = rngs, corpus = "GERMAPARLMINI", encoding = "latin1")
     ts_r <- get_token_stream(r, p_attribute = "word", collapse = " ")
     expect_identical(ts_rm, ts_r)
   }
@@ -134,13 +134,42 @@ test_that(
   }
 )
 
+test_that(
+  "get_token_stream() with two attributes", 
+  {
+    sp <- corpus("GERMAPARLMINI") %>%
+      as.speeches(s_attribute_name = "speaker", progress = FALSE)
+    p2 <- get_token_stream(sp, p_attribute = c("word", "pos"), verbose = FALSE)
+    
+    spl <- strsplit(p2[[1]], "//")
+    word <- sapply(spl, `[`, 1L)
+    pos <- sapply(spl, `[`, 1L)
+    expect_identical(
+      word[1:100], get_token_stream(sp[[1]], p_attribute = "word")[1:100]
+    )
+    
+    # Apply filter
+    p_sub <- get_token_stream(
+      sp, p_attribute = c("word", "pos"),
+      subset = {!grepl("\\$.$", pos)}
+    )
+    expect_identical(length(grep("\\$.$", p_sub[[1]])), 0L)
+  }
+)
+
+
+
 
 test_that(
   "Check workflow to filter subcorpus_bundle",
   {
-    sp <- corpus("GERMAPARLMINI") %>% as.speeches(s_attribute_name = "speaker", progress = FALSE)
+    sp <- corpus("GERMAPARLMINI") %>%
+      as.speeches(s_attribute_name = "speaker", progress = FALSE)
     queries <- c('"freiheitliche" "Grundordnung"', '"Bundesrepublik" "Deutschland"' )
-    phr <- corpus("GERMAPARLMINI") %>% cpos(query = queries) %>% as.phrases(corpus = "GERMAPARLMINI")
+    
+    phr <- corpus("GERMAPARLMINI") %>%
+      cpos(query = queries) %>%
+      as.phrases(corpus = "GERMAPARLMINI")
     
     kill <- tm::stopwords("de")
     assign("kill", tm::stopwords("de"), envir = .GlobalEnv)
@@ -154,7 +183,10 @@ test_that(
       verbose = FALSE
     )
     
-    testthat::expect_identical(FALSE, any(tm::stopwords("de") %in% gsub("^(.*?)//.*?$", "\\1", ts_phr[[1]])))
+    testthat::expect_identical(
+      FALSE,
+      any(tm::stopwords("de") %in% gsub("^(.*?)//.*?$", "\\1", ts_phr[[1]]))
+    )
     
   }
 )

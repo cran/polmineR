@@ -7,23 +7,37 @@ setGeneric("corpus", function(.Object, ...) standardGeneric("corpus"))
 
 #' @rdname corpus-class
 #' @param .Object The upper-case ID of a CWB corpus stated by a
-#'   length-one \code{character} vector.
-#' @param server If \code{NULL} (default), the corpus is expected to be present
+#'   length-one `character` vector.
+#' @param registry_dir The registry directory with the registry file describing
+#'   the corpus (length-one `character` vector). If missing, the C
+#'   representations of loaded corpora will be evaluated to get the registry
+#'   directory with the registry file for the corpus.
+#' @param server If `NULL` (default), the corpus is expected to be present
 #'   locally. If provided, the name of an OpenCPU server (can be an IP address)
-#'   that hosts a corpus, or several corpora. The \code{corpus}-method will then
-#'   instantiate a \code{remote_corpus} object.
-#' @param restricted A \code{logical} value, whether access to a remote corpus is
-#'   restricted (\code{TRUE}) or not (\code{FALSE}).
+#'   that hosts a corpus, or several corpora. The `corpus`-method will then
+#'   instantiate a `remote_corpus` object.
+#' @param restricted A `logical` value, whether access to a remote corpus is
+#'   restricted (`TRUE`) or not (`FALSE`).
 #' @exportMethod corpus
-#' @importFrom RcppCWB cqp_list_corpora
-setMethod("corpus", "character", function(.Object, server = NULL, restricted){
-  
-  if (length(.Object) != 1L) stop("Cannot process more than one corpus at a time: Provide only one corpus ID as input.")
-  
+#' @importFrom RcppCWB cqp_list_corpora corpus_data_dir corpus_registry_dir
+#'   corpus_info_file corpus_full_name
+#' @importFrom fs path path_expand
+setMethod("corpus", "character", function(
+    .Object, registry_dir,
+    server = NULL, restricted
+){
+
+  if (length(.Object) > 1L){
+    stop(
+      "Cannot process more than one corpus at a time: ",
+      "Provide only one corpus ID as input."
+    )
+  }
+
   if (is.null(server)){
     corpora <- cqp_list_corpora()
-    
-    # check that corpus is available 
+
+    # check that corpus is available
     if (!.Object %in% corpora){
       uppered <- toupper(.Object)
       if (uppered %in% corpora){
@@ -39,20 +53,66 @@ setMethod("corpus", "character", function(.Object, server = NULL, restricted){
         if (length(proxy) == 0L){
           stop("Corpus '", .Object, "' is not available.")
         } else {
-          stop("Corpus '", .Object, "' is not available. Maybe you meant '", proxy, "'?")
+          stop(
+            "Corpus '", .Object, "' is not available. Maybe you meant '", proxy, "'?"
+          )
         }
       }
     }
+
+    c_regdir <- path(corpus_registry_dir(.Object))
+    if (missing(registry_dir)){
+      if (is.na(c_regdir)){
+        stop(
+          "Cannot initialize corpus object - ",
+          "cannot derive argument 'registry' from C representation of corpus."
+        )
+      } else if (length(c_regdir) > 1L){
+        stop(
+          "Cannot initialize corpus object - ",
+          "corpus defined by two different registry files."
+        )
+      } else {
+        registry_dir <- c_regdir
+      }
+    } else {
+      registry_dir <- path(path_expand(registry_dir))
+      if (is.na(c_regdir)){
+        stop("Cannot locate corpus with registry provided.")
+      } else if (length(c_regdir) > 1L){
+        if (!registry_dir %in% c_regdir){
+          stop("Cannot locate corpus with registry provided.")
+        }
+      } else if (registry_dir != c_regdir){
+        stop("Cannot locate corpus with registry provided.")
+      }
+      
+    }
     
     properties <- registry_get_properties(.Object)
+    data_dir <- corpus_data_dir(.Object, registry = registry_dir)
+    template <- path(data_dir, "template.json")
+    info_file <- corpus_info_file(.Object, registry = registry_dir)
+    
     y <- new(
       "corpus",
       corpus = .Object,
-      encoding = registry_get_encoding(.Object),
-      data_dir = registry_get_home(.Object),
-      type = if ("type" %in% names(properties)) properties[["type"]] else character(),
-      size = cl_attribute_size(corpus = .Object, attribute = "word", attribute_type = "p", registry = registry())
+      encoding = cl_charset_name(corpus = .Object, registry = registry_dir),
+      registry_dir = registry_dir,
+      data_dir = data_dir,
+      info_file = if (file.exists(info_file)) info_file else path(NA),
+      template = if (file.exists(template)) template else path(NA),
+      type = if ("type" %in% names(properties))
+        properties[["type"]]
+      else
+        NA_character_,
+      size = cl_attribute_size(
+        corpus = .Object, registry = registry_dir,
+        attribute = "word", attribute_type = "p"
+      ),
+      name = corpus_full_name(corpus = .Object, registry = registry_dir)
     )
+    
     return(y)
   } else {
     if (missing(restricted)) restricted <- FALSE
@@ -98,92 +158,97 @@ setMethod("get_corpus", "kwic", function(x) x@corpus)
 setMethod("get_corpus", "bundle", function(x) unique(sapply(x@objects, get_corpus)))
 
 
-#' @rdname corpus-class 
+#' @rdname corpus-class
 setMethod("corpus", "missing", function(){
-  if (nchar(Sys.getenv("CORPUS_REGISTRY")) > 1){
-    corpora <- .list_corpora()
-    y <- data.frame(
-      corpus = corpora,
-      size = unname(sapply(corpora,function(x) cl_attribute_size(corpus = x, attribute = registry_get_p_attributes(x)[1], attribute_type = "p", registry = registry()))),
-      encoding = unname(sapply(corpora, function(x) registry_get_encoding(x))),
-      template = unname(sapply(corpora, function(x) if (is.null(get_template(x, warn = FALSE))) FALSE else TRUE )),
-      stringsAsFactors = FALSE
-    )
-  } else {
-    y <- data.frame(corpus = character(), size = integer())
-  }
-  return(y)
+  
+  dt <- data.table(corpus = cqp_list_corpora())
+  regdirs <- sapply(dt[["corpus"]], corpus_registry_dir)
+  charset <- mapply(
+    RcppCWB::corpus_property,
+    corpus = dt[["corpus"]], registry = regdirs, property = "charset"
+  )
+  dt[, "encoding" := charset]
+  
+  corpus_type <- mapply(
+    RcppCWB::corpus_property,
+    corpus = dt[["corpus"]], registry = regdirs, property = "type"
+  )
+  dt[, "type" := corpus_type]
+  
+  data_dirs <- mapply(
+    RcppCWB::corpus_data_dir,
+    corpus = dt[["corpus"]],
+    registry = regdirs
+  )
+  template <- sapply(data_dirs, function(dir) file.exists(path(dir, "template.json")))
+  dt[, "template" := template]
+  
+  size <- mapply(
+    RcppCWB::cl_attribute_size,
+    corpus = dt[["corpus"]],
+    registry = regdirs,
+    attribute = "word", 
+    attribute_type = "p"
+  )
+  dt[, "size" := size]
+  
+  
+  as.data.frame(dt)
 })
 
 
-
-#' @noRd
-.s_attributes_stop_if_nested <- function(corpus, s_attr){
-  max_attr <- unique(
-    sapply(
-      s_attr,
-      function(s) cl_attribute_size(corpus = corpus, attribute = s, attribute_type = "s", registry = registry())
-    )
-  )
-  if (length(max_attr) != 1){
-    stop(
-      sprintf("Differing attribute size of s-attributes detected (%s), ", paste(s_attr, collapse = "/")),
-      "but the method does not (yet) work for nested XML / nested structural attributes."
-    )
-  }
-  max_attr
-}
-
 #' @title Subsetting corpora and subcorpora
 #' @description The structural attributes of a corpus (s-attributes) can be used
-#'   to generate subcorpora (i.e. a \code{subcorpus} class object) by applying
-#'   the \code{subset}-method. To obtain a \code{subcorpus}, the
-#'   \code{subset}-method can be applied on a corpus represented by a
-#'   \code{corpus} object, a length-one \code{character} vector (as a shortcut),
-#'   and on a \code{subcorpus} object.
+#'   to generate subcorpora (i.e. a `subcorpus` class object) by applying the
+#'   `subset`-method. To obtain a `subcorpus`, the `subset`-method can be
+#'   applied on a corpus represented by a `corpus` object, a length-one
+#'   `character` vector (as a shortcut), and on a `subcorpus` object.
+#' @return A `subcorpus` object. If the expression provided by argument `subset`
+#'   includes undefined s-attributes, a warning is issued and the return value
+#'   is `NULL`.
 #' @rdname subset
 #' @name subset
 #' @aliases subset,corpus-method
-#' @seealso The methods applicable for the \code{subcorpus} object resulting
-#'   from subsetting a corpus or subcorpus are described in the documentation of
-#'   the \code{\link{subcorpus-class}}. Note that the \code{subset}-method can also be
-#'   applied to \code{\link{textstat-class}} objects (and objects inheriting from
-#'   this class).
+#' @seealso The methods applicable for the `subcorpus` object resulting from
+#'   subsetting a corpus or subcorpus are described in the documentation of the
+#'   `\link{subcorpus-class}`. Note that the `subset`-method can also be applied
+#'   to \code{\link{textstat-class}} objects (and objects inheriting from this
+#'   class).
 #' @examples
 #' use("polmineR")
-#' 
+#'
 #' # examples for standard and non-standard evaluation
 #' a <- corpus("GERMAPARLMINI")
-#' 
-#' # subsetting a corpus object using non-standard evaluation 
+#'
+#' # subsetting a corpus object using non-standard evaluation
 #' sc <- subset(a, speaker == "Angela Dorothea Merkel")
 #' sc <- subset(a, speaker == "Angela Dorothea Merkel" & date == "2009-10-28")
 #' sc <- subset(a, grepl("Merkel", speaker))
 #' sc <- subset(a, grepl("Merkel", speaker) & date == "2009-10-28")
-#' 
-#' # subsetting corpus specified by character vector 
+#'
+#' # subsetting corpus specified by character vector
 #' sc <- subset("GERMAPARLMINI", grepl("Merkel", speaker))
 #' sc <- subset("GERMAPARLMINI", speaker == "Angela Dorothea Merkel")
 #' sc <- subset("GERMAPARLMINI", speaker == "Angela Dorothea Merkel" & date == "2009-10-28")
 #' sc <- subset("GERMAPARLMINI", grepl("Merkel", speaker) & date == "2009-10-28")
-#' 
+#'
 #' # subsetting a corpus using the (old) logic of the partition-method
 #' sc <- subset(a, speaker = "Angela Dorothea Merkel")
 #' sc <- subset(a, speaker = "Angela Dorothea Merkel", date = "2009-10-28")
 #' sc <- subset(a, speaker = "Merkel", regex = TRUE)
 #' sc <- subset(a, speaker = c("Merkel", "Kauder"), regex = TRUE)
 #' sc <- subset(a, speaker = "Merkel", date = "2009-10-28", regex = TRUE)
-#' 
+#'
 #' # providing the value for s-attribute as a variable
 #' who <- "Volker Kauder"
 #' sc <- subset(a, quote(speaker == who))
-#' 
+#'
 #' # use bquote for quasiquotation when using a variable for subsetting in a loop
 #' for (who in c("Angela Dorothea Merkel", "Volker Kauder", "Ronald Pofalla")){
 #'    sc <- subset(a, bquote(speaker == .(who)))
 #'    if (interactive()) print(size(sc))
 #' }
-#' 
+#'
 #' # equivalent procedure with lapply (DOES NOT WORK YET)
 #' b <- lapply(
 #'   c("Angela Dorothea Merkel", "Volker Kauder", "Ronald Pofalla"),
@@ -197,7 +262,7 @@ setMethod("corpus", "missing", function(){
 #' @param subset A \code{logical} expression indicating elements or rows to
 #'   keep. The expression may be unevaluated (using \code{quote} or
 #'   \code{bquote}).
-#' @importFrom data.table setindexv
+#' @importFrom data.table setindexv setDT
 #' @param regex A \code{logical} value. If \code{TRUE}, values for s-attributes
 #'   defined using the three dots (...) are interpreted as regular expressions
 #'   and passed into a \code{grep} call for subsetting a table with the regions
@@ -206,21 +271,16 @@ setMethod("corpus", "missing", function(){
 setMethod("subset", "corpus", function(x, subset, regex = FALSE, ...){
   stopifnot(is.logical(regex))
   s_attr <- character()
-  
+
   if (!missing(subset)){
     expr <- substitute(subset)
-    # The expression may also have been passed in as an unevaluated expression. In
-    # this case, it is "unwrapped". Note that parent.frames looks back two generations
-    # because the S4 Method inserts an additional layer to the original calling
-    # environment
-    if (class(try(eval(expr, envir = parent.frame(n = c(1L, 2L))), silent = TRUE)) == "call"){
+    # The expression may also have been passed in as an unevaluated expression.
+    # In this case, it is "unwrapped". Note that parent.frames looks back two
+    # generations because the S4 Method inserts an additional layer to the
+    # original calling environment
+    if (is.call(try(eval(expr, envir = parent.frame(n = c(1L, 2L))), silent = TRUE))){
       expr <- eval(expr, envir = parent.frame(n = c(1L, 2L)))
     }
-    # Adjust the encoding of the expression to the one of the corpus. Adjusting
-    # encodings is expensive, so the (small) epression will be adjusted to the
-    # encoding of the corpus, not vice versa
-    if (localeToCharset()[1] != x@encoding)
-      expr <- .recode_call(x = expr, from = localeToCharset()[1], to = x@encoding)
     s_attr_expr <- s_attributes(expr, corpus = x) # get s_attributes present in the expression
     s_attr <- c(s_attr, s_attr_expr)
   }
@@ -232,15 +292,28 @@ setMethod("subset", "corpus", function(x, subset, regex = FALSE, ...){
     }
     s_attr_dots <- names(dots)
     s_attr <- c(s_attr, s_attr_dots)
-    if (localeToCharset()[1] != x@encoding){
-      s_attr_dots <- lapply(s_attr_dots, function(v) as.corpusEnc(v, corpusEnc = x@encoding))
+    if (encoding() != x@encoding){
+      s_attr_dots <- lapply(
+        s_attr_dots,
+        function(v) as.corpusEnc(v, corpusEnc = x@encoding)
+      )
     }
   }
   
+  if (all(is.na(s_attr))){
+    warning("no valid s-attributes for subsetting the corpus (returning NULL)")
+    return(NULL)
+  }
+
   # Reading the binary file with the ranges for the whole corpus is faster than using
   # the RcppCWB functionality. The assumption here is that the XML is flat, i.e. no need
   # to read in seperate rng files.
-  rng_file <- file.path(x@data_dir, paste(s_attr[1], "rng", sep = "."))
+  if (!s_attr[1] %in% s_attributes(x)){
+    warning(sprintf("structural attribute '%s' not defined", s_attr[1]))
+    return(NULL)
+  }
+    
+  rng_file <- fs::path(x@data_dir, paste(s_attr[1], "rng", sep = "."))
   rng_size <- file.info(rng_file)[["size"]]
   rng <- readBin(rng_file, what = integer(), size = 4L, n = rng_size / 4L, endian = "big")
   dt <- data.table(
@@ -248,31 +321,41 @@ setMethod("subset", "corpus", function(x, subset, regex = FALSE, ...){
     cpos_left = rng[seq.int(from = 1L, to = length(rng), by = 2L)],
     cpos_right = rng[seq.int(from = 2L, to = length(rng), by = 2L)]
   )
-  
+
   # Now we add the values of the s-attributes to the data.table with regions, one at
   # a time. Again, doing this from the binary files directly is faster than using RcppCWB.
   for (i in seq_along(s_attr)){
+    if (!s_attr[i] %in% s_attributes(x)){
+      warning(sprintf("structural attribute '%s' not defined", s_attr[i]))
+      return(NULL)
+    }
     files <- list(
-      avs = file.path(x@data_dir, paste(s_attr[i], "avs", sep = ".")),
-      avx = file.path(x@data_dir, paste(s_attr[i], "avx", sep = "."))
+      avs = fs::path(x@data_dir, paste(s_attr[i], "avs", sep = ".")),
+      avx = fs::path(x@data_dir, paste(s_attr[i], "avx", sep = "."))
     )
     sizes <- lapply(files, function(file) file.info(file)[["size"]])
-    
+
     avx <- readBin(files[["avx"]], what = integer(), size = 4L, n = sizes[["avx"]] / 4L, endian = "big")
     avx_matrix <- matrix(avx, ncol = 2, byrow = TRUE)
-    
+
     avs <- readBin(con = files[["avs"]], what = character(), n = sizes[["avs"]])
     if (!is.null(encoding)) Encoding(avs) <- x@encoding
-    
+
     dt[, (s_attr[i]) := avs[match(avx_matrix[, 2], unique(avx_matrix[, 2]))] ]
   }
-  
+
   # Apply the expression.
   if (!missing(subset)){
+    # Adjust the encoding of the expression to the one of the corpus. Adjusting
+    # encodings is expensive, so the (small) epression will be adjusted to the
+    # encoding of the corpus, not vice versa
+    if (encoding() != x@encoding)
+      expr <- .recode_call(x = expr, from = encoding(), to = x@encoding)
     setindexv(dt, cols = s_attr)
-    dt <- dt[eval(expr, envir = dt)]
+    success <- try({dt <- dt[eval(expr, envir = dt)]})
+    if (is(success, "try-error")) return(NULL)
   }
-  
+
   if (length(dots) > 0L){
     for (s in s_attr_dots){
       if (regex){
@@ -288,30 +371,29 @@ setMethod("subset", "corpus", function(x, subset, regex = FALSE, ...){
       }
     }
   }
-  
-  
+
+
   # And assemble the subcorpus object that is returned.
   if (nrow(dt) == 0L){
     warning("No matching regions found for the s-attributes provided: Returning NULL object")
     return(NULL)
   }
   
+  y <- if (!is.na(x@type)){
+    as(x, paste(x@type, "subcorpus", sep = "_"))
+  } else { 
+    as(x, "subcorpus")
+  }
   
-  y <- new(
-    if (length(x@type) > 0L) paste(x@type, "subcorpus", sep = "_") else "subcorpus",
-    corpus = x@corpus,
-    encoding = x@encoding,
-    type = x@type,
-    data_dir = x@data_dir,
-    cpos = as.matrix(dt[, c("cpos_left", "cpos_right")]),
-    strucs = dt[["struc"]],
-    s_attribute_strucs = s_attr[length(s_attr)],
-    s_attributes = lapply(setNames(s_attr, s_attr), function(s) unique(dt[[s]])),
-    xml = "flat",
-    name = ""
-  )
+  y@cpos <- as.matrix(dt[, c("cpos_left", "cpos_right")])
   dimnames(y@cpos) <- NULL
+  y@strucs = dt[["struc"]]
+  y@s_attribute_strucs <- s_attr[length(s_attr)]
+  y@s_attributes <- lapply(setNames(s_attr, s_attr), function(s) unique(dt[[s]]))
+  y@xml <- "flat"
+  y@name <- ""
   y@size <- size(y)
+  
   y
 })
 
@@ -323,36 +405,136 @@ setMethod("subset", "character", function(x, ...){
 
 
 #' @rdname subset
+#' @importFrom RcppCWB s_attr_regions
 setMethod("subset", "subcorpus", function(x, subset, ...){
   expr <- substitute(subset)
-  
-  if (localeToCharset()[1] != x@encoding)
-    expr <- .recode_call(x = expr, from = localeToCharset()[1], to = x@encoding)
-  
-  s_attr <- s_attributes(expr, corpus = x) # get s_attributes present in the expression
-  max_attr <- .s_attributes_stop_if_nested(corpus = x@corpus, s_attr = s_attr)
 
-  if (max_attr != cl_attribute_size(corpus = x@corpus, attribute = x@s_attribute_strucs, attribute_type = "s", registry = registry())){
-    stop("New s-attributes are nested in existing s-attribute defining subcorpus. ",
-         "The method does not (yet) work for nested XML / nested structural attributes.")
+  if (encoding() != x@encoding)
+    expr <- .recode_call(x = expr, from = encoding(), to = x@encoding)
+
+  s_attr <- s_attributes(expr, corpus = x) # get s_attributes present in the expression
+  dt <- data.table(struc = x@strucs, cpos_left = x@cpos[,1], cpos_right = x@cpos[,2])
+  
+  s_attr_sizes <- sapply(
+    unique(c(x@s_attribute_strucs, s_attr)),
+    function(s)
+      cl_attribute_size(
+        corpus = x@corpus,
+        attribute = s, attribute_type = "s",
+        registry = x@registry_dir
+      )
+  )
+  
+  if (length(unique(s_attr_sizes)) != 1L){
+    
+    # If sizes of s-attributes differ, we assume the nested scenario
+    
+    regions <- lapply(
+      setNames(s_attr, s_attr),
+      function(s)
+        s_attr_regions(
+          corpus = x@corpus, registry = x@registry_dir,
+          data_dir = x@data_dir,
+          s_attr = s
+        )
+    )
+
+    if (length(s_attr) > 1L){
+      # When subsetting on more than one s-attribute at a time, it is required
+      # that these are on the same level.
+      if (length(unique(s_attr_sizes[-1L])) == 1L){
+        stop("structural attributes for subsetting need to have identical size - not true")
+      }
+      
+      # The second check is whether regions of s-attributes for subsetting are
+      # identical.
+      for (i in 2L:length(s_attr))
+        if (!identical(regions[[1]], regions[[i]]))
+          stop("structural attributes need to define the same regions")
+      
+    }
+    
+    for (s in s_attr){
+      strucs <- cl_cpos2struc(
+        corpus = x@corpus, registry = x@registry_dir,
+        s_attribute = s, cpos = x@cpos[,1]
+      )
+      
+      if (any(is.na(strucs)) || any(strucs < 0L)){
+        descendant <- TRUE
+        break
+      }
+
+      r <- regions[[s]][strucs + 1L]
+      if (all(r[,1] <= x@cpos[,1]) && all(r[,2] >= x@cpos[,2])){
+        descendant <- FALSE
+        str <- cl_struc2str(
+          corpus = x@corpus, registry = x@registry_dir,
+          s_attribute = s, struc = strucs
+        )
+        Encoding(str) <- x@encoding
+        dt[, (s_attr) := str]
+      } else {
+        descendant <- TRUE
+        break
+      }
+    }
+    
+    if (descendant){
+      # Slower by necessity
+      strucs <- cl_cpos2struc(
+        x@corpus, registry = x@registry_dir,
+        s_attribute = s_attr[1], cpos = cpos(x@cpos)
+      )
+      strucs <- unique(strucs[strucs >= 0])
+      ranges <- get_region_matrix(
+        x@corpus, registry = x@registry_dir,
+        s_attribute = s_attr[1], strucs = strucs
+      )
+      str <- cl_struc2str(
+        corpus = x@corpus, registry = x@registry_dir,
+        s_attribute = s_attr[1], struc = strucs
+      )
+      Encoding(str) <- x@encoding
+      dt <- data.table(
+        struc = strucs,
+        cpos_left = ranges[,1],
+        cpos_right = ranges[,2]
+      )
+      dt[, (s_attr[1]) := str]
+      if (length(s_attr) > 1L){
+        for (s in s_attr[-1]){
+          str <- cl_struc2str(
+            corpus = x@corpus, registry = x@registry_dir,
+            s_attribute = s, struc = strucs
+          )
+          Encoding(str) <- x@encoding
+          dt[, (s) := str]
+        }
+      }
+    }
+    
+  } else {
+    for (s in s_attr){
+      str <- cl_struc2str(
+        corpus = x@corpus, registry = x@registry_dir,
+        s_attribute = s, struc = dt[["struc"]]
+      )
+      Encoding(str) <- x@encoding
+      dt[, (s) := str]
+    }
+    
   }
   
-  dt <- data.table(
-    struc = x@strucs,
-    cpos_left = x@cpos[,1],
-    cpos_right = x@cpos[,2]
-  )
-  for (s in s_attr){
-    str <- RcppCWB::cl_struc2str(corpus = x@corpus, s_attribute = s, struc = dt[["struc"]], registry = registry())
-    Encoding(str) <- x@encoding
-    dt[, (s) := str]
-  }
   setindexv(dt, cols = s_attr)
   dt_min <- dt[eval(expr, envir = dt)]
 
   y <- new(
     "subcorpus",
     corpus = x@corpus,
+    registry_dir = x@registry_dir,
+    template = x@template,
+    info_file = x@info_file,
     encoding = x@encoding,
     type = x@type,
     data_dir = x@data_dir,
@@ -387,20 +569,20 @@ setMethod("show", "corpus", function(object){
 #' @details Applying the `$`-method on a corpus will return the values for the
 #'   s-attribute stated with argument \code{name}.
 #' @examples
-#' # show-method 
+#' # show-method
 #' if (interactive()) corpus("REUTERS") %>% show()
 #' if (interactive()) corpus("REUTERS") # show is called implicitly
-#' 
+#'
 #' # get corpus ID
 #' corpus("REUTERS") %>% get_corpus()
-#' 
+#'
 #' # use $ to access s_attributes quickly
 #' use("polmineR")
 #' g <- corpus("GERMAPARLMINI")
 #' g$date
-#' corpus("GERMAPARLMINI")$date # 
+#' corpus("GERMAPARLMINI")$date #
 #' corpus("GERMAPARLMINI") %>% s_attributes(s_attribute = "date") # equivalent
-#' 
+#'
 #' use("polmineR")
 #' sc <- subset("GERMAPARLMINI", date == "2009-10-27")
 #' sc$date
@@ -421,6 +603,7 @@ setMethod("show", "subcorpus_bundle", function (object) {
 #' @rdname subset
 setMethod("subset", "remote_corpus", function(x, subset){
   expr <- substitute(subset)
+  expr <- if (is.call(try(eval(expr), silent = TRUE))) eval(expr) else expr
   sc <- ocpu_exec(fn = "subset", corpus = x@corpus, server = x@server, restricted = x@restricted, do.call = FALSE, x = as(x, "corpus"), subset = expr)
   y <- as(sc, "remote_subcorpus")
   # Capture information on accessibility status and the server which is not included

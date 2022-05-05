@@ -38,6 +38,7 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 
 #' Get cooccurrence statistics.
 #' 
+#' @inheritParams context
 #' @param .Object A \code{partition} object, or a \code{character} vector with a CWB corpus.
 #' @param query A query, either a character vector to match a token, or a CQP query.
 #' @param cqp Defaults to \code{is.cqp}-function, or provide
@@ -48,8 +49,6 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 #' @param boundary If provided, it will be checked that the corpus positions of
 #'   windows do not extend beyond the left and right boundaries of the region 
 #'   defined by the s-attribute where the match occurs.
-#' @param left Number of tokens to the left of the query match.
-#' @param right Number of tokens to the right of the query match.
 #' @param stoplist Exclude a query hit from analysis if stopword(s) is/are in
 #'   context (relevant only if query is not \code{NULL}).
 #' @param positivelist Character vector or numeric vector: include a query hit
@@ -91,14 +90,12 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 #' format(e)
 #' 
 #' # using pipe operator may be convenient
-#' if (require(magrittr)){
 #' cooccurrences("REUTERS", query = "oil") %>%
 #'   subset(!is.na(ll)) %>%
 #'   subset(!word %in% tm::stopwords("en")) %>%
 #'   subset(count_coi >= 5) %>%
 #'   subset(ll >= 10.83) %>%
 #'   format()
-#' }
 setGeneric("cooccurrences", function(.Object, ...) standardGeneric("cooccurrences") )
 
 #' @rdname cooccurrences
@@ -370,6 +367,10 @@ setMethod("cooccurrences", "Cooccurrences", function(.Object, query){
   y <- new(
     "cooccurrences",
     corpus = .Object@corpus,
+    registry_dir = .Object@registry_dir,
+    data_dir = .Object@data_dir,
+    info_file = .Object@info_file,
+    template = .Object@template,
     p_attribute = .Object@p_attribute,
     encoding = .Object@partition@encoding,
     query = query,
@@ -613,6 +614,9 @@ setMethod("Cooccurrences", "slice", function(
   y <- new(
     "Cooccurrences",
     corpus = .Object@corpus,
+    registry_dir = .Object@registry_dir,
+    data_dir = .Object@data_dir,
+    template = .Object@template,
     encoding = .Object@encoding,
     left = as.integer(left),
     right = as.integer(right),
@@ -630,7 +634,9 @@ setMethod("Cooccurrences", "slice", function(
     id_list <- lapply(
       1L:nrow(.Object@cpos),
       function(j)
-        RcppCWB::cl_cpos2id(corpus = .Object@corpus, p_attribute = p_attribute, cpos = .Object@cpos[j,1]:.Object@cpos[j,2]
+        cpos2id(
+          .Object, p_attribute = p_attribute,
+          cpos = .Object@cpos[j,1]:.Object@cpos[j,2]
         )
     )
 
@@ -750,8 +756,8 @@ setMethod("Cooccurrences", "slice", function(
     lapply(
       p_attribute,
       function(x){
-        dt[, eval(a_cols_id[x]) := cl_cpos2id(corpus = .Object@corpus, p_attribute = x, cpos = dt[["a_cpos"]]), with = TRUE]
-        dt[, eval(b_cols_id[x]) := cl_cpos2id(corpus = .Object@corpus, p_attribute = x, cpos = dt[["b_cpos"]]), with = TRUE]
+        dt[, eval(a_cols_id[x]) := cpos2id(.Object, p_attribute = x, cpos = dt[["a_cpos"]]), with = TRUE]
+        dt[, eval(b_cols_id[x]) := cpos2id(.Object, p_attribute = x, cpos = dt[["b_cpos"]]), with = TRUE]
       }
     )
     if (verbose) message("... counting window size")
@@ -838,6 +844,10 @@ setMethod("features", "Cooccurrences", function(x, y, included = FALSE, method =
     "features",
     included = FALSE,
     corpus = x@corpus,
+    registry_dir = x@registry_dir,
+    data_dir = x@data_dir,
+    info_file = x@info_file,
+    template = x@template,
     size_coi = x@partition@size,
     size_ref = if (included) y@partition@size - x@partition@size else y@partition@size,
     p_attribute = x@p_attribute,
@@ -990,12 +1000,12 @@ setMethod("decode", "Cooccurrences", function(.Object){
     a_col <- if (length(.Object@p_attribute) == 1L) "a_id" else paste("a", p_attr, "id", sep = "_")
     .Object@stat[, paste("a", p_attr, sep = "_") := as.nativeEnc(
       cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = .Object@stat[[a_col]]),
-      from = registry_get_encoding(.Object@corpus))
+      from = cl_charset_name(.Object@corpus))
       ]
     b_col <- if (length(.Object@p_attribute) == 1L) "b_id" else paste("b", p_attr, "id", sep = "_")
     .Object@stat[, paste("b", p_attr, sep = "_") := as.nativeEnc(
       cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = .Object@stat[[b_col]]),
-      from = registry_get_encoding(.Object@corpus))
+      from = cl_charset_name(.Object@corpus))
       ]
   }
   # .Object@stat[, "a_id" := NULL][, "b_id" := NULL]
@@ -1093,9 +1103,9 @@ setAs(from = "cooccurrences", to = "kwic", function(from){
   # Add word_id to concordances
   y@stat <- tbl[y@stat, on = "match_id"]
   p_attr_decoded <- cl_id2str(
-    corpus = from@corpus, p_attribute = from@p_attribute[1],
-    id = y@stat[[paste(from@p_attribute[1], "id", sep = "_")]],
-    registry = registry()
+    corpus = from@corpus, registry = from@registry_dir,
+    p_attribute = from@p_attribute[1],
+    id = y@stat[[paste(from@p_attribute[1], "id", sep = "_")]]
   )
   y@stat[, from@p_attribute[1] := as.nativeEnc(p_attr_decoded, from = from@encoding), with = TRUE]
   y@stat[, "word_id" := NULL]

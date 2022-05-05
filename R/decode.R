@@ -2,6 +2,7 @@
 setGeneric("decode", function(.Object, ...) standardGeneric("decode"))
 
 setOldClass("Annotation")
+setOldClass("AnnotatedPlainTextDocument")
 
 
 setAs(from = "corpus", to = "Annotation", def = function(from){
@@ -30,7 +31,7 @@ setAs(from = "corpus", to = "Annotation", def = function(from){
   )
 
   right_offset <- left_offset + word_length
-  names(right_offset) <- word
+  names(right_offset) <- word # repeats 
   m <- matrix(data = c(left_offset, right_offset), ncol = 2, byrow = FALSE)
   f <- cut(x = 1L:length(pos), breaks = unique(c(1L, grep("\\$\\.", pos), length(pos))), include.lowest = TRUE)
   chunks <- split(x = m, f = f)
@@ -45,6 +46,101 @@ setAs(from = "corpus", to = "Annotation", def = function(from){
   c(w, s)
 })
 
+
+setAs(from = "corpus", to = "AnnotatedPlainTextDocument", def = function(from){
+  
+  # Implemented only for class 'corpus', 'subcorpus'-class will inherit from it.
+  
+  if (!requireNamespace(package = "NLP", quietly = TRUE))
+    stop("Package 'NLP' required but not available.")
+  
+  message("... decode p-attributes")
+  p_attrs <- p_attributes(from)
+  ts <- decode(from, p_attribute = p_attrs, s_attributes = character())
+
+  message("... generate plain text string")
+  whitespace_after <- if ("pos" %in% p_attrs){
+    # still assumes that STSS is used
+    c(ifelse(ts[["pos"]] %in% c("$.", "$,"), FALSE, TRUE)[2L:nrow(ts)], FALSE)
+  } else {
+    c(grepl("^[.,;!?]$", ts[["word"]])[2L:nrow(ts)], FALSE)
+  }
+  
+  word_with_whitespace <- paste(ts[["word"]], ifelse(whitespace_after, " ", ""), sep = "")
+  s <- paste(word_with_whitespace, collapse = "")
+  
+  message("... generate token-level annotation")
+  left_offset <- c(1L, (cumsum(nchar(word_with_whitespace)) + 1L)[1L:(nrow(ts) - 1L)])
+  right_offset <- left_offset + nchar(ts[["word"]]) - 1L
+  
+  w <- NLP::Annotation(
+    id = cpos(from@cpos),
+    rep.int("word", nrow(ts)),
+    start = left_offset,
+    end = right_offset,
+    features = lapply(split(ts[, p_attrs, with = FALSE], f = 1L:nrow(ts)), as.data.frame)
+  )
+  
+  message("... which s-attributes are document-level metadata?")
+  s_attrs <- s_attributes(from)
+  meta_candidates <- lapply(
+    setNames(s_attrs, s_attrs),
+    function(s_attr){
+      message(sprintf("... checking if s-attribute is metadata: %s ... ", s_attr), appendLF = FALSE)
+      strucs <- cl_cpos2struc(corpus = from@corpus, s_attribute = s_attr, cpos = cpos(from@cpos))
+      if (any(strucs < 0L)){
+        message("NO (not comprehensive)")
+        NULL
+      } else {
+        values <- cl_struc2str(corpus = from@corpus, s_attribute = s_attr, struc = strucs)
+        unique_values <- unique(values)
+        if (length(unique_values) == 1L){
+          message("OK")
+          return(unique_values)
+        } else {
+          message("NO (changes)")
+          character()
+        }
+      }
+    }
+  )
+  meta <- meta_candidates
+  # attributes that do not cover the entire subcorpus and that have different
+  # values are not metadata - discard it
+  for (i in rev(which(sapply(meta_candidates, length) != 1L))) meta[[i]] <- NULL
+  
+  # s-attributes that do not cover entire subcorpus (negative values) are 
+  # annotations of regions of text
+  s_attr_anno <- names(meta_candidates)[sapply(meta_candidates, is.null)]
+  mw_annotations <- do.call(c, lapply(
+    s_attr_anno,
+    function(s_attr){
+      strucs <- unique(
+        cl_cpos2struc(corpus = from@corpus, s_attribute = s_attr, cpos = cpos(from@cpos))
+      )
+      strucs <- strucs[which(strucs >= 0L)]
+      do.call(c,
+        lapply(
+          strucs,
+          function(struc){
+            cpos <- cl_struc2cpos(corpus = from@corpus, s_attribute = s_attr, struc = struc)
+            NLP::Annotation(
+              id = -1, # assign id later on, if necessary
+              type = s_attr,
+              start = w[which(w$id == min(cpos))]$start,
+              end = w[which(w$id == max(cpos))]$end,
+              features = list(list(constituents = cpos))
+            )
+          }
+        )
+      )
+    }
+  ))
+  
+  a <- if (length(mw_annotations) > 0L) c(w, mw_annotations) else w
+  
+  NLP::AnnotatedPlainTextDocument(s = s, a = a, meta = meta)
+})
 
 
 #' Decode corpus or subcorpus.
@@ -118,7 +214,8 @@ setAs(from = "corpus", to = "Annotation", def = function(from){
 #' \dontrun{
 #' if (requireNamespace("NLP")){
 #'   library(NLP)
-#'   p <- subset(corpus("GERMAPARLMINI"), date == "2009-11-10" & speaker == "Angela Dorothea Merkel")
+#'   p <- corpus("GERMAPARLMINI") %>%
+#'     subset(date == "2009-11-10" & speaker == "Angela Dorothea Merkel")
 #'   s <- as(p, "String")
 #'   a <- as(p, "Annotation")
 #'   
@@ -128,6 +225,8 @@ setAs(from = "corpus", to = "Annotation", def = function(from){
 #' 
 #'   words <- s[a[a$type == "word"]]
 #'   sentences <- s[a[a$type == "sentence"]] # does not yet work perfectly for plenary protocols 
+#'   
+#'   doc <- as(p, "AnnotatedPlainTextDocument")
 #' }
 #' }
 #' @rdname decode
@@ -135,7 +234,8 @@ setMethod("decode", "corpus", function(.Object, to = c("data.table", "Annotation
   if (to == "data.table"){
 
     if (is.null(p_attributes)) p_attributes <- p_attributes(.Object)
-    if (!all(p_attributes %in% p_attributes(.Object))) stop("Not all p_attributes provided are available.")
+    if (!all(p_attributes %in% p_attributes(.Object)))
+      stop("Not all p_attributes provided are available.")
     
 
     p_attribute_list <- lapply(
@@ -150,7 +250,8 @@ setMethod("decode", "corpus", function(.Object, to = c("data.table", "Annotation
     
     if (is.null(s_attributes)) s_attributes <- s_attributes(.Object)
     if (length(s_attributes) > 0L){
-      if (!all(s_attributes %in% s_attributes(.Object))) stop("Not all s_attributes provided are available.")
+      if (!all(s_attributes %in% s_attributes(.Object)))
+        stop("Not all s_attributes provided are available.")
     }
     
     if (length(s_attributes) > 0L){
@@ -158,10 +259,15 @@ setMethod("decode", "corpus", function(.Object, to = c("data.table", "Annotation
         setNames(s_attributes, s_attributes),
         function(s_attr){
           if (verbose) message("decoding s-attribute:", s_attr)
-          corpus_id <- get_corpus(.Object)
-          struc <- cl_cpos2struc(corpus = corpus_id, s_attribute = s_attr, cpos = 0L:max_cpos, registry = registry())
+          struc <- cl_cpos2struc(
+            corpus = .Object@corpus, registry = .Object@registry_dir,
+            s_attribute = s_attr, cpos = 0L:max_cpos
+          )
           if (decode){
-            str <- cl_struc2str(corpus = corpus_id, s_attribute = s_attr, struc = struc, registry = registry())
+            str <- cl_struc2str(
+              corpus = .Object@corpus, registry = .Object@registry_dir,
+              s_attribute = s_attr, struc = struc
+            )
             Encoding(str) <- encoding(.Object)
             return(as.nativeEnc(str, from = encoding(.Object)))
           } else {
@@ -172,7 +278,6 @@ setMethod("decode", "corpus", function(.Object, to = c("data.table", "Annotation
     } else {
       s_attribute_list <- list()
     }
-    
 
     message("assembling data.table")
     combined_list <- c(
@@ -223,10 +328,16 @@ setMethod("decode", "slice", function(.Object, to = "data.table", s_attributes =
     if (is.null(s_attributes)) s_attributes <- s_attributes(.Object)
     if (length(s_attributes) > 0L){
       if (!all(s_attributes %in% s_attributes(.Object))) stop("Not all s_attributes provided are available.")
-      strucs <- RcppCWB::cl_cpos2struc(corpus = .Object@corpus, s_attribute = s_attributes[1], cpos = .Object@cpos[,1])
+      strucs <- RcppCWB::cl_cpos2struc(
+        corpus = .Object@corpus, registry = .Object@registry_dir,
+        s_attribute = s_attributes[1], cpos = .Object@cpos[,1]
+      )
       
       s_attr_dt <- data.table(
-        RcppCWB::get_region_matrix(corpus = .Object@corpus, s_attribute = s_attributes[1], strucs = strucs, registry = registry())
+        RcppCWB::get_region_matrix(
+          corpus = .Object@corpus, registry = .Object@registry_dir,
+          s_attribute = s_attributes[1], strucs = strucs
+        )
       )
       setnames(s_attr_dt, old = c("V1", "V2"), new = c("cpos_left", "cpos_right"))
       s_attr_dt[, "struc" := strucs]
@@ -314,22 +425,25 @@ setMethod("decode", "integer", function(.Object, corpus, p_attributes, boost = N
   }
   
   if (isTRUE(boost)){
-    lexfile <- file.path(corpus@data_dir, sprintf("%s.lexicon", p_attributes), fsep = "/")
+    lexfile <- fs::path(corpus@data_dir, sprintf("%s.lexicon", p_attributes))
     lexicon <- readBin(con = lexfile, what = character(), n = file.info(lexfile)$size)
     Encoding(lexicon) <- corpus@encoding
-    if (!identical(corpus@encoding, localeToCharset()[1])){
-      # lexicon <- stringi::stri_encode(lexicon, from = corpus@encoding, to = localeToCharset()[1]) # as.locale
-      lexicon <- iconv(lexicon, from = corpus@encoding, to = localeToCharset()[1])
-      Encoding(lexicon) <- localeToCharset()[1]
+    if (!identical(corpus@encoding, encoding())){
+      # lexicon <- stringi::stri_encode(lexicon, from = corpus@encoding, to = encoding()) # as.locale
+      lexicon <- iconv(lexicon, from = corpus@encoding, to = encoding())
+      Encoding(lexicon) <- encoding()
     }
     y <- lexicon[.Object + 1L]
   } else if (isFALSE(boost)){
-    y <- RcppCWB::cl_id2str(corpus = corpus@corpus, p_attribute = p_attributes, registry = registry(), id = .Object)
+    y <- RcppCWB::cl_id2str(
+      corpus = corpus@corpus, registry = corpus@registry_dir,
+      p_attribute = p_attributes, id = .Object
+    )
     Encoding(y) <- corpus@encoding
-    if (!identical(corpus@encoding, localeToCharset()[1])){
-      # y <- stringi::stri_encode(y, from = corpus@encoding, to = localeToCharset()[1])
-      y <- iconv(y, from = corpus@encoding, to = localeToCharset()[1])
-      Encoding(y) <- localeToCharset()[1]
+    if (!identical(corpus@encoding, encoding())){
+      # y <- stringi::stri_encode(y, from = corpus@encoding, to = encoding())
+      y <- iconv(y, from = corpus@encoding, to = encoding())
+      Encoding(y) <- encoding()
     }
   }
   y
@@ -337,7 +451,7 @@ setMethod("decode", "integer", function(.Object, corpus, p_attributes, boost = N
 
 
 #' @details The \code{decode}-method for \code{data.table} objects will decode
-#'   token ids (column '[p-attribute]_id'), adding the corresponding string as a
+#'   token ids (column '`p-attribute`_id'), adding the corresponding string as a
 #'   new column. If a column "cpos" with corpus positions is present, ids are
 #'   derived for the corpus positions given first. If the \code{data.table}
 #'   neither has a column "cpos" nor columns with token ids (i.e. colummn name
@@ -345,9 +459,7 @@ setMethod("decode", "integer", function(.Object, corpus, p_attributes, boost = N
 #'   that columns are added to the \code{data.table} in an in-place operation to
 #'   handle memory parsimoniously.
 #' @examples 
-#' hits_dt <- hits("GERMAPARLMINI", query = "Liebe", progress = FALSE) %>%
-#'   as.data.table()
-#' dt <- data.table::data.table(cpos = hits_dt[["cpos_left"]])
+#' dt <- data.table::data.table(cpos = cpos("GERMAPARLMINI", query = "Liebe")[,1])
 #' decode(dt, corpus = "GERMAPARLMINI", p_attributes = c("word", "pos"))
 #' y <- dt[, .N, by = c("word", "pos")]
 #' @rdname decode
@@ -361,12 +473,7 @@ setMethod("decode", "data.table", function(.Object, corpus, p_attributes){
   if ("cpos" %in% colnames(.Object)){
     for (p_attr in p_attributes){
       p_attr_id <- paste(p_attr, "id", sep = "_")
-      ids <- RcppCWB::cl_cpos2id(
-        corpus = corpus@corpus,
-        p_attribute = p_attr,
-        cpos = .Object[["cpos"]],
-        registry = registry()
-      )
+      ids <- cpos2id(corpus, p_attribute = p_attr, cpos = .Object[["cpos"]])
       .Object[, (p_attr_id) := ids]
     }
   }

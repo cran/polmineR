@@ -3,17 +3,18 @@
 #' Test whether a character string is a CQP query, or turn a character
 #' vector into CQP queries.
 #' 
-#' The \code{is.cqp} function guesses whether \code{query} is a CQP query 
-#' and returns the respective logical value (\code{TRUE}/\code{FALSE}).
+#' The `is.cqp()` function guesses whether `query` is a CQP query 
+#' and returns the respective logical value (`TRUE`/`FALSE`).
 #' 
-#' The \code{as.cqp} function takes a character vector as input and converts it
+#' The `as.cqp()` function takes a character vector as input and converts it
 #' to a CQP query by putting the individual strings in quotation marks.
 #' 
-#' @param query A \code{character} vector with at least one CQP query.
-#' @param warn A (length-one) \code{logical} value, whether to issue a warning if
-#'   a query may be buggy.
+#' @param query A `character` vector with at least one CQP query.
+#' @param warn A (length-one) `logical` value, whether to issue a warning if a
+#'   query may be buggy.
 #' @name cqp
-#' @references CQP Query Language Tutorial (\url{http://cwb.sourceforge.net/files/CQP_Tutorial.pdf})
+#' @references CQP Query Language Tutorial
+#'   (\url{https://cwb.sourceforge.io/files/CQP_Tutorial.pdf})
 #' @rdname cqp
 #' @export is.cqp
 #' @examples 
@@ -80,34 +81,51 @@ check_cqp_query <- function(query, warn = TRUE){
 }
 
 
-#' @param collapse A \code{logical} value, whether to collapse the queries into one.
-#' @param normalise.case A \code{logical} value, if \code{TRUE}, a flag will be
+#' @param collapse A `logical` value, whether to collapse the queries into one.
+#' @param normalise.case A `logical` value, if `TRUE`, a flag will be
 #'   added to the query/queries to omit matching case.
+#' @param check A `logical` value whether to run `check_cqp_query()` on queries.
 #' @export as.cqp
 #' @rdname cqp
 #' @name as.cqp
-as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE){
-  if (!is.logical(normalise.case)) stop("normalise.case needs to be a logical value")
-  if (!is.logical(collapse)) stop("collapse needs to be a logical value")
-  cqp <- sapply(
+as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE, check = TRUE, warn = TRUE){
+  
+  if (!is.character(query))
+    stop("Function as.cqp() expects argument 'query' to be a character vector.")
+
+  if (!is.logical(normalise.case))
+    stop("normalise.case needs to be a logical value")
+  
+  if (!is.logical(collapse))
+    stop("collapse needs to be a logical value")
+  
+  cqp <- unlist(lapply(
     query,
     function(x){
       query <- gsub("\\s+", " ", x)
-      cqpRaw <- lapply(
+      cqp_raw <- lapply(
         unlist(strsplit(query, "\\s")),
         function(q){
-          if ((substr(q, 1, 1) == '[') && (substr(q, nchar(q), nchar(q)) == ']')){
+          if ((substr(q, 1L, 1L) == '[') && (substr(q, nchar(q), nchar(q)) == ']')){
             retval <- q
           } else {
-            retval <- paste('"', q, '"', sep='')
+            retval <- paste('"', q, '"', sep = '')
             if (normalise.case == TRUE) retval <- paste(retval, "%c", sep = " ")
           }
           retval
         })
-      paste(cqpRaw, collapse = " ")
-    })
-  if (length(cqp) > 1 && collapse == TRUE){
-    cqp <- paste('(', paste(cqp, sep='', collapse='|'), ')', sep="")
+      retval <- paste(cqp_raw, collapse = " ")
+      
+      if (check) retval <- if (check_cqp_query(retval, warn = warn))
+        retval
+      else
+        NULL
+      
+      retval
+    }
+  ))
+  if (length(cqp) > 1L && collapse == TRUE){
+    cqp <- paste('(', paste(cqp, sep = '', collapse='|'), ')', sep = "")
   }    
   cqp
 }
@@ -123,20 +141,29 @@ as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE){
 #' @noRd
 .token2id <- function(corpus, p_attribute, token = NULL, regex = FALSE){
   stopifnot(
-    corpus %in% .list_corpora(),
+    corpus %in% cqp_list_corpora(),
     p_attribute %in% registry_get_p_attributes(corpus)
-    )
+  )
+  
   if (is.null(token)) return( NULL )
+  
   if (is.numeric(token)){
     return( token ) # do nothing if token is already numeric (i.e. presumably integer)
   } else {
     if (regex){
       retval <- unlist(lapply(
         token,
-        function(x) cl_regex2id(corpus = corpus, p_attribute = p_attribute, regex = x, registry = registry())
+        function(x)
+          cl_regex2id(
+            corpus = corpus, registry = corpus_registry_dir(corpus),
+            p_attribute = p_attribute, regex = x
+          )
       ))
     } else {
-      retval <- cl_str2id(corpus = corpus, p_attribute = p_attribute, str = token, registry = registry())
+      retval <- cl_str2id(
+        corpus = corpus, registry = corpus_registry_dir(corpus),
+        p_attribute = p_attribute, str = token
+      )
     }
     return( retval )
   }
@@ -267,8 +294,6 @@ round.data.table <- function(x, digits = 2L){
 }
 
 
-.list_corpora = function() toupper(list.files( registry() ))
-
 #' @importFrom magrittr %>%
 #' @export %>%
 magrittr::`%>%`
@@ -277,4 +302,47 @@ magrittr::`%>%`
 #' @export as.data.table
 data.table::as.data.table
 
-default_template <- list(document = list(sAttribute = "text", format = c("### ","")))
+default_template <- list(
+  document = list(
+    sAttribute = "text",
+    format = c("### ","")
+  )
+)
+
+cpos2id <- function(x, p_attribute, cpos){
+  cl_cpos2id(
+    corpus = x@corpus, registry = x@registry_dir,
+    p_attribute = p_attribute, cpos = cpos
+  )
+}
+
+cpos2struc <- function(x, s_attr, cpos){
+  cl_cpos2struc(
+    corpus = x@corpus, registry = x@registry_dir,
+    s_attribute = s_attr, cpos = cpos
+  )
+}
+
+struc2str <- function(x, s_attr, struc){
+  struc_values <- cl_struc2str(
+    corpus = x@corpus, registry = x@registry_dir,
+    s_attribute = s_attr, struc = struc
+  )
+  Encoding(struc_values) <- x@encoding
+  enc2native(struc_values)
+}
+
+regex2id <- function(x, p_attribute, regex){
+  cl_regex2id(
+    corpus = x@corpus, registry = x@registry_dir,
+    p_attribute = p_attribute, regex = regex
+  )
+}
+
+str2id <- function(x, p_attribute, str){
+  cl_str2id(
+    corpus = x@corpus, registry = x@registry_dir,
+    p_attribute = p_attribute,
+    str = as.corpusEnc(str, corpusEnc = x@encoding)
+  )
+}

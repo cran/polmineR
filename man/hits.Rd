@@ -4,11 +4,12 @@
 \alias{hits}
 \alias{hits,corpus-method}
 \alias{hits,character-method}
-\alias{hits,slice-method}
 \alias{hits,subcorpus-method}
 \alias{hits,partition-method}
 \alias{hits,partition_bundle-method}
 \alias{hits,context-method}
+\alias{hits,remote_corpus-method}
+\alias{hits,remote_subcorpus-method}
 \title{Get hits for query}
 \usage{
 hits(.Object, ...)
@@ -18,10 +19,11 @@ hits(.Object, ...)
   query,
   cqp = FALSE,
   check = TRUE,
-  s_attribute = NULL,
+  s_attribute,
   p_attribute = "word",
   size = FALSE,
   freq = FALSE,
+  fill = FALSE,
   mc = 1L,
   verbose = TRUE,
   progress = FALSE,
@@ -33,7 +35,7 @@ hits(.Object, ...)
   query,
   cqp = FALSE,
   check = TRUE,
-  s_attribute = NULL,
+  s_attribute,
   p_attribute = "word",
   size = FALSE,
   freq = FALSE,
@@ -43,28 +45,16 @@ hits(.Object, ...)
   ...
 )
 
-\S4method{hits}{slice}(
-  .Object,
-  query,
-  cqp = FALSE,
-  s_attribute = NULL,
-  p_attribute = "word",
-  size = FALSE,
-  freq = FALSE,
-  mc = FALSE,
-  progress = FALSE,
-  verbose = TRUE,
-  ...
-)
-
 \S4method{hits}{subcorpus}(
   .Object,
   query,
   cqp = FALSE,
-  s_attribute = NULL,
+  check = TRUE,
+  s_attribute,
   p_attribute = "word",
   size = FALSE,
   freq = FALSE,
+  fill = FALSE,
   mc = FALSE,
   progress = FALSE,
   verbose = TRUE,
@@ -75,10 +65,12 @@ hits(.Object, ...)
   .Object,
   query,
   cqp = FALSE,
-  s_attribute = NULL,
+  check = TRUE,
+  s_attribute,
   p_attribute = "word",
   size = FALSE,
   freq = FALSE,
+  fill = FALSE,
   mc = FALSE,
   progress = FALSE,
   verbose = TRUE,
@@ -91,7 +83,7 @@ hits(.Object, ...)
   cqp = FALSE,
   check = TRUE,
   p_attribute = getOption("polmineR.p_attribute"),
-  s_attribute = NULL,
+  s_attribute,
   size = TRUE,
   freq = FALSE,
   mc = getOption("polmineR.mc"),
@@ -101,14 +93,19 @@ hits(.Object, ...)
 )
 
 \S4method{hits}{context}(.Object, s_attribute = NULL, verbose = TRUE, ...)
+
+\S4method{hits}{remote_corpus}(.Object, ...)
+
+\S4method{hits}{remote_subcorpus}(.Object, ...)
 }
 \arguments{
-\item{.Object}{A length-one \code{character} vector with a corpus ID, a \code{partition} or \code{partition_bundle} object}
+\item{.Object}{A length-one \code{character} vector with a corpus ID, a
+\code{partition} or \code{partition_bundle} object}
 
 \item{...}{Further arguments (used for backwards compatibility).}
 
-\item{query}{A \code{character} vector (optionally named, see details) with
-one or more queries.}
+\item{query}{A \code{character} vector (optionally named, see details) with one or
+more queries.}
 
 \item{cqp}{Either a \code{logical} value (\code{TRUE} if query is a CQP
 query), or a function to check whether \code{query} is a CQP query or not.}
@@ -117,7 +114,7 @@ query), or a function to check whether \code{query} is a CQP query or not.}
 using \code{check_cqp_query}.}
 
 \item{s_attribute}{A \code{character} vector of s-attributes that will be
-reported as metadata.}
+used to breakdown counts for matches for query/queries.}
 
 \item{p_attribute}{A \code{character} vector stating a p-attribute.}
 
@@ -125,11 +122,17 @@ reported as metadata.}
 
 \item{freq}{A \code{logcial} value, whether to report relative frequencies.}
 
+\item{fill}{A \code{logical} value, whethet to report counts (optionally
+frequencies) for combinations of s-attributes where not matchers occurr.}
+
 \item{mc}{A \code{logical} value, whether to use multicore.}
 
 \item{verbose}{A \code{logical} value, whether to output messages.}
 
 \item{progress}{A \code{logical} value, whether to show progress bar.}
+}
+\value{
+A \code{hits} class object.
 }
 \description{
 Get hits for queries, optionally with s-attribute values.
@@ -157,11 +160,14 @@ y <- hits("REUTERS", query = "oil", s_attribute = "places", freq = TRUE)
 
 # get hits for partition
 p <- partition("REUTERS", places = "saudi-arabia", regex = TRUE)
-y <- hits(p, query = "oil")
 y <- hits(p, query = "oil", s_attribute = "id")
 
 # get hits for subcorpus
 y <- corpus("REUTERS") \%>\%
   subset(grep("saudi-arabia", places)) \%>\%
   hits(query = "oil")
+}
+\seealso{
+See the documentation of the \code{hits} class
+(\code{\link{hits-class}}) for details.
 }

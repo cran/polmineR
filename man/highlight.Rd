@@ -25,11 +25,12 @@ highlight(.Object, ...)
 \arguments{
 \item{.Object}{A \code{html}, \code{character}, a \code{kwic} object.}
 
-\item{...}{Terms to be highlighted can be passed in as named character
-vectors of terms (or regular expressions); the name then needs to be a
-valid color name.}
+\item{...}{Terms to be highlighted can be passed in as named \code{character}
+vectors of terms (or regular expressions); the name needs to be a
+valid color name. It is also possible to pass in a \code{matrix} with ranges (as
+returned by \code{cpos()}).}
 
-\item{highlight}{A character vector, or a list of character or integer vectors.}
+\item{highlight}{A character vector, or a list of \code{character} or \code{integer} vectors.}
 
 \item{regex}{Logical, whether character vectors are interpreted as regular
 expressions.}
@@ -58,10 +59,8 @@ Y <- highlight(H, list(lightgreen = "higher"))
 if (interactive()) htmltools::html_print(Y)
 
 # highlight matches for a CQP query
-H2 <- highlight(
-  H,
-  highlight = list(yellow = cpos(hits(P, query = '"prod.*"', cqp = TRUE)))
-)
+regions <- cpos(P, query = '"prod.*"', cqp = TRUE)
+H2 <- highlight(H, highlight = list(yellow = regions))
 
 # the method can be used in pipe
 P \%>\% html() \%>\% highlight(list(lightgreen = "1986")) -> H

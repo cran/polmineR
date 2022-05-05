@@ -49,3 +49,6 @@ library(polmineR)
 #  ##:: user = "YOUR_USER_NAME"
 #  ##:: password = "YOUR_PASSWORD"
 
+## ---- eval = FALSE------------------------------------------------------------
+#  x <- corpus("MIGPRESS_FAZ", server = "YOURSERVER", restricted = TRUE)
+

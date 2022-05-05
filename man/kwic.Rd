@@ -22,8 +22,7 @@ kwic(.Object, ...)
   .Object,
   s_attributes = getOption("polmineR.meta"),
   cpos = TRUE,
-  verbose = FALSE,
-  ...
+  verbose = FALSE
 )
 
 \S4method{kwic}{slice}(
@@ -33,6 +32,7 @@ kwic(.Object, ...)
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   s_attributes = getOption("polmineR.meta"),
+  region = NULL,
   p_attribute = "word",
   boundary = NULL,
   cpos = TRUE,
@@ -51,6 +51,7 @@ kwic(.Object, ...)
   right = getOption("polmineR.right"),
   s_attributes = getOption("polmineR.meta"),
   p_attribute = "word",
+  region = NULL,
   boundary = NULL,
   cpos = TRUE,
   stoplist = NULL,
@@ -68,6 +69,7 @@ kwic(.Object, ...)
   right = getOption("polmineR.right"),
   s_attributes = getOption("polmineR.meta"),
   p_attribute = "word",
+  region = NULL,
   boundary = NULL,
   cpos = TRUE,
   stoplist = NULL,
@@ -86,13 +88,13 @@ kwic(.Object, ...)
   right = as.integer(getOption("polmineR.right")),
   s_attributes = getOption("polmineR.meta"),
   p_attribute = "word",
+  region = NULL,
   boundary = NULL,
   cpos = TRUE,
   stoplist = NULL,
   positivelist = NULL,
   regex = FALSE,
   verbose = TRUE,
-  progress = TRUE,
   ...
 )
 
@@ -105,13 +107,13 @@ kwic(.Object, ...)
   right = as.integer(getOption("polmineR.right")),
   s_attributes = getOption("polmineR.meta"),
   p_attribute = "word",
+  region = NULL,
   boundary = NULL,
   cpos = TRUE,
   stoplist = NULL,
   positivelist = NULL,
   regex = FALSE,
   verbose = TRUE,
-  progress = TRUE,
   ...
 )
 
@@ -153,9 +155,24 @@ consumption.}
 query), or a function to check whether query is a CQP query or not
 (defaults to auxiliary function \code{is.query}).}
 
-\item{left}{Number of tokens to the left of query match.}
+\item{left}{A single \code{integer} value defining the number of tokens to the
+left of the query match to include in the context. Advanced usage: (a) If
+\code{left} is a length-one \code{character} vector stating an s-attribute, the
+context will be expanded to the (left) boundary of the region where the
+match occurs. (b) If \code{left} is a named length-one \code{integer} vector, this
+value is the number regions of the structural attribute referred to by the
+vector's name  to the left of the query match that are included in the
+context.}
 
-\item{right}{Number of tokens to the right of query match.}
+\item{right}{A single \code{integer} value, a length-one \code{character} vector or a
+named length-one \code{integer} value, with equivalent effects to argument
+\code{left}.}
+
+\item{region}{An s-attribute, given by a length-one \code{character} vector.
+The context of query matches will be expanded to the left and right
+boundary of the region where the match is located. If arguments \code{left} and
+\code{right} are > 1, the left and right boundaries of the respective number of
+regions will be identified.}
 
 \item{p_attribute}{The p-attribute, defaults to 'word'.}
 
@@ -173,8 +190,6 @@ interpreted as regular expression.}
 
 \item{check}{A \code{logical} value, whether to check validity of CQP query
 using \code{check_cqp_query}.}
-
-\item{progress}{A \code{logical} value, whether to show progress bar.}
 }
 \value{
 If there are no matches, or if all (initial) matches are dropped due to the
@@ -188,6 +203,11 @@ Get concordances for the matches for a query / perform keyword-in-context
 The method works with a whole CWB corpus defined by a  character vector, and
 can be applied on a \code{partition}- or a \code{context} object.
 
+If \code{query} produces a lot of matches, the \code{DT::datatable()} function used to
+produce output in the Viewer pane of RStudio may issue a warning. Usually,
+this warning is harmless and can be ignored. Use
+\code{options("polmineR.warn.size" = FALSE)} for turning off this warning.
+
 If a \code{positivelist} is supplied, only those concordances will be kept that
 have one of the terms from the \code{positivelist} occurr in the context of
 the query match. Use argument \code{regex} if the positivelist should be
@@ -198,10 +218,10 @@ If a \code{negativelist} is supplied, concordances are removed if any of the
 tokens of the \code{negativelist} occurrs in the context of the query match.
 
 Applying the \code{kwic}-method on a \code{partition_bundle} or
-  \code{subcorpus_bundle} will return a single \code{kwic} object that
-  includes a column 'subcorpus_name' with the name of the \code{subcorpus}
-  (or \code{partition}) in the input object where the match for a concordance
-  occurs.
+\code{subcorpus_bundle} will return a single \code{kwic} object that
+includes a column 'subcorpus_name' with the name of the \code{subcorpus}
+(or \code{partition}) in the input object where the match for a concordance
+occurs.
 }
 \examples{
 use("polmineR")
@@ -260,9 +280,9 @@ Cham et al: Springer, pp. 73-87 (chs. 8 & 9).
 }
 \seealso{
 The return value is a \code{\link{kwic-class}} object; the
-  documentation for the class explains the standard generic methods
-  applicable to \code{\link{kwic-class}} objects. It is possible to read the
-  whole text where a query match occurs, see the \code{\link{read}}-method.
-  To highlight terms in the context of a query match, see the
-  \code{\link{highlight}}-method.
+documentation for the class explains the standard generic methods
+applicable to \code{\link{kwic-class}} objects. It is possible to read the
+whole text where a query match occurs, see the \code{\link{read}}-method.
+To highlight terms in the context of a query match, see the
+\code{\link{highlight}}-method.
 }

@@ -22,21 +22,18 @@ setMethod("get_template", "character", function(.Object, warn = FALSE){
 
 #' @rdname templates
 setMethod("get_template", "corpus", function(.Object, warn = FALSE){
-  filename <- file.path(.Object@data_dir, "template.json")
-  if (file.exists(filename)){
-    y <- jsonlite::fromJSON(txt = filename) 
+  if (is.na(.Object@template)){
+    if (warn) warning(
+      sprintf("No template available for corpus '%s'.", .Object@corpus)
+    )
+    return(NULL)
+  } else {
+    y <- jsonlite::fromJSON(txt = .Object@template) 
     if ("metadata" %in% names(y)) y[["metadata"]] <- unlist(y[["metadata"]])
     return(y)
-  } else {
-    if (isTRUE(warn)) warning(sprintf("No template available for corpus '%s'.", .Object@corpus))
-    return(NULL)
   }
 })
 
-#' @rdname templates
-setMethod("get_template", "partition", function(.Object, warn = FALSE){
-  get_template(as(.Object, "corpus"), warn = warn)
-})
 
 #' @rdname templates
 setMethod("get_template", "subcorpus", function(.Object, warn = FALSE){

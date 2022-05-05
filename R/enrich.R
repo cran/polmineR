@@ -96,27 +96,22 @@ setMethod("enrich", "kwic", function(.Object, s_attributes = NULL, extra = NULL,
     setorderv(x = dt, cols = "cpos")
     
     corpus_size <- RcppCWB::cl_attribute_size(
-      corpus = .Object@corpus,
-      attribute = p_attributes(.Object),
-      attribute_type = "p",
-      registry = registry()
+      corpus = .Object@corpus, registry = .Object@registry_dir,
+      attribute = p_attributes(.Object), attribute_type = "p"
+      
     )
     .Object@cpos <- dt[cpos >= 0L][cpos <= (corpus_size - 1L)]
     
     token_id <- paste(p_attributes(.Object), "id", sep = "_")
     word_id_na <- is.na(.Object@cpos[[token_id]])
     word_id_na_index <- which(word_id_na)
-    ids_na <- RcppCWB::cl_cpos2id(
-      corpus = .Object@corpus,
-      p_attribute = p_attributes(.Object),
-      registry = registry(),
+    ids_na <- cpos2id(
+      .Object, p_attribute = p_attributes(.Object),
       cpos = .Object@cpos[["cpos"]][word_id_na]
     )
     str_na <- RcppCWB::cl_id2str(
-      corpus = .Object@corpus,
-      p_attribute = p_attributes(.Object),
-      registry = registry(),
-      id = ids_na
+      corpus = .Object@corpus, registry = .Object@registry_dir,
+      p_attribute = p_attributes(.Object), id = ids_na
     )
     str_na <- as.nativeEnc(str_na, from = .Object@encoding)
     .Object@cpos[word_id_na_index, (token_id) := ids_na]
@@ -148,10 +143,16 @@ setMethod("enrich", "kwic", function(.Object, s_attributes = NULL, extra = NULL,
     for (s_attr in .Object@metadata){
       if (!s_attr %in% colnames(.Object@stat)){
         cpos_to_get <- .Object@cpos[which(.Object@cpos[["position"]] == 0)][, .SD[1], by = "match_id", with = TRUE][["cpos"]]
-        strucs <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = s_attr, cpos = cpos_to_get, registry = registry())
+        strucs <- cl_cpos2struc(
+          corpus = .Object@corpus, registry = .Object@registry_dir,
+          s_attribute = s_attr, cpos = cpos_to_get
+        )
         strucs_invalid <- which(strucs < 0L)
         if (length(strucs_invalid) > 0L) strucs[strucs_invalid] <- 0L
-        struc_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = s_attr, struc = strucs, registry = registry())
+        struc_values <- cl_struc2str(
+          corpus = .Object@corpus, registry = .Object@registry_dir,
+          s_attribute = s_attr, struc = strucs
+        )
         if (length(strucs_invalid) > 0L) struc_values[strucs_invalid] <- ""
         .Object@stat[, (s_attr) := as.nativeEnc(struc_values, from = .Object@encoding)]
       }
@@ -191,21 +192,27 @@ setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute
     
     for (s_attr in s_attribute){
       .message("get struc for s-attribute:", s_attr, verbose = verbose)
-      strucs <- cl_cpos2struc(corpus = .Object@corpus, s_attribute = s_attr, cpos = .Object@cpos[["cpos"]], registry = registry())
+      strucs <- cl_cpos2struc(
+        corpus = .Object@corpus, registry = .Object@registry_dir,
+        s_attribute = s_attr, cpos = .Object@cpos[["cpos"]]
+      )
       if (decode == FALSE){
         colname_struc <- paste(s_attr, "int", sep = "_")
         if (colname_struc %in% colnames(.Object@cpos)){
           .message("already present, skipping assignment of column:", colname_struc, verbose = verbose)
         } else {
-          .Object@cpos[[colname_struc]] <- strucs
+          .Object@cpos[, (colname_struc) := strucs]
         }
       } else {
         if (s_attr %in% colnames(.Object@cpos)){
           .message("already present, skipping assignment of column:", s_attr, verbose = verbose)
         } else {
           .message("get string for s-attribute:", s_attr, verbose = verbose)
-          strings <- cl_struc2str(corpus = .Object@corpus, s_attribute = s_attr, struc = strucs, registry = registry())
-          .Object@cpos[[s_attr]] <- as.nativeEnc(strings, from = .Object@encoding)
+          strings <- cl_struc2str(
+            corpus = .Object@corpus, registry = .Object@registry_dir,
+            s_attribute = s_attr, struc = strucs
+          )
+          .Object@cpos[, (s_attr) := as.nativeEnc(strings, from = .Object@encoding)]
         }
       }
     }
@@ -216,14 +223,17 @@ setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute
     stopifnot( all(p_attribute %in% registry_get_p_attributes(.Object@corpus)) )
     
     # add ids
-    for (pAttr in p_attribute){
-      colname <- paste(pAttr, "id", sep = "_")
+    for (p_attr in p_attribute){
+      colname <- paste(p_attr, "id", sep = "_")
       if (colname %in% colnames(.Object@cpos)){
-        .message("already present - skip getting ids for p-attribute:", pAttr, verbose = verbose)
+        .message("already present - skip getting ids for p-attribute:", p_attr, verbose = verbose)
       } else {
-        .message("getting token id for p-attribute:", pAttr, verbose = verbose)
-        ids <- cl_cpos2id(corpus = .Object@corpus, p_attribute = pAttr, cpos = .Object@cpos[["cpos"]],  registry = registry())
-        .Object@cpos[[colname]] <- ids
+        .message("getting token id for p-attribute:", p_attr, verbose = verbose)
+        ids <- cl_cpos2id(
+          corpus = .Object@corpus, registry = .Object@registry_dir,
+          p_attribute = p_attr, cpos = .Object@cpos[["cpos"]]
+        )
+        .Object@cpos[, (colname) := ids]
       }
     }
     
@@ -236,10 +246,8 @@ setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute
           .message("decode p-attribute:", p_attr, verbose = verbose)
           p_attr_id <- paste(p_attr, "id", sep = "_")
           decoded <- cl_id2str(
-            corpus = .Object@corpus,
-            p_attribute = p_attr,
-            id = .Object@cpos[[p_attr_id]],
-            registry = registry()
+            corpus = .Object@corpus, registry = .Object@registry_dir,
+            p_attribute = p_attr, id = .Object@cpos[[p_attr_id]]
           )
           .Object@cpos[, (p_attr) := as.nativeEnc(decoded, from = .Object@encoding)]
           .Object@cpos[, (p_attr_id) := NULL]

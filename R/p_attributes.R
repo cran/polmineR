@@ -28,7 +28,8 @@ NULL
 #' p_attributes("GERMAPARLMINI")
 #' p_attributes("REUTERS")
 #' p_attributes("REUTERS", p_attribute = "word")
-#' @references Stefan Evert & The OCWB Development Team, CQP Query Language Tutorial, http://cwb.sourceforge.net/files/CQP_Tutorial.pdf.
+#' @references Stefan Evert & The OCWB Development Team, CQP Query Language
+#'   Tutorial, https://cwb.sourceforge.io/files/CQP_Tutorial.pdf.
 setGeneric("p_attributes", function(.Object, ...) standardGeneric("p_attributes"))
 
 #' @rdname p_attributes
@@ -46,16 +47,19 @@ setMethod("p_attributes", "corpus", function(.Object, p_attribute = NULL){
     if (!p_attribute %in% p_attrs){
       stop(sprintf("The p-attribute '' is not available in corpus ''.", p_attribute, .Object@corpus))
     }
-    lexfile <- file.path(.Object@data_dir, sprintf("%s.lexicon", p_attribute), fsep = "/")
+    lexfile <- fs::path(.Object@data_dir, sprintf("%s.lexicon", p_attribute))
     lexicon <- readBin(con = lexfile, what = character(), n = file.info(lexfile)$size)
-    if (.Object@encoding != localeToCharset()[1]){
-      lexicon <- stringi::stri_encode(lexicon, from = .Object@encoding, to = localeToCharset()[1])
+    if (.Object@encoding != encoding()){
+      lexicon <- stringi::stri_encode(lexicon, from = .Object@encoding, to = encoding())
     }
     return(lexicon)
   }
 })
 
 
+#' @examples
+#' merkel <- partition("GERMAPARLMINI", speaker = "Merkel", regex = TRUE)
+#' merkel_words <- p_attributes(merkel, "word")
 #' @rdname p_attributes
 setMethod("p_attributes", "slice", function(.Object, p_attribute = NULL, decode = TRUE){
   p_attrs <- registry_get_p_attributes(.Object@corpus)
@@ -63,19 +67,22 @@ setMethod("p_attributes", "slice", function(.Object, p_attribute = NULL, decode 
     return( p_attrs )
   } else {
     if (!p_attribute %in% p_attrs){
-      stop(sprintf("The p-attribute '' is not available in corpus ''.", p_attribute, .Object@corpus))
+      stop(
+        sprintf(
+          "The p-attribute '' is not available in corpus ''.",
+          p_attribute, .Object@corpus
+        )
+      )
     }
-    ids <- RcppCWB::cl_cpos2id(
-      corpus = .Object@corpus,
-      p_attribute = p_attribute,
-      registry = registry,
-      cpos = cpos(.Object@cpos)
-    )
+    ids <- cpos2id(.Object, p_attribute = p_attribute, cpos = cpos(.Object@cpos))
     ids_unique <- unique(ids)
     ids_unique <- ids_unique[order(ids_unique)]
-    str <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attribute, registry = registry(), id = ids_unique)
-    if (corpus@encoding != localeToCharset()[1]){
-      str <- stringi::stri_encode(str, from = corpus@encoding, to = localeToCharset()[1])
+    str <- cl_id2str(
+      corpus = .Object@corpus, registry = .Object@registry_dir,
+      p_attribute = p_attribute, id = ids_unique
+    )
+    if (.Object@encoding != encoding()){
+      str <- stringi::stri_encode(str, from = .Object@encoding, to = encoding())
     }
     return(str)
   }
@@ -105,3 +112,16 @@ setMethod("p_attributes", "subcorpus", function(.Object, p_attribute = NULL, dec
 
 #' @rdname context-class
 setMethod("p_attributes", "context", function(.Object) .Object@p_attribute)
+
+
+#' @rdname p_attributes
+setMethod("p_attributes", "remote_corpus", function(.Object, ...){
+  ocpu_exec(fn = "p_attributes", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "corpus"), ...)
+})
+
+
+#' @rdname p_attributes
+setMethod("p_attributes", "remote_partition", function(.Object, ...){
+  ocpu_exec(fn = "p_attributes", corpus = .Object@corpus, server = .Object@server, restricted = .Object@restricted, .Object = as(.Object, "partition"), ...)
+})
+

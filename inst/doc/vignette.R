@@ -25,24 +25,26 @@ options("polmineR.mc" = FALSE)
 options("polmineR.pagelength" = 3L)
 
 ## ---- eval = TRUE, render = knit_print----------------------------------------
-kwic("REUTERS", "oil")
+k <- kwic("REUTERS", "oil")
 
 ## ---- eval = TRUE, render = knit_print----------------------------------------
-kwic("REUTERS", "oil", s_attributes = "places")
+k <- kwic("REUTERS", "oil", s_attributes = "places")
 
 ## ---- eval = TRUE, render = knit_print----------------------------------------
-kwic("REUTERS", "oil", s_attributes = c("id", "places"))
+k <- kwic("REUTERS", "oil", s_attributes = c("id", "places"))
 
 ## ---- eval = TRUE, render = knit_print----------------------------------------
-kwic("REUTERS", '"oil" "price.*"')
+k <- kwic("REUTERS", '"oil" "price.*"')
 
 ## ---- eval = TRUE-------------------------------------------------------------
-count("REUTERS", "Kuwait")
-count("REUTERS", c("Kuwait", "USA", "Bahrain"))
-count("REUTERS", c('"United" "States"', '"Saudi" "Arabia.*"'), cqp = TRUE)
+cnt <- count("REUTERS", "Kuwait")
+cnt <- count("REUTERS", c("Kuwait", "USA", "Bahrain"))
+cnt <- count("REUTERS", c('"United" "States"', '"Saudi" "Arabia.*"'), cqp = TRUE)
 
 ## ---- eval = TRUE, message = FALSE--------------------------------------------
 oil <- dispersion("REUTERS", query = "oil", s_attribute = "id", progress = FALSE)
+
+## -----------------------------------------------------------------------------
 saudi_arabia <- dispersion(
   "REUTERS", query = '"Saudi" "Arabia.*"',
   s_attribute = "id", cqp = TRUE, progress = FALSE

@@ -51,7 +51,8 @@ setMethod("merge", "partition_bundle", function(x, name = "", verbose = FALSE){
   }
   
   obj_type <- unique(unname(sapply(x@objects, class)))
-  if (length(obj_type) > 1L) stop("Class of the objects within the bundle is not unique.")
+  if (length(obj_type) > 1L) 
+    stop("Class of the objects within the bundle is not unique.")
 
   .message('number of objects to be merged: ', length(x@objects), verbose = verbose)
   
@@ -63,11 +64,20 @@ setMethod("merge", "partition_bundle", function(x, name = "", verbose = FALSE){
 
   y <- new(
     obj_type,
-    corpus = corpus_id, xml = x[[1]]@xml, encoding = x[[1]]@encoding,
+    corpus = corpus_id, 
+    registry_dir = x[[1]]@registry_dir,
+    data_dir = x[[1]]@data_dir,
+    info_file = x[[1]]@info_file,
+    template = x[[1]]@template,
+    xml = x[[1]]@xml,
+    encoding = x[[1]]@encoding,
     s_attribute_strucs = s_attr, strucs = strucs_combined,
     name = name
   )
-  y@cpos <- get_region_matrix(corpus = corpus_id, s_attribute = s_attr, strucs = strucs_combined, registry = registry())
+  y@cpos <- get_region_matrix(
+    corpus = corpus_id, registry = corpus_registry_dir(corpus_id),
+    s_attribute = s_attr, strucs = strucs_combined 
+  )
   y@size <- size(y)
   y
 })
@@ -77,8 +87,11 @@ setMethod("merge", "partition_bundle", function(x, name = "", verbose = FALSE){
 #' @rdname subcorpus_bundle
 setMethod("merge", "subcorpus_bundle", function(x, name = "", verbose = FALSE){
   y <- callNextMethod()
-  y@type <- get_type(y@corpus)
-  y@data_dir <- registry_get_home(corpus = y@corpus, registry = registry())
+  corpus_type <- get_type(y@corpus)
+  y@type <- if (is.null(corpus_type)) character() else corpus_type
+  y@data_dir <- path(
+    corpus_data_dir(corpus = y@corpus, registry = corpus_registry_dir(y@corpus))
+  )
   y
 })
 
@@ -251,7 +264,10 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, progress
   CNT <- DT[, .N, by = c("match_id", paste(.Object@p_attribute, "id", sep = "_"))]
   setnames(CNT, old = "N", new = "count")
   for (p_attr in .Object@p_attribute){
-    CNT[[p_attr]] <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = CNT[[paste(p_attr, "id", sep = "_")]], registry = registry())
+    CNT[[p_attr]] <- cl_id2str(
+      corpus = .Object@corpus, registry = corpus_registry_dir(.Object@corpus),
+      p_attribute = p_attr, id = CNT[[paste(p_attr, "id", sep = "_")]]
+      )
   }
   count_list <- split(CNT, by = "match_id")
   
@@ -280,7 +296,9 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, progress
 })
 
 #' @rdname partition_bundle-class
-setMethod("partition_bundle", "environment", function(.Object) .get_objects(class = "partition_bundle", envir = .Object))
+setMethod("partition_bundle", "environment", function(.Object) 
+  .get_objects(class = "partition_bundle", envir = .Object)
+)
 
 
 #' @details Applying the \code{partition_bundle}-method to a \code{partition_bundle}-object will iterate

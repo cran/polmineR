@@ -15,6 +15,26 @@ setMethod("sample", "context", function(x, size){
   x
 })
 
+setAs(
+  from = "context", to = "matrix",
+  def = function(from){
+    x <- copy(from@cpos)
+    setorderv(x, cols = c("cpos", "match_id"))
+    x[, "direction" := sign(x[["position"]])]
+    dt <- rbindlist(lapply(
+      c(-1L, 0L, 1L),
+      function(dir){
+        x[x[["direction"]] == dir][, list(
+          cpos_left = .SD$cpos[1],
+          cpos_right = .SD$cpos[nrow(.SD)]),
+          by = "match_id"
+        ]
+      }
+    ))
+
+    as.matrix(setorderv(dt, cols = "cpos_left")[, "match_id" := NULL])
+  }
+)
 
 
 #' @include partition.R partition_bundle.R
@@ -27,8 +47,8 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 
 #' Analyze context of a node word.
 #' 
-#' Retrieve the word context of a token, optionally checking for boundaries of a XML
-#' region.
+#' Retrieve the word context of a token, optionally checking for boundaries of a
+#' XML region.
 #' 
 #' For formulating the query, CPQ syntax may be used (see
 #' examples). Statistical tests available are log-likelihood, t-test, pmi.
@@ -36,29 +56,47 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 #' @param .Object a partition or a partition_bundle object
 #' @param query A query, which may by a character vector or a CQP query.
 #' @param cqp defaults to is.cqp-function, or provide TRUE/FALSE
-#' @param check A \code{logical} value, whether to check validity of CQP query
-#'   using \code{check_cqp_query}.
+#' @param check A `logical` value, whether to check validity of CQP query using
+#'   `check_cqp_query`.
 #' @param p_attribute The p-attribute of the query.
+#' @param region An s-attribute, given by a length-one `character` vector.
+#'   The context of query matches will be expanded to the left and right
+#'   boundary of the region where the match is located. If arguments `left` and
+#'   `right` are > 1, the left and right boundaries of the respective number of
+#'   regions will be identified.
 #' @param boundary If provided, a length-one character vector specifying a
 #'   s-attribute. It will be checked that corpus positions do not extend beyond
 #'   the region defined by the s-attribute.
-#' @param left Number of tokens to the left of the query match.
-#' @param right Number of tokens to the right of the query match.
+#' @param left A single `integer` value defining the number of tokens to the
+#'   left of the query match to include in the context. Advanced usage: (a) If
+#'   `left` is a length-one `character` vector stating an s-attribute, the
+#'   context will be expanded to the (left) boundary of the region where the
+#'   match occurs. (b) If `left` is a named length-one `integer` vector, this
+#'   value is the number regions of the structural attribute referred to by the
+#'   vector's name  to the left of the query match that are included in the
+#'   context.
+#' @param right A single `integer` value, a length-one `character` vector or a
+#'   named length-one `integer` value, with equivalent effects to argument
+#'   `left`.
 #' @param stoplist Exclude match for query if stopword(s) is/are are present in
 #'   context. See positivelist for further explanation.
-#' @param positivelist character vector or numeric/integer vector: include a query hit
-#'   only if token in positivelist is present. If positivelist is a character
-#'   vector, it may include regular expressions (see parameter regex)
-#' @param regex logical, defaults to FALSE - whether stoplist and/or positivelist are
-#'   regular expressions 
+#' @param positivelist A `character` vector or `numeric`/`integer` vector:
+#'   include a query hit only if token in positivelist is present. If
+#'   positivelist is a `character` vector, it may include regular expressions
+#'   (see parameter regex).
+#' @param regex A `logical` value, defaults to `FALSE` - whether `stoplist`
+#'   and/or `positivelist` are regular expressions.
 #' @param count logical
-#' @param mc whether to use multicore; if NULL (default), the function will get
-#'   the value from the options
-#' @param verbose report progress, defaults to TRUE
-#' @param progress logical, whether to show progress bar
-#' @param ... further parameters
-#' @return depending on whether a partition or a partition_bundle serves as
-#'   input, the return will be a context object, or a \code{context_bundle} object
+#' @param mc Whether to use multicore; if `NULL` (default), the function will get
+#'   the value from the options.
+#' @param verbose Report progress? A `logical` value, defaults to `TRUE`.
+#' @param progress A `logical` value, whether to show progress bar.
+#' @param ... Further parameters.
+#' @return depending on whether a `partition` or a `partition_bundle` serves as
+#'   input, the return will be a context object, or a `context_bundle` object.
+#'   Note that the number of objects in the `context_bundle` may differ from the
+#'   number of objects in the input `bundle` object: `NULL` objects that result
+#'   if no hit is obtained are dropped.
 #' @author Andreas Blaette
 #' @aliases context,slice-method as.matrix,context_bundle-method context,partition-method
 #' @examples
@@ -74,25 +112,23 @@ setGeneric("context", function(.Object, ...) standardGeneric("context") )
 #' @rdname context-method
 #' @name context
 #' @docType methods
-
 setMethod("context", "slice", function(
   .Object, query, cqp = is.cqp, check = TRUE,
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"),
-  boundary = NULL,
+  region = NULL, boundary = NULL,
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
-  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = TRUE,
   ...
 ) {
   
-  if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if ("sAttribute" %in% names(list(...))) boundary <- list(...)[["sAttribute"]]
-  if ("s_attribute" %in% names(list(...))) boundary <- list(...)[["s_attribute"]]
+  if (is.numeric(left) && !is.integer(left))
+    left <- setNames(as.integer(left), names(left))# input may be numeric
   
-  if (is.numeric(left)) left <- as.integer(left) # input may be numeric
-  if (is.numeric(right)) right <- as.integer(right) # input may be numeric
+  if (is.numeric(right) && !is.integer(right))
+    right <- setNames(as.integer(right), names(left)) # input may be numeric
   
   # get regions for query matches
   .message("getting corpus positions", verbose = verbose)
@@ -105,11 +141,22 @@ setMethod("context", "slice", function(
   }
   colnames(regions) <- c("hit_cpos_left", "hit_cpos_right")
   
-  ctxt <- context(.Object = regions, left = left, right = right, corpus = .Object@corpus)
+  ctxt <- context(
+    .Object = regions,
+    left = left, right = right,
+    p_attribute = p_attribute, region = region,
+    boundary = boundary,
+    corpus = .Object@corpus
+  )
+  
   ctxt@query <- query
   ctxt@p_attribute <- p_attribute
   ctxt@corpus <- .Object@corpus
   ctxt@encoding <- .Object@encoding
+  ctxt@data_dir <- .Object@data_dir
+  ctxt@registry_dir <- .Object@registry_dir
+  ctxt@info_file <- .Object@info_file
+  ctxt@template <- .Object@template
   ctxt@partition <- as(.Object, "partition")
   ctxt@size_partition <- as.integer(.Object@size)
   ctxt@boundary <- if (!is.null(boundary)) boundary else character()
@@ -118,9 +165,12 @@ setMethod("context", "slice", function(
   ctxt <- enrich(ctxt, p_attribute = p_attribute, decode = FALSE, verbose = verbose)
   
   # generate positivelist/stoplist with ids and apply it
-  if (!is.null(positivelist)) ctxt <- trim(ctxt, positivelist = positivelist, regex = regex, verbose = verbose)
+  if (!is.null(positivelist))
+    ctxt <- trim(ctxt, positivelist = positivelist, regex = regex, verbose = verbose)
   if (is.null(ctxt)) return(NULL)
-  if (!is.null(stoplist)) ctxt <- trim(ctxt, stoplist = stoplist, regex = regex, verbose = verbose)
+  
+  if (!is.null(stoplist))
+    ctxt <- trim(ctxt, stoplist = stoplist, regex = regex, verbose = verbose)
   if (is.null(ctxt)) return(NULL)
   
   .message("generating contexts", verbose = verbose)
@@ -132,14 +182,6 @@ setMethod("context", "slice", function(
   ctxt@size_partition <- size(.Object)
   ctxt@count <- length(unique(ctxt@cpos[["match_id"]]))
   
-  # check that windows do not transgress s-attribute
-  if (!is.null(boundary)){
-    stopifnot(boundary %in% registry_get_s_attributes(ctxt@corpus))
-    .message("checking that context positions to not transgress regions", verbose = verbose)
-    ctxt <- enrich(ctxt, s_attribute = boundary, verbose = verbose)
-    ctxt <- trim(ctxt, s_attribute = boundary, verbose = verbose, progress = progress)
-  }
-  
   # put together raw stat table
   if (count){
     .message("counting tokens", verbose = verbose)
@@ -149,7 +191,11 @@ setMethod("context", "slice", function(
     setnames(ctxt@stat, "N", "count_coi")
     
     for (i in seq_along(p_attribute)){
-      newColumn <- cl_id2str(corpus = .Object@corpus, p_attribute = p_attribute[i], id = ctxt@stat[[paste(p_attribute[i], "id", sep = "_")]], registry = registry())
+      newColumn <- cl_id2str(
+        corpus = .Object@corpus,  registry = .Object@registry_dir,
+        p_attribute = p_attribute[i],
+        id = ctxt@stat[[paste(p_attribute[i], "id", sep = "_")]]
+      )
       newColumnNative <- as.nativeEnc(newColumn, from = .Object@encoding)
       ctxt@stat[, eval(p_attribute[i]) := newColumnNative]
     }
@@ -163,10 +209,11 @@ setMethod("context", "partition", function(
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
-  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = TRUE,
   ...
 ) callNextMethod()
 )
@@ -177,130 +224,96 @@ setMethod("context", "subcorpus", function(
   left = getOption("polmineR.left"),
   right = getOption("polmineR.right"),
   p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL,
   boundary = NULL,
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
-  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = TRUE,
   ...
 ) callNextMethod()
 )
 
-#' @details If \code{.Object} is a \code{matrix}, the \code{context}-method will
-#'   unfold the \code{matrix} (interpreted as regions defining left and right
-#'   corpus positions) and return an elementary ... object.
-#' @param corpus A length-one \code{character} vector stating the corpus ID of a
-#'   CWB corpus.
+#' @details If `.Object` is a `matrix`, the `context`-method will call
+#'   `RcppCWB::region_matrix_context()`, the worker behind the
+#'   `context()`-method.
+#' @param corpus A length-one `character` vector stating a corpus ID.
 #' @rdname context-method
 #' @importFrom data.table between
-setMethod("context", "matrix", function(.Object, corpus, left, right){
+#' @importFrom RcppCWB region_matrix_context corpus_s_attributes
+setMethod("context", "matrix", function(.Object, corpus, left, right, p_attribute, region = NULL, boundary = NULL){
   if (ncol(.Object) != 2L) stop("context,matrix-method: .Object is required to be a two-column matrix")
   
-  if (is.numeric(left)) left <- as.integer(left)
-  if (is.numeric(right)) right <- as.integer(right)
+  if (inherits(left, "numeric"))
+    left <- setNames(as.integer(left), nm = names(left))
+  
+  if (inherits(right, "numeric"))
+    right <- setNames(as.integer(right), nm = names(right))
 
   if (is.integer(left) && is.integer(right)){
-
     if (is.null(names(left)) && is.null(names(left))){
-      
-      positions_left <- rep(list(if (left >= 1L) -left:-1L else integer()), nrow(.Object))
-      positions_right <- rep(list(if (right >= 1L) 1L:right else integer()), nrow(.Object))
-      match_length <- .Object[,2] - .Object[,1]
-      
-      dt_left <- data.table(
-        cpos = unlist(mapply(function(a, b) a + b, .Object[,1], positions_left, SIMPLIFY = FALSE)),
-        position = unlist(positions_left),
-        match_id = rep(1L:nrow(.Object), each = left)
-      )
-      dt_right <- data.table(
-        cpos = unlist(mapply(function(a, b) a + b, .Object[,2], positions_right, SIMPLIFY = FALSE)),
-        position = unlist(positions_right),
-        match_id = rep(1L:nrow(.Object), each = right)
-      )
-      dt_node <- data.table(
-        cpos = unlist(lapply(1L:nrow(.Object), function(i) .Object[i,1]:.Object[i,2])),
-        position = rep(0L, sum(match_length) + nrow(.Object)),
-        match_id = unlist(lapply(1L:nrow(.Object), function(i) rep(i, times = match_length[i] + 1L)))
-      )
-      
-      cpos_dt <- rbind(dt_left, dt_right, dt_node)
-      setorderv(cpos_dt, cols = c("match_id", "cpos"))
-      
-
-    } else {
-      # set, left, right, corpus, s_attribute
-      .Object <- cbind(.Object, match_id = 1L:nrow(.Object))
-      regions_dt <- data.table(.Object)
-      .fn <- function(.SD){
-        stop("NOT Implemented at present")
-        # hit_struc <- cl_cpos2struc(corpus = corpus, s_attribute = names(left), cpos = set[1], registry = registry())
-        # maxStruc <- cl_attribute_size(corpus = corpus, attribute = s_attribute, attribute_type = "s", registry = registry())
-        # get left min cpos
-        # leftStruc <- queryStruc - left
-        # leftStruc <- ifelse(leftStruc < 0, 0, leftStruc)
-        # leftCposMin <- cl_struc2cpos(corpus = corpus, s_attribute = s_attribute, struc = leftStruc, registry = registry())[1]
-        # cposLeft <- c(leftCposMin:(set[1]-1))
-        # get right max cpos
-        # rightStruc <- queryStruc + right
-        # rightStruc <- ifelse(rightStruc > maxStruc - 1, maxStruc, rightStruc)
-        # rightCposMax <- cl_struc2cpos(corpus = corpus, s_attribute = s_attribute, struc = rightStruc, registry = registry())[2]
-        # cposRight <- c((set[2] + 1):rightCposMax)
-        # handing it back
-        # list(left = cposLeft, node = c(set[1]:set[2]), right = cposRight)
+      if (is.null(region)){
+        s_attr <- NULL
+      } else {
+        s_attr_present <- corpus_s_attributes(
+          corpus = corpus,
+          registry = corpus_registry_dir(corpus)
+        )
+        if (region %in% s_attr_present){
+          s_attr <- region
+        } else {
+          warning(sprintf("s-attribute '%s' not defined", region))
+          s_attr <- NULL
+        }
       }
-      cpos_dt <- regions_dt[, .fn(.SD), by = c("match_id")]
-      setnames(cpos_dt, old = c("V1", "V2"), new = c("cpos", "position"))
+      
+    } else {
+      s_attr <- unique(c(names(left), names(right)))
+      if (length(s_attr) > 1L) stop("Only one single s-attribute allowed.")
     }
   } else if (is.character(left) && is.character(right)){
-    .fn <- function(.SD){
-      cpos_left <- seq.int(
-        from = cl_cpos2lbound(corpus = corpus, s_attribute = left, cpos = .SD[[1]][1], registry = registry()),
-        to = .SD[[1]][1] - 1L
-      )
-      cpos_right <- seq.int(
-        from = .SD[[2]][1] + 1L,
-        to = cl_cpos2rbound(corpus = corpus, s_attribute = right, cpos = .SD[[2]][1], registry = registry())
-      )
-      list(
-        c(cpos_left, .SD[[1]][1]:.SD[[2]][1], cpos_right),
-        c(
-          seq.int(from = -length(cpos_left), to = -1L, by = 1L),
-          rep(0L, .SD[[2]][1] - .SD[[1]][1] + 1L),
-          seq.int(from = 1L, to = length(cpos_right), by = 1L)
-        )
-      )
-    }
-    cpos_dt <- regions_dt[, .fn(.SD), by = c("match_id")]
-    setnames(cpos_dt, old = c("V1", "V2"), new = c("cpos", "position"))
-    
+    s_attr <- unique(left, right)
+    if (length(s_attr) > 1L) stop("Only one single s-attribute allowed.")
+    left <- 0L
+    right <- 0L
   }
   
-  cpos_dt_min <- cpos_dt[between(cpos_dt[["cpos"]], lower = 0L, upper = (size(corpus) - 1L))]
-
-  new(
-    "context",
-    query = character(),
-    p_attribute = character(),
-    count = nrow(.Object),
+  cpos_matrix <- region_matrix_context(
     corpus = corpus,
-    stat = data.table(),
-    cpos = cpos_dt_min,
-    left = if (is.character(left)) 0L else as.integer(left),
-    right = if (is.character(right)) 0L else as.integer(right),
-    encoding = character(),
-    partition = new("partition", stat = data.table(), size = 0L),
-    boundary = character()
+    matrix = .Object,
+    s_attribute = s_attr,
+    p_attribute = p_attribute,
+    left = left, right = right,
+    boundary = boundary,
+    registry = corpus_registry_dir(corpus)
   )
+  cpos_dt <- as.data.table(cpos_matrix)
+  
+  colnames(cpos_dt) <- c(
+    "position", "cpos", "match_id", paste(p_attribute, "id", sep = "_")
+  )
+  setcolorder(cpos_dt, c("match_id", "cpos"))
+  
+  retval <- as(corpus(corpus), "context")
+  retval@count <- nrow(.Object)
+  retval@cpos <- cpos_dt
+  retval@left <- if (is.character(left)) 0L else as.integer(left)
+  retval@right <- if (is.character(right)) 0L else as.integer(right)
+  retval@boundary <- if (is.null(boundary)) character() else boundary
+  retval@p_attribute <- p_attribute
+  
+  retval
 })
 
 
 #' @rdname context-method
 setMethod("context", "corpus", function(
   .Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
+  p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL, boundary = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
-  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = TRUE,
   ...
 ){
   
@@ -321,7 +334,8 @@ setMethod("context", "corpus", function(
   context(
     p, query = query, cqp = is.cqp,
     left = left, right = right,
-    p_attribute = p_attribute, boundary = boundary,
+    p_attribute = p_attribute,
+    region = region, boundary = boundary,
     stoplist = stoplist, positivelist = positivelist, regex = regex,
     count = count, mc = mc, verbose = verbose, progress = progress
   )
@@ -331,11 +345,12 @@ setMethod("context", "corpus", function(
 #' @rdname context-method
 setMethod("context", "character", function(
   .Object, query, cqp = is.cqp,
-  p_attribute = getOption("polmineR.p_attribute"), boundary = NULL,
+  p_attribute = getOption("polmineR.p_attribute"),
+  region = NULL, boundary = NULL,
   left = getOption("polmineR.left"), right = getOption("polmineR.right"),
   stoplist = NULL, positivelist = NULL, regex = FALSE,
   count = TRUE,
-  mc = getOption("polmineR.mc"), verbose = TRUE, progress = TRUE,
+  mc = getOption("polmineR.mc"), verbose = FALSE, progress = TRUE,
   ...
 ){
   context(
@@ -343,7 +358,7 @@ setMethod("context", "character", function(
     query = query,
     cqp = cqp,
     p_attribute = p_attribute,
-    boundary = boundary,
+    region = region, boundary = boundary,
     left = left, right = right,
     stoplist = stoplist, positivelist = positivelist, regex = regex,
     count = count,
@@ -357,29 +372,62 @@ setMethod("context", "character", function(
 
 #' @docType methods
 #' @rdname context-method
-setMethod("context", "partition_bundle", function(.Object, query, p_attribute, verbose = TRUE, ...){
+setMethod("context", "partition_bundle", function(.Object, query, p_attribute, stoplist = NULL, positivelist = NULL, regex = FALSE, verbose = TRUE, ...){
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
 
-  retval <- new("context_bundle", query = query, p_attribute = p_attribute)
-  if (!is.numeric(positivelist)){
-    corpus <- unique(lapply(.Object@objects, function(x) x@corpus))
-    positivelist <- unlist(lapply(
-      positivelist,
-      function(x) cl_regex2id(corpus = corpus, p_attribute = p_attribute, regex = x, registry = registry()))
+  # Turn tokens on positivelist into ids once for entire corpus to avoid doing
+  # this for every single object.
+  if (!is.null(positivelist) && !is.numeric(positivelist)){
+    if (regex){
+      positivelist <- unlist(lapply(
+        positivelist,
+        function(x) regex2id(x = .Object, p_attribute = p_attribute, regex = x)
+      ))
+    } else {
+      positivelist <- str2id(
+        x = .Object, p_attribute = p_attribute, str = positivelist
       )
+    }
   }
   
-  retval@objects <- sapply(
+  # Same for stoplist.
+  if (!is.null(stoplist) && !is.numeric(stoplist)){
+    if (regex){
+      stoplist <- unlist(lapply(
+        stoplist,
+        function(x) regex2id(x = .Object, p_attribute = p_attribute, regex = x)
+      ))
+    } else {
+      stoplist <- str2id(
+        x = .Object, p_attribute = p_attribute, str = stoplist
+      )
+    }
+  }
+  
+  y <- as(as(.Object, "corpus"), "context_bundle")
+  y@query <- query
+  y@p_attribute <- p_attribute
+
+  y@objects <- sapply(
     .Object@objects,
     function(x) {
-      .message("proceeding to partition ", x@name, verbose = verbose)
-      context(x, query, ...)
+      .message("get context for partition ", x@name, verbose = verbose)
+      context(
+        x, query = query, p_attribute = p_attribute,
+        positivelist = positivelist, stoplist = stoplist,
+        verbose = FALSE,
+        ...
+      )
     },
     simplify = TRUE,
     USE.NAMES = TRUE
   )
-  retval
+  
+  # Remove NULL objects that result of no match has been obtained
+  for (i in rev(which(sapply(y@objects, is.null)))) y@objects[[i]] <- NULL
+  
+  y
 })
 
 #' @param complete enhance completely
@@ -394,6 +442,10 @@ setMethod("context", "cooccurrences", function(.Object, query, check = TRUE, com
     right = as.integer(.Object@right),
     p_attribute = .Object@p_attribute,
     corpus = .Object@corpus,
+    registry_dir = .Object@registry_dir,
+    data_dir = .Object@data_dir,
+    template = .Object@template,
+    info_file = .Object@info_file,
     encoding = .Object@encoding,
     method = .Object@method,
     stat = subset(.Object@stat, .Object@stat[, "node"]==query),
@@ -429,16 +481,37 @@ NULL
 #' @docType methods
 #' @noRd
 setMethod("summary", "context_bundle", function(object, top = 3){
-  sizes_partition <- unlist(lapply(object@objects, function(x) x@partition_size))
-  counts <- unlist(lapply(object@objects, function(x) x@frequency))
-  overview <- data.frame(
-    count = counts,
-    freq = round(counts / sizes_partition * 100000, 2)
-  )
-  overview <- cbind(overview, t(data.frame(lapply(object@objects, function(x) .statisticalSummary(x)$no))))
-  colnames(overview)[3:6] <- criticalValue <- c(">10.83", ">7.88", ">6.63", ">3.84")
-  overview <- cbind(overview, t(data.frame(lapply(object@objects, function(x) rownames(x@stat)[1:top]))))
-  overview
+  
+  sizes_partition <- unname(sapply(object@objects, slot, "size_partition"))
+  counts <- unname(sapply(object@objects, slot, "count"))
+  y <- data.frame(count = counts, freq = counts / sizes_partition)
+  
+  method <- unlist(unique(unname(sapply(object@objects, slot, "method"))))
+  if (length(method) > 0L){
+    y <- cbind(
+      y,
+      t(
+        data.frame(lapply(object@objects, function(x) .statisticalSummary(x)$no))
+      )
+    )
+    colnames(y)[3:6] <- c(">10.83", ">7.88", ">6.63", ">3.84")
+  }
+  
+  if (top > 0L){
+    y <- cbind(
+      y,
+      t(
+        data.frame(
+          lapply(
+            object@objects,
+            function(x) x@stat[[object@p_attribute]][1:top]
+          )
+        )
+      )
+    )
+  }
+  
+  y
 })
 
 #' @docType methods
@@ -463,6 +536,9 @@ setAs(from = "kwic", to = "context", def = function(from){
     right = from@right,
     p_attribute = from@p_attribute,
     corpus = from@corpus,
+    registry_dir = from@registry_dir,
+    info_file = from@info_file,
+    template = from@template,
     stat = data.table(),
     encoding = from@encoding,
     cpos = from@cpos
