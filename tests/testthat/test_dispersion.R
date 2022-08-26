@@ -1,4 +1,5 @@
 library(polmineR)
+use("polmineR")
 
 testthat::context("dispersion")
 
@@ -39,16 +40,24 @@ test_that(
 test_that(
   "check that warnings are issued if argument sAttribute is used",
   {
-    expect_warning(y <- dispersion("GERMAPARLMINI", query = "Integration", sAttribute = "date"))
-    expect_warning(
-      y <- corpus("GERMAPARLMINI") %>%
-        subset(speaker = "Angela Dorothea Merkel") %>% 
-        dispersion(query = "Integration", sAttribute = "date")
-    )
-    expect_warning(
-      y <- corpus("GERMAPARLMINI") %>%
-        hits(query = "Integration", s_attribute = "date") %>%
-        dispersion(sAttribute = "date", source = "GERMAPARLMINI")
+    expect_snapshot({
+      expect_warning(
+        y <- dispersion("GERMAPARLMINI", query = "Integration", sAttribute = "date")
+      )
+    })
+    expect_snapshot({
+      expect_warning(
+        y <- corpus("GERMAPARLMINI") %>%
+          subset(speaker = "Angela Dorothea Merkel") %>% 
+          dispersion(query = "Integration", sAttribute = "date")
+      )
+    })
+    expect_snapshot(
+      expect_warning(
+        y <- corpus("GERMAPARLMINI") %>%
+          hits(query = "Integration", s_attribute = "date") %>%
+          dispersion(sAttribute = "date", source = "GERMAPARLMINI")
+      )
     )
   }
 )
@@ -96,3 +105,12 @@ test_that(
   }
 )
 
+test_that(
+  "dispersion on partition",
+  {
+    use("polmineR")
+    p <- partition("GERMAPARLMINI", date = "2009-11-10")
+    y <- dispersion(p, query = "Arbeit", s_attribute = "date", freq = TRUE)
+    expect_identical(y[["count"]], 37L)
+  }
+)

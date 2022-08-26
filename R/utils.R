@@ -48,13 +48,20 @@ is.cqp <- function(query){
 #' check_cqp_query("'Integration.*") # FALSE, closing quotation mark is missing
 #' check_cqp_query(c("'Integration.*", '"Integration.*')) # FALSE too
 check_cqp_query <- function(query, warn = TRUE){
+  
+  disclaimer <- paste(
+    "If this is a false positive, omit check of the query syntax by setting", 
+    "argument `check` to `FALSE`."
+  )
+  
   msg <- paste(c(
     "An issue occurred when checking query: %s\n",
     paste(
       "Number of quotation marks is not divisable by 2:",
       "Opening quotation marks are not matched by closing quotation marks, or vice versa.",
       "Aborting to avoid a potential crash of CQP and the entire R session.",
-      "Please check query.", collapse = " "
+      "Please check query.", disclaimer,
+      collapse = " "
     )
   ), collapse = "")
   
@@ -68,11 +75,19 @@ check_cqp_query <- function(query, warn = TRUE){
       if (!query_ok && isTRUE(warn)) warning(sprintf(msg, q))
       if (length(which(chars == '(')) != length(which(chars == ')'))){
         query_ok <- FALSE
-        if (isTRUE(warn)) warning("Opening brackets are not matched by closing brackets in CQP query: ", q)
+        if (isTRUE(warn))
+          warning(
+            "Opening brackets are not matched by closing brackets in CQP query: ",
+            q, " ", disclaimer
+          )
       }
       if (length(which(chars == '[')) != length(which(chars == ']'))){
         query_ok <- FALSE
-        if (isTRUE(warn)) warning("Number of opening squarebrackets are not matched by closing brackets in CQP query: ", q)
+        if (isTRUE(warn))
+          warning(
+            "Number of opening square brackets are not matched by closing brackets in CQP query: ",
+            q, " ", disclaimer
+          )
       }
       
       query_ok
@@ -140,9 +155,10 @@ as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE, check = TRUE
 #' @param regex logical
 #' @noRd
 .token2id <- function(corpus, p_attribute, token = NULL, regex = FALSE){
+  regdir <- corpus_registry_dir(corpus)
   stopifnot(
     corpus %in% cqp_list_corpora(),
-    p_attribute %in% registry_get_p_attributes(corpus)
+    p_attribute %in% corpus_p_attributes(corpus, regdir)
   )
   
   if (is.null(token)) return( NULL )
@@ -155,13 +171,13 @@ as.cqp <- function(query, normalise.case = FALSE, collapse = FALSE, check = TRUE
         token,
         function(x)
           cl_regex2id(
-            corpus = corpus, registry = corpus_registry_dir(corpus),
+            corpus = corpus, registry = regdir,
             p_attribute = p_attribute, regex = x
           )
       ))
     } else {
       retval <- cl_str2id(
-        corpus = corpus, registry = corpus_registry_dir(corpus),
+        corpus = corpus, registry = regdir,
         p_attribute = p_attribute, str = token
       )
     }
@@ -339,10 +355,46 @@ regex2id <- function(x, p_attribute, regex){
   )
 }
 
+id2str <- function(x, p_attribute, id){
+  str <- cl_id2str(
+    corpus = x@corpus, registry = x@registry_dir,
+    p_attribute = p_attribute, id = id
+  )
+  Encoding(str) <- x@encoding
+  str
+}
+
+
 str2id <- function(x, p_attribute, str){
   cl_str2id(
     corpus = x@corpus, registry = x@registry_dir,
     p_attribute = p_attribute,
     str = as.corpusEnc(str, corpusEnc = x@encoding)
   )
+}
+
+
+#' @param corpus The id of a CWB corpus.
+#' @param registry Path to the registry directory.
+#' @param ... Structural attributes (set of length-one character vectors).
+#' @noRd
+siblings <- function(corpus, registry, ...){
+  s_attrs <- unlist(list(...))
+  stopifnot(all(s_attrs %in% s_attributes(corpus)))
+  
+  if (length(s_attrs) < 2L) return(NA)
+  
+  # If s-attributes have same number of values, we assume that they cover same
+  # regions.
+
+  s_attr_sizes <- lapply(
+    s_attrs,
+    function(s_attr){
+      cl_attribute_size(
+        corpus = corpus, registry = registry,
+        attribute = s_attr, attribute_type = "s" 
+      )
+    }
+  )
+  do.call(identical, s_attr_sizes)
 }

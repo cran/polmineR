@@ -30,7 +30,11 @@ setMethod("enrich", "partition", function(.Object, p_attribute = NULL, decode = 
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   
   if (!is.null(p_attribute)) {
-    stopifnot(is.character(p_attribute) == TRUE, length(p_attribute) <= 2, all(p_attribute %in% p_attributes(.Object)))
+    stopifnot(
+      is.character(p_attribute),
+      length(p_attribute) <= 2,
+      all(p_attribute %in% p_attributes(.Object))
+    )
     .message('getting counts for p-attribute(s):', paste(p_attribute, collapse = ", "), verbose = verbose)  
     .Object@stat <- count(.Object = .Object, p_attribute = p_attribute, decode = decode, mc = mc, verbose = verbose)@stat
     .Object@p_attribute <- p_attribute
@@ -170,25 +174,46 @@ setMethod("enrich", "kwic", function(.Object, s_attributes = NULL, extra = NULL,
   .Object
 })
 
-#' @details The \code{enrich}-method can be used to add additional information to the \code{data.table}
-#' in the "cpos"-slot of a \code{context}-object.
+#' @details The `enrich()`-method can be used to add additional information to
+#'   the `data.table` in the `cpos`-slot of a `context`-object.
 #' 
 #' @exportMethod enrich
 #' @docType methods
 #' @rdname context-class
-#' @param s_attribute s-attribute(s) to add to data.table in cpos-slot
-#' @param p_attribute p-attribute(s) to add to data.table in cpos-slot
-#' @param decode logical, whether to convert integer ids to expressive strings
-#' @param verbose logical, whether to be talkative
-setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute = NULL, decode = FALSE, verbose = TRUE, ...){
+#' @param s_attribute The s-attribute(s) to add to `data.table` in slot `cpos`.
+#' @param p_attribute The p-attribute(s) to add to `data.table` in slot `cpos`.
+#' @param decode A `logical` value, whether to convert integer ids to expressive
+#'   strings.
+#' @param stat A `logical` value, whether to generate / update slot `stat` from
+#'   the `cpos` table.
+#' @param verbose A `logical`, whether to be talkative.
+#' @importFrom RcppCWB corpus_p_attributes
+setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute = NULL, decode = FALSE, stat = FALSE, verbose = TRUE, ...){
   
-  if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
+  if ("pAttribute" %in% names(list(...))){
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "enrich(pAttribute)",
+      with = "enrich(p_attribute)"
+    )
+    p_attribute <- list(...)[["pAttribute"]]
+  }
+  
+  if ("sAttribute" %in% names(list(...))){
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "enrich(sAttribute)",
+      with = "enrich(s_attribute)"
+    )
+    s_attribute <- list(...)[["pAttribute"]]
+  }
   
   if (!is.null(s_attribute)){
     # check that all s-attributes are available
     .message("checking that all s-attributes are available", verbose = verbose)
-    stopifnot( all(s_attribute %in% registry_get_s_attributes(.Object@corpus)) )
+    stopifnot(
+      all(s_attribute %in% corpus_s_attributes(corpus = .Object@corpus, registry = .Object@registry_dir))
+    )
     
     for (s_attr in s_attribute){
       .message("get struc for s-attribute:", s_attr, verbose = verbose)
@@ -217,54 +242,78 @@ setMethod("enrich", "context", function(.Object, s_attribute = NULL, p_attribute
       }
     }
   }
+  
   if (!is.null(p_attribute)){
     # check that all p-attributes are available
     .message("checking that all p-attributes are available", verbose = verbose)
-    stopifnot( all(p_attribute %in% registry_get_p_attributes(.Object@corpus)) )
+    stopifnot(
+      all(p_attribute %in% corpus_p_attributes(.Object@corpus, registry = .Object@registry_dir))
+    )
     
-    # add ids
+    # add ids and decode if requested
     for (p_attr in p_attribute){
       colname <- paste(p_attr, "id", sep = "_")
       if (colname %in% colnames(.Object@cpos)){
         .message("already present - skip getting ids for p-attribute:", p_attr, verbose = verbose)
       } else {
         .message("getting token id for p-attribute:", p_attr, verbose = verbose)
-        ids <- cl_cpos2id(
-          corpus = .Object@corpus, registry = .Object@registry_dir,
-          p_attribute = p_attr, cpos = .Object@cpos[["cpos"]]
+        ids <- cpos2id(
+          x = .Object, p_attribute = p_attr, cpos = .Object@cpos[["cpos"]]
         )
         .Object@cpos[, (colname) := ids]
       }
-    }
-    
-    # add 
-    if (decode){
-      for (p_attr in p_attribute){
+      
+      if (decode){
         if (p_attr %in% colnames(.Object@cpos)){
           .message("already present - skip getting strings for p-attribute:", p_attr, verbose = verbose)
         } else {
           .message("decode p-attribute:", p_attr, verbose = verbose)
           p_attr_id <- paste(p_attr, "id", sep = "_")
-          decoded <- cl_id2str(
-            corpus = .Object@corpus, registry = .Object@registry_dir,
-            p_attribute = p_attr, id = .Object@cpos[[p_attr_id]]
+          decoded <- id2str(
+            x = .Object, p_attribute = p_attr, id = .Object@cpos[[p_attr_id]]
           )
-          .Object@cpos[, (p_attr) := as.nativeEnc(decoded, from = .Object@encoding)]
-          .Object@cpos[, (p_attr_id) := NULL]
+          native <- as.nativeEnc(decoded, from = .Object@encoding)
+          .Object@cpos <- .Object@cpos[, "word" := native]
+          # .Object@cpos[, (p_attr_id) := NULL]
         }
       }
     }
+  }
+  
+  if (isTRUE(stat)){
+    msg <- sprintf(
+      "%s count statistics for slot cpos",
+      if (nrow(.Object@cpos) == 0L) "generate" else "update"
+    )
+    .message(msg, verbose = verbose)
+    
+    p_attr_id <- paste(.Object@p_attribute, "id", sep = "_")
+    setkeyv(.Object@cpos, p_attr_id)
+    cpos_min <- .Object@cpos[which(.Object@cpos[["position"]] != 0)]
+    .Object@stat <- cpos_min[, .N, by = eval(p_attr_id), with = TRUE]
+    setnames(.Object@stat, "N", "count_coi")
+    
+    for (i in seq_along(.Object@p_attribute)){
+      new_col <- id2str(
+        x = .Object,
+        p_attribute = .Object@p_attribute[i],
+        id = .Object@stat[[p_attr_id[i]]]
+      )
+      new_col_native <- as.nativeEnc(new_col, from = .Object@encoding)
+      .Object@stat[, eval(.Object@p_attribute[i]) := new_col_native]
+    }
     
   }
+  
   .Object
 })
 
 #' @export
 #' @rdname all-cooccurrences-class
-#' @details The \code{enrich}-method will add columns 'a_count' and 'b_count' to the 
-#'   \code{data.table} in the 'stat' slot of the \code{Cooccurrences} object. If the
-#'   count for the subcorpus/partition from which the cooccurrences are derived is 
-#'   not yet present, the count is performed first.
+#' @details The `enrich()`-method will add columns 'a_count' and 'b_count' to
+#'   the `data.table` in the 'stat' slot of the `Cooccurrences` object. If the
+#'   count for the subcorpus/partition from which the cooccurrences are derived
+#'   is not yet present, the count is performed first.
 setMethod("enrich", "Cooccurrences", function(.Object){
   
   cnt <- if (nrow(.Object@partition@stat) > 0L){

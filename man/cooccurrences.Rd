@@ -113,7 +113,13 @@ cooccurrences(.Object, ...)
 
 \S4method{cooccurrences}{context}(.Object, method = "ll", verbose = FALSE)
 
-\S4method{cooccurrences}{partition_bundle}(.Object, query, mc = getOption("polmineR.mc"), ...)
+\S4method{cooccurrences}{partition_bundle}(
+  .Object,
+  query,
+  verbose = FALSE,
+  mc = getOption("polmineR.mc"),
+  ...
+)
 
 \S4method{cooccurrences}{Cooccurrences}(.Object, query)
 
@@ -182,6 +188,8 @@ Get cooccurrence statistics.
 }
 \examples{
 use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 merkel <- partition("GERMAPARLMINI", interjection = "speech", speaker = ".*Merkel", regex = TRUE)
 merkel <- enrich(merkel, p_attribute = "word")
 cooc <- cooccurrences(merkel, query = "Deutschland")
@@ -194,15 +202,26 @@ d <- subset(c, count_coi >= 5)
 e <- subset(c, ll >= 10.83)
 format(e)
 
-# using pipe operator may be convenient
+# using pipe operator with subset
 cooccurrences("REUTERS", query = "oil") \%>\%
   subset(!is.na(ll)) \%>\%
   subset(!word \%in\% tm::stopwords("en")) \%>\%
   subset(count_coi >= 5) \%>\%
   subset(ll >= 10.83) \%>\%
   format()
+  
+# generate datatables htmlwidget with buttons for export (Excel & more)
+# (alternatively use openxlsx::write.xlsx())
+interactive_table <- cooccurrences("REUTERS", query = "oil") \%>\%
+  format() \%>\%
+  DT::datatable(
+    extensions = "Buttons",
+    options = list(dom = 'Btip', buttons = c("excel", "pdf", "csv"))
+  )
+if (interactive()) show(interactive_table)
 pb <- partition_bundle("GERMAPARLMINI", s_attribute = "speaker")
-pb_min <- pb[[ count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]] ]]
+ps <- count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]]
+pb_min <- pb[ps]
 y <- cooccurrences(pb_min, query = "Deutschland")
 if (interactive()) y[[1]]
 if (interactive()) y[[2]]

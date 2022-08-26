@@ -89,7 +89,11 @@ setMethod("corpus", "character", function(
       
     }
     
-    properties <- registry_get_properties(.Object)
+    properties <- sapply(
+      corpus_properties(.Object, registry = registry_dir),
+      function(p)
+        corpus_property(.Object, registry = registry_dir, property = p)
+    )
     data_dir <- corpus_data_dir(.Object, registry = registry_dir)
     template <- path(data_dir, "template.json")
     info_file <- corpus_info_file(.Object, registry = registry_dir)
@@ -161,37 +165,60 @@ setMethod("get_corpus", "bundle", function(x) unique(sapply(x@objects, get_corpu
 #' @rdname corpus-class
 setMethod("corpus", "missing", function(){
   
-  dt <- data.table(corpus = cqp_list_corpora())
-  regdirs <- sapply(dt[["corpus"]], corpus_registry_dir)
+  corpora <- RcppCWB::cqp_list_corpora()
+  if (length(corpora) == 0L){
+    dt <- data.table(
+      corpus = character(),
+      encoding = character(),
+      type = character(),
+      template = logical(),
+      size = integer()
+    )
+    return(dt)
+  }
+  
+  # This implementation takes into account that different corpora may have the
+  # same ID yet are defined in different registry files.
+  dt <- rbindlist(lapply(
+    unique(corpora),
+    function(corpus_id){
+      data.table(
+        corpus = corpus_id,
+        registry = RcppCWB::corpus_registry_dir(corpus_id)
+      )
+    }
+  ))
   charset <- mapply(
     RcppCWB::corpus_property,
-    corpus = dt[["corpus"]], registry = regdirs, property = "charset"
+    corpus = dt[["corpus"]], registry = dt[["registry"]], property = "charset"
   )
   dt[, "encoding" := charset]
   
   corpus_type <- mapply(
     RcppCWB::corpus_property,
-    corpus = dt[["corpus"]], registry = regdirs, property = "type"
+    corpus = dt[["corpus"]], registry = dt[["registry"]], property = "type"
   )
   dt[, "type" := corpus_type]
   
   data_dirs <- mapply(
     RcppCWB::corpus_data_dir,
     corpus = dt[["corpus"]],
-    registry = regdirs
+    registry = dt[["registry"]]
   )
-  template <- sapply(data_dirs, function(dir) file.exists(path(dir, "template.json")))
+  template <- sapply(
+    data_dirs,
+    function(dir) file.exists(path(dir, "template.json"))
+  )
   dt[, "template" := template]
   
   size <- mapply(
     RcppCWB::cl_attribute_size,
-    corpus = dt[["corpus"]],
-    registry = regdirs,
-    attribute = "word", 
-    attribute_type = "p"
+    corpus = dt[["corpus"]], registry = dt[["registry"]],
+    attribute = "word", attribute_type = "p"
   )
   dt[, "size" := size]
   
+  setorderv(dt, cols = "corpus") # sort alphabetically
   
   as.data.frame(dt)
 })
@@ -241,20 +268,15 @@ setMethod("corpus", "missing", function(){
 #'
 #' # providing the value for s-attribute as a variable
 #' who <- "Volker Kauder"
-#' sc <- subset(a, quote(speaker == who))
+#' sc <- subset(a, quote(speaker == !!who))
 #'
-#' # use bquote for quasiquotation when using a variable for subsetting in a loop
-#' for (who in c("Angela Dorothea Merkel", "Volker Kauder", "Ronald Pofalla")){
-#'    sc <- subset(a, bquote(speaker == .(who)))
-#'    if (interactive()) print(size(sc))
-#' }
-#'
-#' # equivalent procedure with lapply (DOES NOT WORK YET)
-#' b <- lapply(
+#' # quoting and quosures necessary when programming against subset
+#' # note how variable who needs to be handled
+#' gparl <- corpus("GERMAPARLMINI")
+#' subcorpora <- lapply(
 #'   c("Angela Dorothea Merkel", "Volker Kauder", "Ronald Pofalla"),
-#'   function(who) subset(a, bquote(speaker == .(who)))
+#'   function(who) subset(gparl, speaker == !!who)
 #' )
-#' sapply(b, size)
 #' @param x A \code{corpus} or \code{subcorpus} object. A corpus may also
 #'   specified by a length-one \code{character} vector.
 #' @param ... An expression that will be used to create a subcorpus from
@@ -263,6 +285,7 @@ setMethod("corpus", "missing", function(){
 #'   keep. The expression may be unevaluated (using \code{quote} or
 #'   \code{bquote}).
 #' @importFrom data.table setindexv setDT
+#' @importFrom rlang enquo eval_tidy
 #' @param regex A \code{logical} value. If \code{TRUE}, values for s-attributes
 #'   defined using the three dots (...) are interpreted as regular expressions
 #'   and passed into a \code{grep} call for subsetting a table with the regions
@@ -273,14 +296,19 @@ setMethod("subset", "corpus", function(x, subset, regex = FALSE, ...){
   s_attr <- character()
 
   if (!missing(subset)){
-    expr <- substitute(subset)
+    expr <- enquo(subset)
     # The expression may also have been passed in as an unevaluated expression.
     # In this case, it is "unwrapped". Note that parent.frames looks back two
     # generations because the S4 Method inserts an additional layer to the
     # original calling environment
-    if (is.call(try(eval(expr, envir = parent.frame(n = c(1L, 2L))), silent = TRUE))){
-      expr <- eval(expr, envir = parent.frame(n = c(1L, 2L)))
-    }
+    
+    
+    evaluated <- tryCatch(
+      eval_tidy(expr),
+      error = function(e) FALSE
+    )
+    if (is.call(evaluated)) expr <- eval_tidy(expr)
+
     s_attr_expr <- s_attributes(expr, corpus = x) # get s_attributes present in the expression
     s_attr <- c(s_attr, s_attr_expr)
   }
@@ -349,19 +377,19 @@ setMethod("subset", "corpus", function(x, subset, regex = FALSE, ...){
     # Adjust the encoding of the expression to the one of the corpus. Adjusting
     # encodings is expensive, so the (small) epression will be adjusted to the
     # encoding of the corpus, not vice versa
-    if (encoding() != x@encoding)
-      expr <- .recode_call(x = expr, from = encoding(), to = x@encoding)
+    
+    if (encoding(expr) != x@encoding) encoding(expr) <- x@encoding
+    
     setindexv(dt, cols = s_attr)
-    success <- try({dt <- dt[eval(expr, envir = dt)]})
+    success <- try({dt <- dt[eval_tidy(expr, data = dt)]})
     if (is(success, "try-error")) return(NULL)
   }
 
   if (length(dots) > 0L){
     for (s in s_attr_dots){
       if (regex){
-        for (i in length(dots[[s]])){
-          dt <- dt[grep(dots[[s]][i], dt[[s]])]
-        }
+        index <- unique(unlist(lapply(dots[[s]], function(r) grep(r, dt[[s]]))))
+        dt <- dt[index]
       } else {
         if (length(dots[[s]]) == 1L){
           dt <- dt[dt[[s]] == dots[[s]]]
@@ -407,10 +435,14 @@ setMethod("subset", "character", function(x, ...){
 #' @rdname subset
 #' @importFrom RcppCWB s_attr_regions
 setMethod("subset", "subcorpus", function(x, subset, ...){
-  expr <- substitute(subset)
-
-  if (encoding() != x@encoding)
-    expr <- .recode_call(x = expr, from = encoding(), to = x@encoding)
+  expr <- enquo(subset)
+  evaluated <- tryCatch(
+    eval_tidy(expr),
+    error = function(e) FALSE
+  )
+  if (is.call(evaluated)) expr <- eval_tidy(expr)
+  
+  if (encoding(expr) != x@encoding) encoding(expr) <- x@encoding
 
   s_attr <- s_attributes(expr, corpus = x) # get s_attributes present in the expression
   dt <- data.table(struc = x@strucs, cpos_left = x@cpos[,1], cpos_right = x@cpos[,2])
@@ -465,7 +497,7 @@ setMethod("subset", "subcorpus", function(x, subset, ...){
         break
       }
 
-      r <- regions[[s]][strucs + 1L]
+      r <- matrix(regions[[s]][strucs + 1L,], ncol = 2)
       if (all(r[,1] <= x@cpos[,1]) && all(r[,2] >= x@cpos[,2])){
         descendant <- FALSE
         str <- cl_struc2str(
@@ -527,8 +559,10 @@ setMethod("subset", "subcorpus", function(x, subset, ...){
   }
   
   setindexv(dt, cols = s_attr)
-  dt_min <- dt[eval(expr, envir = dt)]
-
+  
+  success <- try({dt_min <- dt[eval_tidy(expr, data = dt)]})
+  if (is(success, "try-error")) return(NULL)
+  
   y <- new(
     "subcorpus",
     corpus = x@corpus,
@@ -553,10 +587,10 @@ setMethod("subset", "subcorpus", function(x, subset, ...){
 #' @exportMethod show
 #' @docType methods
 #' @rdname corpus_methods
-#' @details The \code{show}-method will show basic information on the
-#'   \code{corpus} object.
+#' @details The `show()`-method will show basic information on the
+#'   `corpus` object.
 setMethod("show", "corpus", function(object){
-  message(sprintf("** '%s' object **", class(object)))
+  message(sprintf("<< %s >>", class(object)))
   message(sprintf("%-12s", "corpus:"), object@corpus)
   message(sprintf("%-12s", "encoding:"), object@encoding)
   message(sprintf("%-12s", "type:"), if (length(object@type) > 0) object@type else "[undefined]")
@@ -569,6 +603,8 @@ setMethod("show", "corpus", function(object){
 #' @details Applying the `$`-method on a corpus will return the values for the
 #'   s-attribute stated with argument \code{name}.
 #' @examples
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' # show-method
 #' if (interactive()) corpus("REUTERS") %>% show()
 #' if (interactive()) corpus("REUTERS") # show is called implicitly

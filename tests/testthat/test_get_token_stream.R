@@ -1,25 +1,20 @@
 library(polmineR)
+use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
 
 testthat::context("get_token_stream")
 
 test_that(
   "get_token_stream()-method - decode entire corpus",
   {
-    fulltext <- get_token_stream("REUTERS", p_attribute = "word")
+    fulltext <- corpus("REUTERS") %>%
+      get_token_stream(p_attribute = "word")
+    
     expect_identical(length(fulltext), 4050L)
     expect_identical(
       head(fulltext),
       c("Diamond", "Shamrock", "Corp", "said", "that", "effective")
     )
-    
-    fulltext <- corpus("REUTERS") %>% get_token_stream(p_attribute = "word")
-    expect_identical(length(fulltext), 4050L)
-    expect_identical(
-      head(fulltext),
-      c("Diamond", "Shamrock", "Corp", "said", "that", "effective")
-    )
-    
-    
   }
 )
 
@@ -27,12 +22,6 @@ test_that(
 test_that(
   "get_token_stream()-method for numeric input object",
   {
-    # check that argument pAttribute can be used for backwards compatibility
-    expect_identical(
-      get_token_stream(0:9, corpus = "GERMAPARLMINI", pAttribute = "word"),
-      c("Guten", "Morgen", ",", "meine", "sehr", "verehrten", "Damen", "und", "Herren", "!")
-    )
-    
     expect_identical(
       get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word"),
       c("Guten", "Morgen", ",", "meine", "sehr", "verehrten", "Damen", "und", "Herren", "!")
@@ -108,6 +97,8 @@ test_that(
 test_that(
   "get_token_stream()-method - decode partition, subcorpus and subcorpus_bundle",
   {
+    skip_on_cran()
+    
     reuters_1 <- corpus("REUTERS") %>% subset(id == "127") %>% get_token_stream(p_attribute = "word")
     expect_identical(length(reuters_1), 92L)
     expect_identical(table(reuters_1)[["the"]], 4L)
@@ -120,6 +111,13 @@ test_that(
     
     y <- corpus("REUTERS") %>% split(s_attribute = "id") %>% get_token_stream(p_attribute = "word")
     expect_identical(y[["127"]], reuters_1)
+    
+    skip_on_cran()
+    # When decode = FALSE, result required to be list of integer vectors
+    int_list <- corpus("REUTERS") %>%
+      split(s_attribute = "id", verbose = FALSE) %>%
+      get_token_stream(p_attribute = "word", decode = FALSE, verbose = FALSE)
+    expect_true(all(unlist(lapply(int_list, is.integer))))
   }
 )
 
@@ -137,8 +135,9 @@ test_that(
 test_that(
   "get_token_stream() with two attributes", 
   {
+    skip_on_cran()
     sp <- corpus("GERMAPARLMINI") %>%
-      as.speeches(s_attribute_name = "speaker", progress = FALSE)
+      as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", progress = FALSE)
     p2 <- get_token_stream(sp, p_attribute = c("word", "pos"), verbose = FALSE)
     
     spl <- strsplit(p2[[1]], "//")
@@ -164,7 +163,7 @@ test_that(
   "Check workflow to filter subcorpus_bundle",
   {
     sp <- corpus("GERMAPARLMINI") %>%
-      as.speeches(s_attribute_name = "speaker", progress = FALSE)
+      as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", progress = FALSE)
     queries <- c('"freiheitliche" "Grundordnung"', '"Bundesrepublik" "Deutschland"' )
     
     phr <- corpus("GERMAPARLMINI") %>%

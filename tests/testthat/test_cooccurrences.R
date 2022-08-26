@@ -1,5 +1,7 @@
 library(polmineR)
 use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 testthat::context("cooccurrences")
 
 test_that(
@@ -11,6 +13,13 @@ test_that(
     y <- cooccurrences("REUTERS", query = '"barrel.*"', p_attribute = "word")
     expect_equal(subset(y, !is.na(ll))[["word"]][1:5], c("dlrs", "mln", "a", "reserve", "brings"))
     
+    # handle more than one p-attribute
+    p_attrs <- c("word", "pos")
+    dt <- corpus("GERMAPARLMINI") %>%
+      cooccurrences(query = "Arbeit", p_attribute = p_attrs) %>%
+      format()
+    expect_true(all(p_attrs %in% colnames(dt)))
+
     expect_equal(
       cooccurrences("REUTERS", query = "asdfasdf", p_attribute = "word"),
       NULL
@@ -20,6 +29,8 @@ test_that(
       cooccurrences("REUTERS", query = '"asdfasdfasdfasd.*"', cqp = TRUE),
       NULL
     )
+    
+    
   }
 )
 
@@ -83,9 +94,11 @@ test_that(
   "Identity of cooccurrences and Cooccurrences",
   {
     testthat::skip_on_cran()
-    stopwords <- unname(unlist(
-      noise(terms("REUTERS", p_attribute = "word"), minNchar = 7L, stopwordsLanguage = "en")
-    ))
+    rm <- noise(
+      terms("REUTERS", p_attribute = "word"),
+      specialChars = NULL, minNchar = 2L, stopwordsLanguage = "en"
+    )
+    stopwords <- unname(unlist(rm))
     r <- Cooccurrences("REUTERS", p_attribute = "word", left = 5L, right = 5L, stoplist = stopwords)
     stm <- as.simple_triplet_matrix(r)
 

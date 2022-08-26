@@ -28,8 +28,7 @@ decode(.Object, ...)
   s_attributes = NULL,
   p_attributes = NULL,
   decode = TRUE,
-  verbose = TRUE,
-  ...
+  verbose = TRUE
 )
 
 \S4method{decode}{slice}(
@@ -140,6 +139,7 @@ handle memory parsimoniously.
 }
 \examples{
 use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
 
 # Decode corpus as data.table
 dt <- decode("GERMAPARLMINI", to = "data.table")
@@ -148,11 +148,14 @@ dt <- decode("GERMAPARLMINI", to = "data.table")
 dt <- decode("GERMAPARLMINI", to = "data.table", p_attributes = "word", s_attributes = "party")
 
 # Decode a subcorpus
-sc <- subset(corpus("GERMAPARLMINI"), speaker == "Angela Dorothea Merkel")
-dt <- decode(sc, to = "data.table")
+dt <- corpus("GERMAPARLMINI") \%>\%
+  subset(speaker == "Angela Dorothea Merkel") \%>\%
+  decode(s_attributes = c("speaker", "party", "date"), to = "data.table")
 
 # Decode subcorpus selectively
-dt <- decode(sc, to = "data.table", p_attributes = "word", s_attributes = "party")
+corpus("GERMAPARLMINI") \%>\%
+  subset(speaker == "Angela Dorothea Merkel") \%>\%
+  decode(to = "data.table", p_attributes = "word", s_attributes = "party")
 
 # Decode partition
 P <- partition("REUTERS", places = "kuwait", regex = TRUE)

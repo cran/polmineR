@@ -15,13 +15,14 @@ NULL
 #' @docType methods
 #' @importFrom RcppCWB region_matrix_to_ids
 #' @examples
-#' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' r <- partition("REUTERS", id = "144")
 #' words <- terms(r, "word")
 #' terms(r, p_attribute = "word", regex = ".*il.*")
 #' @rdname terms
 #' @aliases terms,slice-method terms,partition-method
-setMethod("terms", "slice", function(x, p_attribute, regex = NULL){
+setMethod("terms", "partition", function(x, p_attribute, regex = NULL){
   
   # ensure that input is correct
   stopifnot(is.character(p_attribute))
@@ -54,11 +55,11 @@ setMethod("terms", "slice", function(x, p_attribute, regex = NULL){
   y
 })
 
-#' @rdname terms
-setMethod("terms", "partition", function(x, p_attribute, regex = NULL) callNextMethod() )
 
 #' @rdname terms
-setMethod("terms", "subcorpus", function(x, p_attribute, regex = NULL) callNextMethod() )
+setMethod("terms", "subcorpus", function(x, p_attribute, regex = NULL){
+  terms(x = as(x, "partition"), p_attribute = p_attribute, regex = regex)
+})
 
 
 #' @rdname terms

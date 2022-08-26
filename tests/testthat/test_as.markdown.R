@@ -1,5 +1,7 @@
 library(polmineR)
 use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 testthat::context("as.markdown")
 
 
@@ -35,7 +37,7 @@ test_that(
   "plpr_partition",
   {
     m <- partition("GERMAPARLMINI", date = "2009-10-28", speaker = "Merkel", regex = TRUE) %>%
-      as.speeches(s_attribute_name = "speaker", gap = 100) %>%
+      as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", gap = 100) %>%
       .[[2]]
     y <- as.markdown(m)
     if (.Platform$OS.type == "windows") y <- iconv(y, from = encoding(), to = "UTF-8")

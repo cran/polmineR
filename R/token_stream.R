@@ -8,59 +8,56 @@ NULL
 #'
 #' @param .Object Input object.
 #' @param p_attribute A `character` vector, the p-attribute(s) to decode.
-#' @param phrases A \code{phrases} object. Defined phrases will be concatenated.
+#' @param phrases A `phrases` object. Defined phrases will be concatenated.
 #' @param subset An expression applied on p-attributes, using non-standard
 #'   evaluation. Note that symbols used in the expression may not be used
 #'   internally (e.g. 'stopwords').
-#' @param encoding If not \code{NULL} (default) a length-one \code{character}
-#'   vector stating an encoding that will be assigned to the (decoded) token
-#'   stream.
-#' @param collapse If not \code{NULL} (default), a length-one \code{character}
-#'   string passed into \code{paste} to collapse character vector into a single
-#'   string.
+#' @param encoding If not `NULL` (default) a length-one `character` vector
+#'   stating an encoding that will be assigned to the (decoded) token stream.
+#' @param collapse If not `NULL` (default), a length-one `character` string
+#'   passed into `paste` to collapse character vector into a single string.
 #' @param corpus A CWB indexed corpus.
-#' @param beautify A (length-one) \code{logical} value, whether to adjust
-#'   whitespace before and after interpunctation.
-#' @param decode A (length-one) \code{logical} value, whether to decode token
-#'   ids to character strings. Defaults to \code{TRUE}, if \code{FALSE}, an
-#'   integer vector with token ids is returned.
-#' @param split A \code{logical} value, whether to return a \code{character}
-#'   vector (when \code{split} is \code{FALSE}, default) or a \code{list} of
-#'   \code{character} vectors; each of these vectors will then represent the
-#'   tokens of a region defined by a row in a regions matrix.
+#' @param beautify A (length-one) `logical` value, whether to adjust whitespace
+#'   before and after interpunctation.
+#' @param decode A (length-one) `logical` value, whether to decode token ids to
+#'   character strings. Defaults to `TRUE`, if `FALSE`, an integer vector with
+#'   token ids is returned.
+#' @param split A `logical` value, whether to return a `character` vector (when
+#'   `split` is `FALSE`, default) or a `list` of `character` vectors; each of
+#'   these vectors will then represent the tokens of a region defined by a row
+#'   in a regions matrix.
 #' @param left Left corpus position.
 #' @param right Right corpus position.
-#' @param cpos A \code{logical} value, whether to return corpus positions as
-#'   names of the tokens.
+#' @param cpos A `logical` value, whether to return corpus positions as names of
+#'   the tokens.
 #' @param cutoff Maximum number of tokens to be reconstructed.
-#' @param progress A length-one \code{logical} value, whether to show progress
-#'   bar.
-#' @param verbose A length-one \code{logical} value, whether to show messages.
-#' @param mc Number of cores to use. If \code{FALSE} (default), only one thread
-#'   will be used.
+#' @param progress A length-one `logical` value, whether to show progress bar.
+#' @param verbose A length-one `logical` value, whether to show messages.
+#' @param mc Number of cores to use. If `FALSE` (default), only one thread will
+#'   be used.
 #' @param ... Arguments that will be be passed into the
-#'   \code{get_token_stream}-method for a \code{numeric} vector, the real
-#'   worker.
+#'   `get_token_stream`-method for a `numeric` vector, the real worker.
 #' @exportMethod get_token_stream
 #' @rdname get_token_stream-method
 #' @details CWB indexed corpora have a fixed order of tokens which is called the
 #'   \emph{token stream}. Every token is assigned to a unique \emph{corpus
 #'   position}, Subsets of the (entire) token stream defined by a left and a
 #'   right corpus position are called \emph{regions}. The
-#'   \code{get_token_stream}-method will extract the tokens (for regions) from a
+#'   `get_token_stream`-method will extract the tokens (for regions) from a
 #'   corpus.
 #' @details The primary usage of this method is to return the token stream of a
-#'   (sub-)corpus as defined by a \code{corpus}, \code{subcorpus} or
-#'   \code{partition} object. The methods defined for a \code{numeric} vector or
-#'   a (two-column) \code{matrix} defining regions (i.e. left and right corpus
-#'   positions in the first and second column) are the actual workers for this
-#'   operation.
-#' @details The \code{get_token_stream} has been introduced so serve as a worker
-#'   by higher level methods such as \code{read}, \code{html}, and
-#'   \code{as.markdown}. It may however be useful for decoding a corpus so that
-#'   it can be exported to other tools.
+#'   (sub-)corpus as defined by a `corpus`, `subcorpus` or `partition` object.
+#'   The methods defined for a `numeric` vector or a (two-column) `matrix`
+#'   defining regions (i.e. left and right corpus positions in the first and
+#'   second column) are the actual workers for this operation.
+#' @details The `get_token_stream` has been introduced so serve as a worker by
+#'   higher level methods such as `read`, `html`, and `as.markdown`. It may
+#'   however be useful for decoding a corpus so that it can be exported to other
+#'   tools.
 #'
 #' @examples
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' # Decode first words of GERMAPARLMINI corpus (first sentence)
 #' get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word")
 #'
@@ -97,6 +94,7 @@ NULL
 #'   split(s_attribute = "id") %>%
 #'   get_token_stream(p_attribute = "word")
 setGeneric("get_token_stream", function(.Object, ...) standardGeneric("get_token_stream"))
+
 
 #' @inheritParams decode
 #' @rdname get_token_stream-method
@@ -135,18 +133,9 @@ setMethod("get_token_stream", "numeric", function(.Object, corpus, p_attribute, 
     
     if (beautify){
       whitespace <- rep(collapse, times = length(.Object))
-      if ("pos" %in% p_attributes(corpus)){
-        pos <- cl_cpos2str(
-          corpus = corpus, registry = corpus_registry_dir(corpus),
-          p_attribute = "pos", cpos = .Object
-        )
-        whitespace[grep("\\$[\\.;,:!?]", pos, perl = TRUE)] <- ""
-      } else {
-        whitespace[grep("^[\\.;,:!?]$", tokens, perl = TRUE)] <- ""
-      }
-      whitespace[grep("\\)", tokens, perl = TRUE)] <- ""
-      whitespace[grep("\\(", tokens, perl = TRUE) + 1L] <- ""
       whitespace[1] <- ""
+      whitespace[grep("^[\\.;,:!?\\)]$", tokens, perl = TRUE)] <- ""
+      whitespace[grep("\\(", tokens, perl = TRUE) + 1L] <- ""
       tokens <- paste(paste(whitespace, tokens, sep = ""), collapse = "")
     } else {
       tokens <- paste(tokens, collapse = collapse)  
@@ -215,16 +204,21 @@ setMethod("get_token_stream", "regions", function(.Object, p_attribute = "word",
   )
 })
 
+#' @param min_length If not `NULL` (default), an `integer` value with minimum
+#'   length of documents required to keep them in the `list` object that is 
+#'   returned.
 #' @rdname get_token_stream-method
+#' @importFrom stringi stri_c
+#' @importFrom RcppCWB region_matrix_to_ids
 #' @examples 
-#' 
+#' \donttest{
 #' # Get token stream for partition_bundle
 #' pb <- partition_bundle("REUTERS", s_attribute = "id")
 #' ts_list <- get_token_stream(pb)
 #' 
 #' # Use two p-attributes
 #' sp <- corpus("GERMAPARLMINI") %>%
-#'   as.speeches(s_attribute_name = "speaker", progress = FALSE)
+#'   as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", progress = FALSE)
 #' p2 <- get_token_stream(sp, p_attribute = c("word", "pos"), verbose = FALSE)
 #' 
 #' # Apply filter
@@ -247,33 +241,51 @@ setMethod("get_token_stream", "regions", function(.Object, p_attribute = "word",
 #'   progress = FALSE,
 #'   verbose = FALSE
 #' )
-setMethod("get_token_stream", "partition_bundle", function(.Object, p_attribute = "word", phrases = NULL, subset = NULL, collapse = NULL, cpos = FALSE, decode = TRUE, verbose = TRUE, progress = FALSE, mc = FALSE, ...){
+#' }
+setMethod("get_token_stream", "partition_bundle", function(.Object, p_attribute = "word", phrases = NULL, subset = NULL, min_length = NULL, collapse = NULL, cpos = FALSE, decode = TRUE, beautify = FALSE, verbose = TRUE, progress = FALSE, mc = FALSE, ...){
   
   if (verbose) message("... creating vector of document ids")
   sizes <- sapply(.Object@objects, slot, "size")
-  id_list <- lapply(
-    seq_along(.Object),
-    function(i) rep(x = i, times = sizes[[i]])
-  )
+  id_list <- mapply(rep, seq_along(.Object), sizes)
   dt <- data.table(obj_id = do.call(c, id_list))
-  rm(id_list)
+  rm(id_list); gc()
   
-  if (verbose) message("... creating vector of corpus positions")
-  region_matrix_list <- lapply(.Object@objects, slot, "cpos")
-  region_matrix <- do.call(rbind, region_matrix_list)
-  dt[, "cpos" := cpos(region_matrix)]
-  rm(region_matrix, region_matrix_list)
-  
+  if (verbose) message("... get region matrices and corpus positions")
+  region_matrix <- do.call(rbind, lapply(.Object@objects, slot, "cpos"))
+  if (!is.null(phrases)) dt[, "cpos" := cpos(region_matrix)]
+
   for (p_attr in p_attribute){
     if (verbose) message("... decoding token stream for p-attribute ", p_attr)
-    ts <- get_token_stream(
-      dt[["cpos"]], p_attribute = p_attr,
-      corpus = .Object@corpus, encoding = .Object@encoding
+    ids <- region_matrix_to_ids(
+      corpus = .Object@corpus, registry = .Object@registry_dir,
+      p_attribute = p_attr, matrix = region_matrix
     )
-    dt[, (p_attr) := ts]
+    if (isTRUE(decode)){
+      tokens <- id2str(x = .Object, p_attribute = p_attr, id = ids)
+      tokens <- iconv(x = tokens, from = .Object@encoding, to = encoding())
+      
+      if (beautify){
+        whitespace <- rep(" ", times = length(tokens))
+        whitespace[1] <- ""
+        whitespace[cumsum(sizes[1:(length(sizes) - 1L)]) + 1L] <- ""
+        whitespace[grep("^[\\.;,:!?\\)]$", tokens, perl = TRUE)] <- ""
+        whitespace[grep("\\(", tokens, perl = TRUE) + 1L] <- ""
+        tokens <- paste(whitespace, tokens, sep = "")
+      }
+
+      dt[, (p_attr) := tokens]
+      rm(ids, tokens); gc()
+    } else {
+      dt[, (p_attr) := ids]
+      rm(ids); gc()
+    }
   }
   
   if (!is.null(phrases)){
+    
+    if (isFALSE(decode))
+      stop("concatenating phrases not possible when decode = FALSE")
+    
     if (isTRUE(cpos))
       stop(
         "Argument 'cpos' is TRUE, but cannot assigning corpus positions ",
@@ -289,23 +301,53 @@ setMethod("get_token_stream", "partition_bundle", function(.Object, p_attribute 
     dt <- dt[eval(expr, envir = dt, enclos = .GlobalEnv),]
   }
   
+  if (!is.null(min_length)){
+    if (verbose) message("... drop documents shorter than `min_length`")
+    stopifnot(is.numeric(min_length), length(min_length) == 1L)
+    dt_cnt <- dt[, .N, by = "obj_id"]
+    ids_to_keep <- dt_cnt[dt_cnt[["N"]] >= min_length][["obj_id"]]
+    dt <- dt[dt[["obj_id"]] %in% ids_to_keep]
+  }
+  
   if (length(p_attribute) > 1L){
+    
+    if (isFALSE(decode))
+      stop("cannot concatenate multiple p-attributes when decode = FALSE")
+    
     if (verbose) message("... concatenate multiple p-attributes")
     merger <- do.call(
       paste,
       c(lapply(p_attribute, function(p_attr) dt[[p_attr]]), sep = "//")
     )
     dt[, (p_attribute[[1]]) := merger]
+    rm(merger); gc()
   }
   
   if (verbose) message("... generating list of character vectors")
   y <- split(x = dt[[p_attribute[[1]]]], f = dt[["obj_id"]])
-  
+
   # subsetting may have removed objs
-  names(y) <- names(.Object@objects)[unique(dt[["obj_id"]])] 
+  ids <- dt[["obj_id"]]
+  rm(dt); gc()
+  ids_unique <- unique(ids)
+  rm(ids); gc()
   
-  if (!is.null(collapse))
-    y <- lapply(y, function(x) paste(x, collapse = collapse))
+  names(y) <- names(.Object@objects)[ids_unique]
+
+  if (!is.null(collapse)){
+    
+    if (isFALSE(decode))
+      stop("cannot collapse tokens when decode = FALSE")
+    
+    if (isTRUE(beautify)) collapse <- ""
+    
+    y <- if (progress){
+      pblapply(y, function(x) stringi::stri_c(x, collapse = collapse), cl = mc)
+    } else {
+      lapply(y, function(x) stringi::stri_c(x, collapse = collapse))
+    }
+  }
+
   y
 })
 

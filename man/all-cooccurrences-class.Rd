@@ -108,10 +108,10 @@ finding, and to the \code{data.table} in the \code{stat}-slot of the
 Returns a \code{sparseMatrix} based on the counts of term cooccurrences. At this stage,
 it is required that decoded tokens are present.
 
-The \code{enrich}-method will add columns 'a_count' and 'b_count' to the
-\code{data.table} in the 'stat' slot of the \code{Cooccurrences} object. If the
-count for the subcorpus/partition from which the cooccurrences are derived is
-not yet present, the count is performed first.
+The \code{enrich()}-method will add columns 'a_count' and 'b_count' to
+the \code{data.table} in the 'stat' slot of the \code{Cooccurrences} object. If the
+count for the subcorpus/partition from which the cooccurrences are derived
+is not yet present, the count is performed first.
 }
 \section{Slots}{
 
@@ -137,9 +137,13 @@ context of a token identified by id.}
 }}
 
 \examples{
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 X <- Cooccurrences("REUTERS", p_attribute = "word", left = 2L, right = 2L)
 m <- as.simple_triplet_matrix(X)
 \dontrun{
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 X <- Cooccurrences("REUTERS", p_attribute = "word", left = 5L, right = 5L)
 decode(X)
 sm <- as.sparseMatrix(X)

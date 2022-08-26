@@ -1,5 +1,5 @@
 library(polmineR)
-use("polmineR")
+
 testthat::context("encoding")
 
 test_that(
@@ -11,3 +11,27 @@ test_that(
   }
 )
 
+test_that(
+  "recoding call and quosure",
+  {
+    expect_identical(encoding(quote(speaker == "Müller")), "UTF-8")
+    expect_identical(encoding(quote(speaker == "Meier")), "unknown")
+    
+    expect_identical(
+      encoding(rlang::new_quosure(quote(speaker == "Müller"))),
+      "UTF-8"
+    )
+    expect_identical(
+      encoding(rlang::new_quosure(quote(speaker == "Meier"))),
+      "unknown"
+    )
+    
+    expr <- quote(speaker == "Müller")
+    encoding(expr) <- "latin1"
+    expect_identical(encoding(expr), "latin1")
+    
+    qu <- rlang::new_quosure(quote(speaker == "Müller"))
+    encoding(qu) <- "latin1"
+    expect_identical(encoding(qu), "latin1")
+  }
+)

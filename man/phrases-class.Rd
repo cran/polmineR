@@ -85,12 +85,14 @@ phrases <- corpus("GERMAPARLMINI") \%>\%
   as.phrases()
 
 dtm <- corpus("GERMAPARLMINI") \%>\%
-  as.speeches(s_attribute_name = "speaker", progress = TRUE) \%>\%
+  as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", progress = TRUE) \%>\%
   count(phrases = phrases, p_attribute = "word", progress = TRUE, verbose = TRUE) \%>\%
   as.DocumentTermMatrix(col = "count", verbose = FALSE)
   
 grep("erneuerbaren_Energien", colnames(dtm))
 grep("verpasste_Chancen", colnames(dtm))
+
+use(pkg = "RcppCWB", corpus = "REUTERS")
 
 # Derive phrases object from an ngrams object
 

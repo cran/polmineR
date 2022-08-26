@@ -1,6 +1,7 @@
 #' @include polmineR.R
 NULL
 
+
 #' Corpus class initialization
 #' 
 #' Corpora indexed using the Corpus Workbench (CWB) offer an efficient data
@@ -69,7 +70,7 @@ NULL
 #'   \code{\link{as.TermDocumentMatrix}}.
 #' @family classes to manage corpora
 #' @examples
-#' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
 #' 
 #' # get corpora present locally
 #' y <- corpus()
@@ -146,7 +147,7 @@ setClass(
 #' @slot encoding The encoding of the corpus.
 #' 
 #' @param x a bundle object
-#' @param i An `integer` value to index a bundle object.
+#' @param i `integer` or `character` values for indexing a bundle object.
 #' @param object A `bundle` object.
 #' @param size number of items to choose to generate a sample
 #' @param ... Further parameters
@@ -159,16 +160,14 @@ setClass(
 #' @docType class
 #' @author Andreas Blaette
 #' @examples
-#' parties <- s_attributes("GERMAPARLMINI", "party")
-#' parties <- parties[-which(parties == "NA")]
 #' party_bundle <- partition_bundle("GERMAPARLMINI", s_attribute = "party")
+#' 
 #' length(party_bundle)
 #' names(party_bundle)
 #' get_corpus(party_bundle)
+#' 
 #' party_bundle <- enrich(party_bundle, p_attribute = "word")
 #' summary(party_bundle)
-#' parties_big <- party_bundle[[c("CDU_CSU", "SPD")]]
-#' summary(parties_big)
 setClass(
   "bundle",
   slots = c(
@@ -250,7 +249,9 @@ setReplaceMethod("name", signature = "bundle", function(x, value) {
 #' @docType class
 #' @exportClass textstat
 #' @examples
-#' use("polmineR")
+#' use(pkg = "polmineR", corpus = "GERMAPARLMINI")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' P <- partition("GERMAPARLMINI", date = ".*", p_attribute = "word", regex = TRUE)
 #' y <- cooccurrences(P, query = "Arbeit")
 #' 
@@ -591,15 +592,18 @@ setAs(from = "remote_partition", to = "partition", def = function(from){
 #' @slot method A `character`-vector, statistical test used.
 #' @slot call Object of class `character`, call that generated the object.
 #'     
-#' @param .Object object
-#' @param x a context object
-#' @param size integer indicating sample size
-#' @param object a context object
-#' @param positivelist tokens that are required to be present to keep a match
-#' @param stoplist tokens that are used to exclude a match
-#' @param regex logical, whether positivlist / stoplist is interpreted as regular expressions
-#' @param progress logical, whether to show progress bar
-#' @param ... to maintain backwards compatibility if argument `pAttribute` is still used
+#' @param .Object A `context` object.
+#' @param x A `context` object.
+#' @param size An `integer` indicating sample size.
+#' @param positivelist Tokens that are required to be present to keep a match.
+#' @param stoplist Tokens that are used to exclude a match.
+#' @param regex A `logical` value, whether arguments `positivlist` / `stoplist`
+#'   are interpreted as regular expressions.
+#' @param fn A function that will be applied on context tables splitted by
+#'   match_id.
+#' @param progress A `logical` value, whether to show progress bar
+#' @param ... To maintain backwards compatibility if argument `pAttribute` is
+#'   still used.
 #' @aliases show,context-method [,context-method [,context,ANY,ANY,ANY-method
 #'   [[,context-method summary,context-method head,context-method
 #'   as.DataTables,context-method
@@ -1013,7 +1017,7 @@ setClass("press_subcorpus", contains = "subcorpus")
 #'   as.phrases()
 #' 
 #' dtm <- corpus("GERMAPARLMINI") %>%
-#'   as.speeches(s_attribute_name = "speaker", progress = TRUE) %>%
+#'   as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", progress = TRUE) %>%
 #'   count(phrases = phrases, p_attribute = "word", progress = TRUE, verbose = TRUE) %>%
 #'   as.DocumentTermMatrix(col = "count", verbose = FALSE)
 #'   
@@ -1163,7 +1167,6 @@ setClass(
 #' @param x a `partition_bundle` object
 #' @param .Object a `partition_bundle` object
 #' @param object a `partition_bundle` object
-#' @param i integer index
 #' @param s_attribute the s-attribute to use
 #' @param height height
 #' @param ... further parameters

@@ -1,8 +1,8 @@
 Package: polmineR
 Type: Package
 Title: Verbs and Nouns for Corpus Analysis
-Version: 0.8.6
-Date: 2022-05-05
+Version: 0.8.7
+Date: 2022-08-26
 Authors@R: c(
   person("Andreas", "Blaette", role = c("aut", "cre"), email = "andreas.blaette@uni-due.de", comment = c(ORCID = "0000-0001-8970-8010")),
   person("Christoph", "Leonhardt", role = "ctb"),
@@ -11,7 +11,7 @@ Authors@R: c(
 Depends: R (>= 3.5.0)
 Imports: methods, data.table (>= 1.12.2), fs, slam, Matrix, tm, DT,
         xml2, stringi, utils, jsonlite, parallel, pbapply, RcppCWB (>=
-        0.5.2), magrittr, knitr, lifecycle
+        0.5.3), magrittr, knitr, lifecycle, rlang
 Suggests: markdown, rmarkdown, htmltools (>= 0.4.0), highlight,
         sendmailR, shiny, shinythemes, shinyjs, miniUI, rhandsontable,
         testthat, tidytext, covr, igraph, NLP, httr, protolite, curl
@@ -43,12 +43,13 @@ Collate: 'polmineR.R' 'S4classes.R' 'p_attributes.R' 'textstat.R'
         'renamed.R' 'restore.R' 's_attributes.R' 'size.R' 'split.R'
         'stats.R' 'templates.R' 'terms.R' 'token_stream.R' 'tooltips.R'
         'trim.R' 'type.R' 'use.R' 'utils.R' 'view.R' 'weigh.R' 'zzz.R'
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.0
+Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2022-05-05 12:27:54 UTC; andreasblatte
+Packaged: 2022-08-26 15:14:19 UTC; andreasblatte
 Author: Andreas Blaette [aut, cre] (<https://orcid.org/0000-0001-8970-8010>),
   Christoph Leonhardt [ctb],
   Marius Bertram [ctb]
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
 Repository: CRAN
-Date/Publication: 2022-05-05 12:50:05 UTC
+Date/Publication: 2022-08-26 15:50:02 UTC

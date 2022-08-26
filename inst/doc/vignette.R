@@ -1,3 +1,6 @@
+## ---- include = FALSE---------------------------------------------------------
+Sys.setenv(CORPUS_REGISTRY = "")
+
 ## ----loading_polmineR---------------------------------------------------------
 library(polmineR)
 
@@ -9,6 +12,7 @@ registry()
 
 ## ----use_polmineR_data, message = FALSE, eval = TRUE--------------------------
 use("polmineR")
+use("RcppCWB", corpus = "REUTERS")
 
 ## ---- eval = TRUE, message = FALSE--------------------------------------------
 corpus()

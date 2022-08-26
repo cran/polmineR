@@ -24,8 +24,8 @@ NULL
 #' @rdname p_attributes
 #' @name p_attributes
 #' @examples 
-#' use("polmineR")
-#' p_attributes("GERMAPARLMINI")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' p_attributes("REUTERS")
 #' p_attributes("REUTERS", p_attribute = "word")
 #' @references Stefan Evert & The OCWB Development Team, CQP Query Language
@@ -40,7 +40,11 @@ setMethod("p_attributes", "character", function(.Object, p_attribute = NULL){
 
 #' @rdname p_attributes
 setMethod("p_attributes", "corpus", function(.Object, p_attribute = NULL){
-  p_attrs <- registry_get_p_attributes(corpus = .Object@corpus)
+  p_attrs <- corpus_p_attributes(
+    corpus = .Object@corpus,
+    registry = .Object@registry_dir
+  )
+  
   if (is.null(p_attribute)){
     return(p_attrs)
   } else {
@@ -62,7 +66,10 @@ setMethod("p_attributes", "corpus", function(.Object, p_attribute = NULL){
 #' merkel_words <- p_attributes(merkel, "word")
 #' @rdname p_attributes
 setMethod("p_attributes", "slice", function(.Object, p_attribute = NULL, decode = TRUE){
-  p_attrs <- registry_get_p_attributes(.Object@corpus)
+  p_attrs <- corpus_p_attributes(
+    .Object@corpus,
+    registry = .Object@registry_dir
+  )
   if (is.null(p_attribute)){
     return( p_attrs )
   } else {
@@ -91,10 +98,18 @@ setMethod("p_attributes", "slice", function(.Object, p_attribute = NULL, decode 
 #' @rdname p_attributes
 setMethod("p_attributes", "partition_bundle", function(.Object, p_attribute = NULL, decode = TRUE){
   corpus_id <- unique(sapply(.Object@objects, slot, "corpus"))
-  if (length(corpus_id) > 1L) stop("Getting p-attributes for a corpus requires that objects ",
-                                   "are derived from the same corpus.")
-  p_attrs <- registry_get_p_attributes(.Object@corpus)
+  if (length(corpus_id) > 1L){
+    stop(
+      "Getting p-attributes for a corpus requires that objects ",
+      "are derived from the same corpus."
+    )
+  }
+  
   if (is.null(p_attribute)){
+    p_attrs <- corpus_p_attributes(
+      .Object@corpus,
+      registry = .Object@registry_dir
+    )
     return(p_attrs)
   } else {
     y_pre <- get_token_stream(.Object, p_attribute = p_attribute, decode = decode)

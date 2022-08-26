@@ -58,14 +58,14 @@ setMethod("show", "kwic", function(object){
 })
 
 
-#' @details The \code{knit_print} method will be called by knitr to render
-#'   `kwic` objects as a DataTable  \code{htmlwidget} when rendering a R
+#' @details The `knit_print()` method will be called by knitr to render
+#'   `kwic` objects as a DataTable  `htmlwidget` when rendering a R
 #'   Markdown document as html. It will usually be necessary to explicitly state
 #'   "render = knit_print" in the chunk options. The option
 #'   `polmineR.pagelength` controls the number of lines displayed in the
 #'   resulting `htmlwidget`. Note that including htmlwidgets in html documents
 #'   requires that pandoc is installed. To avoid an error, a formatted
-#'   \code{data.table} is returned by \code{knit_print} if pandoc is not
+#'   `data.table` is returned by `knit_print()` if pandoc is not
 #'   available.
 #' @importFrom knitr knit_print
 #' @exportMethod knit_print
@@ -252,6 +252,7 @@ NULL
 #' Cham et al: Springer, pp. 73-87 (chs. 8 & 9).
 #' @examples
 #' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
 #' 
 #' # basic usage
 #' K <- kwic("GERMAPARLMINI", "Integration")
@@ -554,7 +555,10 @@ setMethod("merge", "kwic_bundle", function(x){
 #' # Apply kwic on partition_bundle/subcorpus_bundle
 #' gparl_2009_11_10_speeches <- corpus("GERMAPARLMINI") %>%
 #'   subset(date == "2009-11-10") %>%
-#'   as.speeches(s_attribute_name = "speaker", progress = FALSE, verbose = FALSE)
+#'   as.speeches(
+#'     s_attribute_name = "speaker", s_attribute_date = "date",
+#'     progress = FALSE, verbose = FALSE
+#'   )
 #' k <- kwic(gparl_2009_11_10_speeches, query = "Integration")
 #' @rdname kwic
 setMethod("kwic", "partition_bundle", function(.Object, ..., verbose = FALSE){

@@ -41,7 +41,7 @@ the \code{name}-method.
 Use \code{get_corpus}-method to get the corpus ID from the slot
 \code{corpus} of the \code{corpus} object.
 
-The \code{show}-method will show basic information on the
+The \code{show()}-method will show basic information on the
 \code{corpus} object.
 
 Applying the \code{$}-method on a corpus will return the values for the
@@ -62,6 +62,8 @@ corpus("REUTERS") \%>\% get_info()
 corpus("REUTERS") \%>\% show_info()
 corpus("GERMAPARLMINI") \%>\% get_info()
 corpus("GERMAPARLMINI") \%>\% show_info()
+
+use(pkg = "RcppCWB", corpus = "REUTERS")
 
 # show-method
 if (interactive()) corpus("REUTERS") \%>\% show()

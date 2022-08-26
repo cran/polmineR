@@ -81,9 +81,48 @@ setMethod('[[', 'bundle', function(x,i){
   if (length(i) == 1L){
     return(x@objects[[i]])
   } else {
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "`[[`(i = 'must be length one')",
+      with = "`[`()"
+    )
     return( as.bundle(lapply(i, function(j) x[[j]])) )
   }
 })  
+
+#' @exportMethod [
+#' @rdname bundle
+#' @examples
+#' 
+#' # Indexing bundle objects
+#' reu <- corpus("REUTERS") %>% split(s_attribute = "id")
+#' reu[1:3]
+#' reu[-1]
+#' reu[-(1:10)]
+#' reu["127"]
+#' reu[c("127", "273")]
+#' 
+setMethod('[', 'bundle', function(x, i){
+  if (is.numeric(i)){
+    if (all(i > 0L)){
+      names_min <- names(x)[i]
+      x@objects <- lapply(i, function(j) x@objects[[j]])
+      names(x@objects) <- names_min
+      return(x)
+    } else if (all(i < 0L)) {
+      for (k in rev(sort(abs(i)))) x@objects[[k]] <- NULL
+      return(x)
+    } else {
+      stop("mixing positive and negative indices is not allowed when indexing bundle objects")
+    }
+  } else if (is.character(i)) {
+    if (!all(i %in% names(x))) stop("cannot index, not all elements present")
+    x@objects <- lapply(i, function(j) x@objects[[j]])
+    names(x@objects) <- i
+    return(x)
+  }
+})  
+
 
 #' @exportMethod [[<-
 #' @rdname bundle
@@ -141,6 +180,7 @@ setAs(from = "list", to = "bundle", def = function(from){
     new_object_class,
     objects = setNames(from, nm = unlist(unname(lapply(from, function(x) x@name)))),
     corpus = unique(unlist(lapply(from, function(x) x@corpus))),
+    registry_dir = path(unique(unlist(lapply(from, function(x) x@registry_dir)))),
     encoding = unique(unlist(lapply(from, function(x) x@encoding)))
   )
 })
@@ -171,7 +211,8 @@ setMethod("as.bundle", "textstat", function(object){
 #' @param keep.rownames Required argument to safeguard consistency with S3
 #'   method definition in the \code{data.table} package. Unused in this context.
 #' @examples
-#' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' pb <- partition_bundle("REUTERS", s_attribute = "id")
 #' coocs <- cooccurrences(pb, query = "oil", cqp = FALSE)
 #' dt <- as.data.table(coocs, col = "ll")

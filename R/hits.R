@@ -41,7 +41,7 @@ setGeneric("hits", function(.Object, ...) standardGeneric("hits"))
 
 #' @rdname hits
 #' @examples
-#' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
 #' 
 #' # get hits for corpus object
 #' y <- corpus("REUTERS") %>% hits(query = "oil")
@@ -64,8 +64,22 @@ setMethod("hits", "corpus", function(.Object, query, cqp = FALSE, check = TRUE, 
   
   if (is.logical(mc)) if (mc) mc <- getOption("polmineR.cores") else mc <- 1L
   
-  if ("sAttribute" %in% names(list(...))) s_attribute <- list(...)[["sAttribute"]]
-  if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
+  if ("sAttribute" %in% names(list(...))){
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "hits(sAttribute)",
+      with = "hits(s_attribute)"
+    )
+    s_attribute <- list(...)[["sAttribute"]]
+  }
+  if ("pAttribute" %in% names(list(...))){
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "hits(pAttribute)",
+      with = "hits(p_attribute)"
+    )
+    p_attribute <- list(...)[["pAttribute"]]
+  }
   
   if (missing(s_attribute)){
     dt <- count(
@@ -79,7 +93,7 @@ setMethod("hits", "corpus", function(.Object, query, cqp = FALSE, check = TRUE, 
       q <- unname(setNames(names(query), unname(query))[dt[["query"]]])
       dt[, "query" := q]
     }
-    retval <- as(.Object, "hits")
+    retval <- as(as(.Object, "corpus"), "hits")
     retval@stat <- dt
     retval@corpus <- .Object@corpus
     retval@query <- query
@@ -87,7 +101,8 @@ setMethod("hits", "corpus", function(.Object, query, cqp = FALSE, check = TRUE, 
     return(retval)
   }
   
-  if (!is.null(s_attribute)) stopifnot(all(s_attribute %in% s_attributes(.Object)))
+  if (!is.null(s_attribute))
+    stopifnot(all(s_attribute %in% s_attributes(.Object)))
   
   rngs <- ranges(
     .Object,
@@ -101,7 +116,10 @@ setMethod("hits", "corpus", function(.Object, query, cqp = FALSE, check = TRUE, 
       corpus = .Object@corpus, registry = .Object@registry_dir,
       s_attribute = s_attribute[i], cpos = DT[["cpos_left"]]
     )
-    s_attr_values <- cl_struc2str(corpus = .Object@corpus, s_attribute = s_attribute[i], struc = strucs)
+    s_attr_values <- cl_struc2str(
+      corpus = .Object@corpus, registry = .Object@registry_dir,
+      s_attribute = s_attribute[i], struc = strucs
+    )
     DT[, eval(s_attribute[i]) := as.nativeEnc(s_attr_values, from = .Object@encoding)]
   }
   TF <- DT[, .N, by = c(eval(c("query", s_attribute))), with = TRUE]
@@ -131,7 +149,7 @@ setMethod("hits", "corpus", function(.Object, query, cqp = FALSE, check = TRUE, 
       TF[, "freq" := TF[["count"]] / TF[["size"]]]
     }
   }
-  retval <- as(.Object, "hits")
+  retval <- as(as(.Object, "corpus"), "hits")
   retval@stat = TF
   retval@corpus = .Object@corpus
   retval@query = query

@@ -7,7 +7,7 @@ test_that(
   "decode entire corpus",
   {
     dt <- decode("GERMAPARLMINI", to = "data.table")
-    expect_equal(ncol(dt), 7L)
+    expect_equal(ncol(dt), 8L)
     expect_equal(nrow(dt), 222201L)
     expect_equal(dt[["word"]][1:6], c("Guten", "Morgen", ",", "meine", "sehr", "verehrten"))
     expect_equal(length(unique(dt[["date"]])), 5L)
@@ -54,7 +54,11 @@ test_that(
   "decode token ids",
   {
     gparl <- corpus("GERMAPARLMINI")
-    ids <- RcppCWB::cl_cpos2id(corpus = gparl@corpus, p_attribute = "word", cpos = 0L:(gparl@size - 1L))
+    ids <- RcppCWB::cl_cpos2id(
+      corpus = gparl@corpus, registry = gparl@registry_dir,
+      p_attribute = "word",
+      cpos = 0L:(gparl@size - 1L)
+    )
     a <- decode(ids, corpus = gparl, p_attribute = "word", boost = FALSE)
     b <- decode(ids, corpus = gparl, p_attribute = "word", boost = TRUE)
     expect_identical(a,b)

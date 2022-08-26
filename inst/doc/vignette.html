@@ -12,7 +12,7 @@
 
 <meta name="author" content="Andreas Blaette (andreas.blaette@uni-due.de)" />
 
-<meta name="date" content="2022-05-05" />
+<meta name="date" content="2022-08-26" />
 
 <title>Introducing the ‘polmineR’-package</title>
 
@@ -3474,7 +3474,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Introducing the ‘polmineR’-package</h1>
 <h4 class="author">Andreas Blaette (<a href="mailto:andreas.blaette@uni-due.de" class="email">andreas.blaette@uni-due.de</a>)</h4>
-<h4 class="date">2022-05-05</h4>
+<h4 class="date">2022-08-26</h4>
 
 
 
@@ -3562,7 +3562,7 @@ directory. To get the path of the session registry directory, call
 <code>registry()</code>. The output is the session registry you have
 seen when loading <em>polmineR</em>.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">registry</span>()</span></code></pre></div>
-<pre><code>## /var/folders/fw/qwt11pjx1qs83dl2jwltcvmr0000gn/T/Rtmpcv6QL9/polmineR_registry</code></pre>
+<pre><code>## /var/folders/fw/qwt11pjx1qs83dl2jwltcvmr0000gn/T/RtmpCVjlxA/polmineR_registry</code></pre>
 <p>The session registry directory combines the registry files describing
 the corpora <em>polmineR</em> knows about. Upon loading
 <em>polmineR</em>, the files in the registry directory defined by the
@@ -3582,7 +3582,8 @@ registry directory introduced before.</p>
 <em>polmineR</em> package will be used for demonstration purposes. It is
 a sample of Reuters articles that is included in the tm package (cp. <a href="http://www.daviddlewis.com/resources/testcollections/reuters21578/" class="uri">http://www.daviddlewis.com/resources/testcollections/reuters21578/</a>),
 and may already be known to some R users.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">use</span>(<span class="st">&quot;polmineR&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">use</span>(<span class="st">&quot;polmineR&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">use</span>(<span class="st">&quot;RcppCWB&quot;</span>, <span class="at">corpus =</span> <span class="st">&quot;REUTERS&quot;</span>)</span></code></pre></div>
 </div>
 <div id="checking-corpora-are-available" class="section level4">
 <h4>Checking corpora are available</h4>
@@ -3593,21 +3594,69 @@ In addition to the English REUTERS corpus, a small subset of the
 GermaParl corpus (“GERMAPARLMINI”) is included in the <em>polmineR</em>
 package.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">corpus</span>()</span></code></pre></div>
-<pre><code>##                       corpus encoding type template      size
-## 1                    MIGPARL   latin1 plpr     TRUE  38692237
-## 2  GERMAPARL_PARLACLARIN_III     utf8 plpr    FALSE 271077449
-## 3                  GERMAPARL   latin1 plpr     TRUE 101013708
-## 4                EUROPARL-IT   latin1 &lt;NA&gt;    FALSE  38966669
-## 5                EUROPARL-NL   latin1 &lt;NA&gt;    FALSE  39535069
-## 6                EUROPARL-DE   latin1 &lt;NA&gt;    FALSE  37461789
-## 7                       UNGA     utf8 &lt;NA&gt;    FALSE  43081472
-## 8              RAMOMEDIA_FAZ   latin1 &lt;NA&gt;     TRUE 102363840
-## 9              GERMAPARLMINI   latin1 plpr     TRUE    222201
-## 10                   REUTERS   latin1 &lt;NA&gt;     TRUE      4050
-## 11              RAMOMEDIA_SZ     utf8 &lt;NA&gt;    FALSE 226222025
-## 12               EUROPARL-EN   latin1 &lt;NA&gt;    FALSE  39431862
-## 13               EUROPARL-ES   latin1 &lt;NA&gt;    FALSE  40461850
-## 14               EUROPARL-FR   latin1 &lt;NA&gt;    FALSE  43988004</code></pre>
+<pre><code>##                       corpus
+## 1                EUROPARL-DE
+## 2                EUROPARL-EN
+## 3                EUROPARL-ES
+## 4                EUROPARL-FR
+## 5                EUROPARL-IT
+## 6                EUROPARL-NL
+## 7                  GERMAPARL
+## 8              GERMAPARLMINI
+## 9            GERMAPARLSAMPLE
+## 10            GERMAPARL_BETA
+## 11 GERMAPARL_PARLACLARIN_III
+## 12                   MIGPARL
+## 13                 NADIRAFAZ
+## 14                  NADIRASZ
+## 15                 NADIRATAZ
+## 16             RAMOMEDIA_FAZ
+## 17              RAMOMEDIA_SZ
+## 18                   REUTERS
+## 19                        TH
+## 20                      UNGA
+##                                                                         registry
+## 1                                         /Users/andreasblatte/Data/cwb/registry
+## 2                                         /Users/andreasblatte/Data/cwb/registry
+## 3                                         /Users/andreasblatte/Data/cwb/registry
+## 4                                         /Users/andreasblatte/Data/cwb/registry
+## 5                                         /Users/andreasblatte/Data/cwb/registry
+## 6                                         /Users/andreasblatte/Data/cwb/registry
+## 7                                         /Users/andreasblatte/Data/cwb/registry
+## 8  /var/folders/fw/qwt11pjx1qs83dl2jwltcvmr0000gn/T/RtmpCVjlxA/polmineR_registry
+## 9                                         /Users/andreasblatte/Data/cwb/registry
+## 10                                        /Users/andreasblatte/Data/cwb/registry
+## 11                                        /Users/andreasblatte/Data/cwb/registry
+## 12                                        /Users/andreasblatte/Data/cwb/registry
+## 13                                        /Users/andreasblatte/Data/cwb/registry
+## 14                                        /Users/andreasblatte/Data/cwb/registry
+## 15                                        /Users/andreasblatte/Data/cwb/registry
+## 16                                        /Users/andreasblatte/Data/cwb/registry
+## 17                                        /Users/andreasblatte/Data/cwb/registry
+## 18 /var/folders/fw/qwt11pjx1qs83dl2jwltcvmr0000gn/T/RtmpCVjlxA/polmineR_registry
+## 19                                        /Users/andreasblatte/Data/cwb/registry
+## 20                                        /Users/andreasblatte/Data/cwb/registry
+##    encoding  type template      size
+## 1    latin1  &lt;NA&gt;    FALSE  37461789
+## 2    latin1  &lt;NA&gt;    FALSE  39431862
+## 3    latin1  &lt;NA&gt;    FALSE  40461850
+## 4    latin1  &lt;NA&gt;    FALSE  43988004
+## 5    latin1  &lt;NA&gt;    FALSE  38966669
+## 6    latin1  &lt;NA&gt;    FALSE  39535069
+## 7    latin1  plpr     TRUE 101013708
+## 8    latin1  plpr     TRUE    222201
+## 9    latin1  plpr     TRUE    222201
+## 10     utf8  plpr    FALSE 271077449
+## 11     utf8  plpr    FALSE 271077449
+## 12   latin1  plpr     TRUE  38692237
+## 13     utf8 press    FALSE 174552590
+## 14     utf8 press    FALSE 931131049
+## 15     utf8 press    FALSE 621750645
+## 16   latin1  &lt;NA&gt;     TRUE 102363840
+## 17     utf8  &lt;NA&gt;    FALSE 226222025
+## 18   latin1  &lt;NA&gt;     TRUE      4050
+## 19   latin1  plpr     TRUE  47231922
+## 20     utf8  &lt;NA&gt;    FALSE  43081472</code></pre>
 </div>
 <div id="session-settings" class="section level4">
 <h4>Session settings</h4>
@@ -3685,8 +3734,8 @@ the output in the viewer pane, you can coerce the object to a
 htmlwidget. This is also a good way how to include the table in a
 Rmarkdown document.</p>
 <div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>top5</span></code></pre></div>
-<div id="htmlwidget-165e5caa4b22d087c646" style="width:100%;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-165e5caa4b22d087c646">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"5\" data-max=\"27\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"20\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1.18\" data-max=\"9.23\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"4.82\" data-max=\"37.78\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"6.51\" data-max=\"33.05\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"5\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["prices","crude","industry","recent","on"],[27,13,8,5,8],[20,7,2,1,9],[9.23,3.93,1.96,1.18,3.34],[37.77,16.07,8.04,4.82,13.66],[33.05,19.62,16.97,11.33,6.51],[1,2,3,4,5]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>word<\/th>\n      <th>n_coi<\/th>\n      <th>n_ref<\/th>\n      <th>exp_coi<\/th>\n      <th>exp_ref<\/th>\n      <th>ll<\/th>\n      <th>rank_ll<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":3,"lengthMenu":[10,25,50,100,250],"lengthChange":true,"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-365ce6f3caf1c348f8a2" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-365ce6f3caf1c348f8a2">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"5\" data-max=\"27\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"20\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1.18\" data-max=\"9.23\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"4.82\" data-max=\"37.78\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"6.51\" data-max=\"33.05\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"5\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[["prices","crude","industry","recent","on"],[27,13,8,5,8],[20,7,2,1,9],[9.23,3.93,1.96,1.18,3.34],[37.77,16.07,8.04,4.82,13.66],[33.05,19.62,16.97,11.33,6.51],[1,2,3,4,5]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>word<\/th>\n      <th>n_coi<\/th>\n      <th>n_ref<\/th>\n      <th>exp_coi<\/th>\n      <th>exp_ref<\/th>\n      <th>ll<\/th>\n      <th>rank_ll<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":3,"lengthMenu":[10,25,50,100,250],"lengthChange":true,"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
 <p>For further operations, get the the table with the statistical
 results by applying the <code>as.data.frame()</code>-method.</p>
 <div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">as.data.frame</span>(top5)</span></code></pre></div>
@@ -3769,8 +3818,8 @@ performed.</p>
 <span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>saudi_arabia_features <span class="ot">&lt;-</span> <span class="fu">features</span>(saudi_arabia, <span class="st">&quot;REUTERS&quot;</span>, <span class="at">included =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>saudi_arabia_features_min <span class="ot">&lt;-</span> <span class="fu">subset</span>(saudi_arabia_features, rank_chisquare <span class="sc">&lt;=</span> <span class="fl">10.83</span> <span class="sc">&amp;</span> count_coi <span class="sc">&gt;=</span> <span class="dv">5</span>)</span>
 <span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>saudi_arabia_features_min</span></code></pre></div>
-<div id="htmlwidget-e7d992f833af9906ba61" style="width:100%;height:auto;" class="datatables html-widget"></div>
-<script type="application/json" data-for="htmlwidget-e7d992f833af9906ba61">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"7\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"6\" data-max=\"18\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"6\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1.61\" data-max=\"5.37\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"11.9\" data-max=\"49.22\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[[1,2,3,4,5,6,7],["Saudi","Nazer","accord","market","8","Arabia","sources"],[18,7,7,14,6,6,7],[0,0,0,6,0,0,2],[4.84,1.88,1.88,5.37,1.61,1.61,2.42],[49.22,19.09,19.09,19.03,16.36,16.36,11.9]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>rank_chisquare<\/th>\n      <th>word<\/th>\n      <th>n_coi<\/th>\n      <th>n_ref<\/th>\n      <th>exp_coi<\/th>\n      <th>chisquare<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":3,"lengthMenu":[10,25,50,100,250],"lengthChange":true,"columnDefs":[{"className":"dt-right","targets":[0,2,3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-0053bf589feb44140b31" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-0053bf589feb44140b31">{"x":{"filter":"top","vertical":false,"filterHTML":"<tr>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1\" data-max=\"7\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"character\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"6\" data-max=\"18\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"integer\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"0\" data-max=\"6\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"1.61\" data-max=\"5.37\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n  <td data-type=\"number\" style=\"vertical-align: top;\">\n    <div class=\"form-group has-feedback\" style=\"margin-bottom: auto;\">\n      <input type=\"search\" placeholder=\"All\" class=\"form-control\" style=\"width: 100%;\"/>\n      <span class=\"glyphicon glyphicon-remove-circle form-control-feedback\"><\/span>\n    <\/div>\n    <div style=\"display: none;position: absolute;width: 200px;opacity: 1\">\n      <div data-min=\"11.9\" data-max=\"49.22\" data-scale=\"2\"><\/div>\n      <span style=\"float: left;\"><\/span>\n      <span style=\"float: right;\"><\/span>\n    <\/div>\n  <\/td>\n<\/tr>","extensions":["Buttons"],"data":[[1,2,3,4,5,6,7],["Saudi","Nazer","accord","market","8","Arabia","sources"],[18,7,7,14,6,6,7],[0,0,0,6,0,0,2],[4.84,1.88,1.88,5.37,1.61,1.61,2.42],[49.22,19.09,19.09,19.03,16.36,16.36,11.9]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>rank_chisquare<\/th>\n      <th>word<\/th>\n      <th>n_coi<\/th>\n      <th>n_ref<\/th>\n      <th>exp_coi<\/th>\n      <th>chisquare<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":3,"lengthMenu":[10,25,50,100,250],"lengthChange":true,"columnDefs":[{"className":"dt-right","targets":[0,2,3,4,5]}],"order":[],"autoWidth":false,"orderClasses":false,"orderCellsTop":true}},"evals":[],"jsHooks":[]}</script>
 <p>To extract the statistical information, you can also use the
 <code>as.data.frame</code>-method.</p>
 <div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(saudi_arabia_features_min)</span>

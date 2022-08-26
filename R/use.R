@@ -23,8 +23,9 @@ NULL
 #' per-session temporary data directory.
 #' 
 #' @param pkg A package including at least one CWB indexed corpus.
-#' @param lib.loc A character vector with path names of \code{R} libraries.
-#' @param tmp Whether to use a temporary data directory.
+#' @param corpus A corpus (or corpora) to be loaded selectively.
+#' @param lib.loc A character vector with path names of `R` libraries.
+#' @param tmp A `logical` value, whether to use a temporary data directory.
 #' @param verbose Logical, whether to output status messages.
 #' @export use
 #' @rdname use
@@ -32,29 +33,32 @@ NULL
 #' @examples
 #' use("polmineR")
 #' corpus()
-#' @seealso To get the session registry directory, see \code{\link{registry}};
-#'   to reset the registry, see \code{\link{registry_reset}}.
-#' @importFrom RcppCWB cqp_reset_registry 
+#' @seealso To get the temporary registry directory, see \code{\link{registry}}.
+#' @importFrom RcppCWB cqp_reset_registry cl_load_corpus cqp_load_corpus
 #' @importFrom stringi stri_enc_mark
-use <- function(pkg, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
+use <- function(pkg, corpus, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
   
   if (nchar(system.file(package = pkg)) == 0L)
     stop("Could not find package specified. Please check for typos,",
          "and/or whether it is installed for the R version you are using.")
   
-  registry_dir <- system.file("extdata", "cwb", "registry", package = pkg, lib.loc = lib.loc)
-  if (!dir.exists(registry_dir)) stop("pkg exists, but is not a standardized package - registry directory missing")
+  registry_dir <- system.file(
+    "extdata", "cwb", "registry", package = pkg, lib.loc = lib.loc
+  )
+  if (!dir.exists(registry_dir))
+    stop("pkg exists, but is not a standardized package - registry directory missing")
   
-  for (corpus in list.files(registry_dir)){
+  corpora <- list.files(registry_dir)
+  if (!missing(corpus)){
+    if (all(tolower(corpus) %in% corpora)){
+      corpora <- tolower(corpus)
+    } else {
+      stop("corpus provided is not included in package")
+    }
     
-    properties <- registry_get_properties(corpus, registry = registry_dir)
-    additional_info <- c(
-      if ("version" %in% names(properties)) sprintf("version: %s", properties[["version"]]) else character(),
-      if ("build_date" %in% names(properties)) sprintf("build date: %s", properties[["build_date"]]) else character()
-    )
-    additional_info <- paste(additional_info, collapse = " | ")
-    if (nchar(additional_info) > 0L) additional_info <- sprintf(" (%s)", additional_info)
-    .message(sprintf("activating corpus: %s%s", toupper(corpus), additional_info), verbose = verbose)
+  }
+
+  for (corpus in corpora){
     
     corpus_data_srcdir <- system.file(
       "extdata", "cwb", "indexed_corpora", tolower(corpus),
@@ -63,7 +67,9 @@ use <- function(pkg, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
     
     if ((stri_enc_mark(corpus_data_srcdir) != "ASCII") || (tmp == TRUE)){
       if (.Platform$OS.type == "windows"){
-        corpus_data_targetdir <- gsub("\\\\", "/", utils::shortPathName(corpus_data_srcdir))
+        corpus_data_targetdir <- gsub(
+          "\\\\", "/", utils::shortPathName(corpus_data_srcdir)
+        )
       } else {
         # Copying files to a temporary directory that does not include non-ASCII characters
         # may still be necessary on macOS machines
@@ -94,11 +100,26 @@ use <- function(pkg, lib.loc = .libPaths(), tmp = FALSE, verbose = TRUE){
       registry_new = registry(),
       home_dir_new = corpus_data_targetdir
     )
+    cl_load_corpus(corpus = toupper(corpus), registry = registry())
+    cqp_load_corpus(corpus = toupper(corpus), registry = registry())
+    
+    properties <- sapply(
+      corpus_properties(corpus, registry = registry()),
+      function(p)
+        corpus_property(corpus = corpus, registry = registry(), property = p)
+    )
+    additional_info <- c(
+      if ("version" %in% names(properties))
+        sprintf("version: %s", properties[["version"]]) else character(),
+      if ("build_date" %in% names(properties))
+        sprintf("build date: %s", properties[["build_date"]]) else character()
+    )
+    additional_info <- paste(additional_info, collapse = " | ")
+    if (nchar(additional_info) > 0L)
+      additional_info <- sprintf(" (%s)", additional_info)
+    
+    .message(sprintf("corpus loaded: %s%s", toupper(corpus), additional_info), verbose = verbose)
   }
-  
-  # If CQP has been initialized before, it will not yet now about the
-  # corpora that have been added
-  if (cqp_is_initialized()) cqp_reset_registry(registry())
   
   invisible(NULL)
 }  

@@ -186,6 +186,7 @@ setAs(from = "corpus", to = "AnnotatedPlainTextDocument", def = function(from){
 #'   returning a \code{VCorpus} object.
 #' @examples
 #' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
 #' 
 #' # Decode corpus as data.table
 #' dt <- decode("GERMAPARLMINI", to = "data.table")
@@ -194,11 +195,14 @@ setAs(from = "corpus", to = "AnnotatedPlainTextDocument", def = function(from){
 #' dt <- decode("GERMAPARLMINI", to = "data.table", p_attributes = "word", s_attributes = "party")
 #' 
 #' # Decode a subcorpus
-#' sc <- subset(corpus("GERMAPARLMINI"), speaker == "Angela Dorothea Merkel")
-#' dt <- decode(sc, to = "data.table")
+#' dt <- corpus("GERMAPARLMINI") %>%
+#'   subset(speaker == "Angela Dorothea Merkel") %>%
+#'   decode(s_attributes = c("speaker", "party", "date"), to = "data.table")
 #' 
 #' # Decode subcorpus selectively
-#' dt <- decode(sc, to = "data.table", p_attributes = "word", s_attributes = "party")
+#' corpus("GERMAPARLMINI") %>%
+#'   subset(speaker == "Angela Dorothea Merkel") %>%
+#'   decode(to = "data.table", p_attributes = "word", s_attributes = "party")
 #' 
 #' # Decode partition
 #' P <- partition("REUTERS", places = "kuwait", regex = TRUE)
@@ -298,11 +302,7 @@ setMethod("decode", "corpus", function(.Object, to = c("data.table", "Annotation
 
 #' @exportMethod decode
 #' @rdname decode
-setMethod("decode", "character", function(.Object, to = c("data.table", "Annotation"), s_attributes = NULL, p_attributes = NULL, decode = TRUE, verbose = TRUE, ...){
-  if (any(c("sAttribute", "s_attribute") %in% names(list(...)))){
-    stop("Decoding an s_attribute is not supported any longer in the decode()-method of ",
-         "the polmineR package. See s_attribute_decode in the RcppCWB package as a substitute.")
-  }
+setMethod("decode", "character", function(.Object, to = c("data.table", "Annotation"), s_attributes = NULL, p_attributes = NULL, decode = TRUE, verbose = TRUE){
   decode(corpus(.Object), to = to, s_attributes = s_attributes, p_attributes = p_attributes, decode = decode, verbose = verbose)
 })
 
@@ -345,7 +345,7 @@ setMethod("decode", "slice", function(.Object, to = "data.table", s_attributes =
       for (s_attr in s_attributes){
         if (decode){
           if (verbose) message("... decoding s_attribute ", s_attr)
-          str <- RcppCWB::cl_struc2str(corpus = .Object@corpus, s_attribute = s_attr, struc = strucs)
+          str <- cl_struc2str(corpus = .Object@corpus, registry = .Object@registry_dir, s_attribute = s_attr, struc = strucs)
           Encoding(str) <- encoding(.Object)
           s_attr_dt[, (s_attr) := as.nativeEnc(str, from = encoding(.Object))]
         } else {

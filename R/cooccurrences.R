@@ -77,6 +77,8 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 #' Processing}. MIT Press: Cambridge, Mass., pp. 151-189 (ch. 5).
 #' @examples
 #' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' merkel <- partition("GERMAPARLMINI", interjection = "speech", speaker = ".*Merkel", regex = TRUE)
 #' merkel <- enrich(merkel, p_attribute = "word")
 #' cooc <- cooccurrences(merkel, query = "Deutschland")
@@ -89,13 +91,23 @@ setMethod("as.data.frame", "cooccurrences_bundle", function(x){
 #' e <- subset(c, ll >= 10.83)
 #' format(e)
 #' 
-#' # using pipe operator may be convenient
+#' # using pipe operator with subset
 #' cooccurrences("REUTERS", query = "oil") %>%
 #'   subset(!is.na(ll)) %>%
 #'   subset(!word %in% tm::stopwords("en")) %>%
 #'   subset(count_coi >= 5) %>%
 #'   subset(ll >= 10.83) %>%
 #'   format()
+#'   
+#' # generate datatables htmlwidget with buttons for export (Excel & more)
+#' # (alternatively use openxlsx::write.xlsx())
+#' interactive_table <- cooccurrences("REUTERS", query = "oil") %>%
+#'   format() %>%
+#'   DT::datatable(
+#'     extensions = "Buttons",
+#'     options = list(dom = 'Btip', buttons = c("excel", "pdf", "csv"))
+#'   )
+#' if (interactive()) show(interactive_table)
 setGeneric("cooccurrences", function(.Object, ...) standardGeneric("cooccurrences") )
 
 #' @rdname cooccurrences
@@ -178,7 +190,11 @@ setMethod(
       count = TRUE, 
       mc = mc, verbose = verbose, progress = progress
     )
-    if (is.null(y)) invisible(NULL) else cooccurrences(y, method = method, verbose = verbose)
+    
+    if (is.null(y))
+      invisible(NULL)
+    else
+      cooccurrences(y, method = method, verbose = verbose)
   }
 )
 
@@ -226,8 +242,14 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
     .Object@partition <- enrich(.Object@partition, p_attribute = .Object@p_attribute, decode = FALSE, verbose = FALSE)
   }
   
-  setkeyv(.Object@stat, cols = paste(.Object@p_attribute, "id", sep = "_"))
-  setkeyv(.Object@partition@stat, cols = paste(.Object@p_attribute, "id", sep = "_"))
+  setkeyv(
+    .Object@stat,
+    cols = paste(.Object@p_attribute, "id", sep = "_")
+  )
+  setkeyv(
+    .Object@partition@stat,
+    cols = paste(.Object@p_attribute, "id", sep = "_")
+  )
   .Object@stat <- .Object@partition@stat[.Object@stat]
   for (p_attr in .Object@p_attribute){
     if (paste("i", p_attr, sep = ".") %in% colnames(.Object@stat)){
@@ -293,7 +315,8 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
 #' @rdname cooccurrences
 #' @examples
 #' pb <- partition_bundle("GERMAPARLMINI", s_attribute = "speaker")
-#' pb_min <- pb[[ count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]] ]]
+#' ps <- count(pb, query = "Deutschland")[Deutschland >= 25][["partition"]]
+#' pb_min <- pb[ps]
 #' y <- cooccurrences(pb_min, query = "Deutschland")
 #' if (interactive()) y[[1]]
 #' if (interactive()) y[[2]]
@@ -302,17 +325,20 @@ setMethod("cooccurrences", "context", function(.Object, method = "ll", verbose =
 #'   subset(speaker %in% c("Hubertus Heil", "Angela Dorothea Merkel")) %>%
 #'   split(s_attribute = "speaker") %>%
 #'   cooccurrences(query = "Deutschland")
-setMethod("cooccurrences", "partition_bundle", function(.Object, query, mc = getOption("polmineR.mc"), ...){
-  bundle <- new("cooccurrences_bundle")
+setMethod("cooccurrences", "partition_bundle", function(.Object, query, verbose = FALSE, mc = getOption("polmineR.mc"), ...){
+  bundle <- as(as(.Object, Class = "bundle"), Class = "cooccurrences_bundle")
   bundle@objects <- pbapply::pblapply(
     .Object@objects,
-    function(x) cooccurrences(x, query = query, mc = mc, ...) 
+    function(x) cooccurrences(x, query = query, mc = mc, verbose = verbose, ...) 
   )
   names(bundle@objects) <- names(.Object@objects)
   for (i in seq_along(bundle@objects)){
-    if (!is.null(bundle@objects[[i]])) bundle@objects[[i]]@name <- .Object@objects[[i]]@name
+    if (!is.null(bundle@objects[[i]]))
+      bundle@objects[[i]]@name <- .Object@objects[[i]]@name
   }
-  for (i in rev(which(sapply(bundle@objects, is.null)))) bundle@objects[[i]] <- NULL
+  
+  for (i in rev(which(sapply(bundle@objects, is.null))))
+    bundle@objects[[i]] <- NULL
   bundle
 })
 
@@ -641,7 +667,7 @@ setMethod("Cooccurrences", "slice", function(
     )
 
     if (!is.null(stoplist)){
-      stoplist_ids <- cl_str2id(corpus = .Object@corpus, p_attribute = p_attribute, str = stoplist)
+      stoplist_ids <- str2id(.Object, p_attribute = p_attribute, str = stoplist)
       stoplist_ids <- unique(stoplist_ids[which(stoplist_ids >= 0)])
     }
 
@@ -797,6 +823,8 @@ setMethod("Cooccurrences", "subcorpus", function(
 #' @exportMethod as.simple_triplet_matrix
 #' @rdname all-cooccurrences-class
 #' @examples
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' X <- Cooccurrences("REUTERS", p_attribute = "word", left = 2L, right = 2L)
 #' m <- as.simple_triplet_matrix(X)
 setMethod("as.simple_triplet_matrix", "Cooccurrences", function(x){
@@ -804,11 +832,14 @@ setMethod("as.simple_triplet_matrix", "Cooccurrences", function(x){
   verbose <- interactive()
   
   decoded_tokens <- reindex(x)
-  if (length(x@p_attribute) > 1L) stop("Method only works if one and only one p-attribute is used.")
+  if (length(x@p_attribute) > 1L)
+    stop("Method only works if one and only one p-attribute is used.")
 
   if (verbose) message("... creating simple triplet matrix")
   retval <- slam::simple_triplet_matrix(
-    i = x@stat[["a_new_index"]], j = x@stat[["b_new_index"]], v = x@stat[["ab_count"]],
+    i = x@stat[["a_new_index"]],
+    j = x@stat[["b_new_index"]],
+    v = x@stat[["ab_count"]],
     dimnames = list(decoded_tokens, decoded_tokens)
   )
   
@@ -862,39 +893,6 @@ setMethod("features", "Cooccurrences", function(x, y, included = FALSE, method =
 })
 
     
-# If more than one p_attribute has been used, concatenate decoded p_attributes.
-# minimize = function(x){
-#   DT <- copy(self$stat)
-#   aColsStr <- paste("a", x@p_attribute, sep = "_")
-#   bColsStr <- paste("b", x@p_attribute, sep = "_")
-#   KEY <- data.table(
-#     i = 1L:nrow(DT),
-#     aKey = apply(DT, 1L, function(x) paste(x[aColsStr], collapse = "//")),
-#     bKey = apply(DT, 1L, function(x) paste(x[bColsStr], collapse = "//"))
-#   )
-#   DT[, "order" := KEY[, order(c(.SD[["aKey"]][1], .SD[["bKey"]][1]))[1], by = "i"][["V1"]]]
-#   setkey(DT, "order")
-#   aToB <- DT[list(1)]
-#   setkeyv(aToB, cols = c(aColsStr, bColsStr))
-#   bToA <- DT[list(2)]
-#   setnames(bToA, old = c(aColsStr, bColsStr), new = c(bColsStr, aColsStr))
-#   setkeyv(bToA, cols = c(aColsStr, bColsStr))
-#   merger <- merge(aToB, bToA, all.x = FALSE, all.y = TRUE)
-#   FIN <- merger[, c(aColsStr, bColsStr, "ab_count.x", "ll.x", "ll.y", "a_count.x", "b_count.x"), with = FALSE]
-#   setnames(
-#     FIN,
-#     c("ab_count.x", "ll.x", "ll.y", "a_count.x", "b_count.x"),
-#     c("ab_count", "ab_ll", "ba_ll", "a_count", "b_count")
-#   )
-#   setcolorder(FIN, c(aColsStr, bColsStr, "ab_count", "a_count", "b_count", "ab_ll", "ba_ll"))
-#   setkeyv(FIN, cols = c(aColsStr, bColsStr))
-#   x@minimized <- TRUE
-#   x@stat <- FIN
-#   x
-# }
-
-
-
 
 
 #' @noRd
@@ -999,13 +997,13 @@ setMethod("decode", "Cooccurrences", function(.Object){
   for (p_attr in .Object@p_attribute){
     a_col <- if (length(.Object@p_attribute) == 1L) "a_id" else paste("a", p_attr, "id", sep = "_")
     .Object@stat[, paste("a", p_attr, sep = "_") := as.nativeEnc(
-      cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = .Object@stat[[a_col]]),
-      from = cl_charset_name(.Object@corpus))
+      cl_id2str(corpus = .Object@corpus, registry = .Object@registry_dir, p_attribute = p_attr, id = .Object@stat[[a_col]]),
+      from = .Object@encoding)
       ]
     b_col <- if (length(.Object@p_attribute) == 1L) "b_id" else paste("b", p_attr, "id", sep = "_")
     .Object@stat[, paste("b", p_attr, sep = "_") := as.nativeEnc(
-      cl_id2str(corpus = .Object@corpus, p_attribute = p_attr, id = .Object@stat[[b_col]]),
-      from = cl_charset_name(.Object@corpus))
+      cl_id2str(corpus = .Object@corpus,  registry = .Object@registry_dir, p_attribute = p_attr, id = .Object@stat[[b_col]]),
+      from = .Object@encoding)
       ]
   }
   # .Object@stat[, "a_id" := NULL][, "b_id" := NULL]

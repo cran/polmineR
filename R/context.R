@@ -183,23 +183,8 @@ setMethod("context", "slice", function(
   ctxt@count <- length(unique(ctxt@cpos[["match_id"]]))
   
   # put together raw stat table
-  if (count){
-    .message("counting tokens", verbose = verbose)
-    
-    setkeyv(ctxt@cpos, paste(p_attribute, "id", sep = "_"))
-    ctxt@stat <- ctxt@cpos[which(ctxt@cpos[["position"]] != 0)][, .N, by = c(eval(paste(p_attribute, "id", sep = "_"))), with = TRUE]
-    setnames(ctxt@stat, "N", "count_coi")
-    
-    for (i in seq_along(p_attribute)){
-      newColumn <- cl_id2str(
-        corpus = .Object@corpus,  registry = .Object@registry_dir,
-        p_attribute = p_attribute[i],
-        id = ctxt@stat[[paste(p_attribute[i], "id", sep = "_")]]
-      )
-      newColumnNative <- as.nativeEnc(newColumn, from = .Object@encoding)
-      ctxt@stat[, eval(p_attribute[i]) := newColumnNative]
-    }
-  }
+  if (count) ctxt <- enrich(ctxt, stat = TRUE, verbose = verbose)
+  
   ctxt
 })
 
@@ -277,20 +262,34 @@ setMethod("context", "matrix", function(.Object, corpus, left, right, p_attribut
     right <- 0L
   }
   
+  regdir <- corpus_registry_dir(corpus)
   cpos_matrix <- region_matrix_context(
     corpus = corpus,
     matrix = .Object,
     s_attribute = s_attr,
-    p_attribute = p_attribute,
+    p_attribute = p_attribute[1],
     left = left, right = right,
     boundary = boundary,
-    registry = corpus_registry_dir(corpus)
+    registry = regdir
   )
   cpos_dt <- as.data.table(cpos_matrix)
   
   colnames(cpos_dt) <- c(
-    "position", "cpos", "match_id", paste(p_attribute, "id", sep = "_")
+    "position", "cpos", "match_id", paste(p_attribute[1], "id", sep = "_")
   )
+  
+  # region_matrix_context can only handle one p-attribute.
+  # Add ids for further p-attributes now
+  if (length(p_attribute) > 1L){
+    for (i in 2L:length(p_attribute)){
+      ids <- cl_cpos2id(
+        corpus = corpus, registry = regdir,
+        p_attribute = p_attribute[i], cpos = cpos_dt[["cpos"]]
+      )
+      cpos_dt[, (paste(p_attribute[i], "id", sep = "_")) := ids]
+    }
+  }
+
   setcolorder(cpos_dt, c("match_id", "cpos"))
   
   retval <- as(corpus(corpus), "context")
@@ -317,10 +316,23 @@ setMethod("context", "corpus", function(
   ...
 ){
   
-  if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
-  if ("sAttribute" %in% names(list(...))) boundary <- list(...)[["sAttribute"]]
-  if ("sAttribute" %in% names(list(...))) boundary <- list(...)[["s_attribute"]]
-  
+  if ("pAttribute" %in% names(list(...))){
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "context(pAttribute)",
+      with = "context(p_attribute)"
+    )
+    p_attribute <- list(...)[["pAttribute"]]
+  }
+  if ("sAttribute" %in% names(list(...))){
+    lifecycle::deprecate_warn(
+      when = "0.8.7", 
+      what = "context(sAttribute)",
+      with = "context(boundary)"
+    )
+    boundary <- list(...)[["sAttribute"]]
+  }
+
   p <- as(.Object, "partition")
   
   # There is a potential overhead of performing the count here: When context-method
@@ -328,9 +340,10 @@ setMethod("context", "corpus", function(
   # cooccurrences, it is much, much faster (for one p-attribute) having done the 
   # count here for the entire corpus.
   
-  if (length(p_attribute) == 1L)
+  if (length(p_attribute) == 1L){
     p@stat <- count(.Object@corpus, p_attribute = p_attribute, decode = FALSE)@stat
-  
+  }
+    
   context(
     p, query = query, cqp = is.cqp,
     left = left, right = right,

@@ -1,5 +1,5 @@
 library(polmineR)
-use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
 
 testthat::context("terms-method")
 
@@ -15,6 +15,13 @@ test_that("terms-method for partition, without/with regex", {
   y <- terms(P, p_attribute = "word", regex = c("^o.*$", "^p.*"))
   expect_equal(y, c("oil", "of", "one", "over", "plans", "prices", "pumping"))
 })
+
+test_that("terms-method for subcorpus", {
+  sc <- corpus("REUTERS") %>% subset(places = "kuwait")
+  y <- terms(sc, p_attribute = "word", regex = c("^o.*$", "^p.*"))
+  expect_equal(y, c("oil", "of", "one", "over", "plans", "prices", "pumping"))
+})
+
 
 test_that("terms-method for character/corpus, with regex", {
   y <- terms("REUTERS", p_attribute = "word")

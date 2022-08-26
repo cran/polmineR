@@ -56,9 +56,11 @@ get_token_stream(.Object, ...)
   p_attribute = "word",
   phrases = NULL,
   subset = NULL,
+  min_length = NULL,
   collapse = NULL,
   cpos = FALSE,
   decode = TRUE,
+  beautify = FALSE,
   verbose = TRUE,
   progress = FALSE,
   mc = FALSE,
@@ -69,8 +71,7 @@ get_token_stream(.Object, ...)
 \item{.Object}{Input object.}
 
 \item{...}{Arguments that will be be passed into the
-\code{get_token_stream}-method for a \code{numeric} vector, the real
-worker.}
+\code{get_token_stream}-method for a \code{numeric} vector, the real worker.}
 
 \item{corpus}{A CWB indexed corpus.}
 
@@ -87,30 +88,28 @@ decision rule is that \code{boost} will be \code{TRUE} if the corpus is
 larger than 10 000 000 million tokens and more than 5 percent of the corpus
 are to be decoded.}
 
-\item{encoding}{If not \code{NULL} (default) a length-one \code{character}
-vector stating an encoding that will be assigned to the (decoded) token
-stream.}
+\item{encoding}{If not \code{NULL} (default) a length-one \code{character} vector
+stating an encoding that will be assigned to the (decoded) token stream.}
 
-\item{collapse}{If not \code{NULL} (default), a length-one \code{character}
-string passed into \code{paste} to collapse character vector into a single
-string.}
+\item{collapse}{If not \code{NULL} (default), a length-one \code{character} string
+passed into \code{paste} to collapse character vector into a single string.}
 
-\item{beautify}{A (length-one) \code{logical} value, whether to adjust
-whitespace before and after interpunctation.}
+\item{beautify}{A (length-one) \code{logical} value, whether to adjust whitespace
+before and after interpunctation.}
 
-\item{cpos}{A \code{logical} value, whether to return corpus positions as
-names of the tokens.}
+\item{cpos}{A \code{logical} value, whether to return corpus positions as names of
+the tokens.}
 
 \item{cutoff}{Maximum number of tokens to be reconstructed.}
 
-\item{decode}{A (length-one) \code{logical} value, whether to decode token
-ids to character strings. Defaults to \code{TRUE}, if \code{FALSE}, an
-integer vector with token ids is returned.}
+\item{decode}{A (length-one) \code{logical} value, whether to decode token ids to
+character strings. Defaults to \code{TRUE}, if \code{FALSE}, an integer vector with
+token ids is returned.}
 
-\item{split}{A \code{logical} value, whether to return a \code{character}
-vector (when \code{split} is \code{FALSE}, default) or a \code{list} of
-\code{character} vectors; each of these vectors will then represent the
-tokens of a region defined by a row in a regions matrix.}
+\item{split}{A \code{logical} value, whether to return a \code{character} vector (when
+\code{split} is \code{FALSE}, default) or a \code{list} of \code{character} vectors; each of
+these vectors will then represent the tokens of a region defined by a row
+in a regions matrix.}
 
 \item{left}{Left corpus position.}
 
@@ -118,13 +117,16 @@ tokens of a region defined by a row in a regions matrix.}
 
 \item{phrases}{A \code{phrases} object. Defined phrases will be concatenated.}
 
+\item{min_length}{If not \code{NULL} (default), an \code{integer} value with minimum
+length of documents required to keep them in the \code{list} object that is
+returned.}
+
 \item{verbose}{A length-one \code{logical} value, whether to show messages.}
 
-\item{progress}{A length-one \code{logical} value, whether to show progress
-bar.}
+\item{progress}{A length-one \code{logical} value, whether to show progress bar.}
 
-\item{mc}{Number of cores to use. If \code{FALSE} (default), only one thread
-will be used.}
+\item{mc}{Number of cores to use. If \code{FALSE} (default), only one thread will
+be used.}
 }
 \description{
 Auxiliary method to get the fulltext of a corpus, subcorpora etc. Can be used
@@ -139,18 +141,19 @@ right corpus position are called \emph{regions}. The
 corpus.
 
 The primary usage of this method is to return the token stream of a
-(sub-)corpus as defined by a \code{corpus}, \code{subcorpus} or
-\code{partition} object. The methods defined for a \code{numeric} vector or
-a (two-column) \code{matrix} defining regions (i.e. left and right corpus
-positions in the first and second column) are the actual workers for this
-operation.
+(sub-)corpus as defined by a \code{corpus}, \code{subcorpus} or \code{partition} object.
+The methods defined for a \code{numeric} vector or a (two-column) \code{matrix}
+defining regions (i.e. left and right corpus positions in the first and
+second column) are the actual workers for this operation.
 
-The \code{get_token_stream} has been introduced so serve as a worker
-by higher level methods such as \code{read}, \code{html}, and
-\code{as.markdown}. It may however be useful for decoding a corpus so that
-it can be exported to other tools.
+The \code{get_token_stream} has been introduced so serve as a worker by
+higher level methods such as \code{read}, \code{html}, and \code{as.markdown}. It may
+however be useful for decoding a corpus so that it can be exported to other
+tools.
 }
 \examples{
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 # Decode first words of GERMAPARLMINI corpus (first sentence)
 get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word")
 
@@ -186,14 +189,14 @@ corpus("REUTERS") \%>\%
 pb_tokstr <- corpus("REUTERS") \%>\%
   split(s_attribute = "id") \%>\%
   get_token_stream(p_attribute = "word")
-
+\donttest{
 # Get token stream for partition_bundle
 pb <- partition_bundle("REUTERS", s_attribute = "id")
 ts_list <- get_token_stream(pb)
 
 # Use two p-attributes
 sp <- corpus("GERMAPARLMINI") \%>\%
-  as.speeches(s_attribute_name = "speaker", progress = FALSE)
+  as.speeches(s_attribute_name = "speaker", s_attribute_date = "date", progress = FALSE)
 p2 <- get_token_stream(sp, p_attribute = c("word", "pos"), verbose = FALSE)
 
 # Apply filter
@@ -216,4 +219,5 @@ ts_phr <- get_token_stream(
   progress = FALSE,
   verbose = FALSE
 )
+}
 }

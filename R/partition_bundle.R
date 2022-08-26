@@ -112,27 +112,29 @@ setMethod("merge", "subcorpus", function(x, y, ...){
 })
 
 
-#' @details Using brackets can be used to retrieve the count for a token from the 
-#' \code{partition} objects in a \code{partition_bundle}.
-#' @exportMethod [
-#' @rdname partition_bundle-class
-setMethod('[', 'partition_bundle', function(x,i){
-  a <- unname(unlist(lapply(x@objects, function(y) y@stat[i,2])))
-  sizes <- unlist(lapply(x@objects, function(y) y@size))
-  dist <- data.frame(
-    partition = names(x@objects),
-    count = a,
-    freq = round(a / sizes * 100000, 2),
-    row.names = 1L:length(x@objects)
-  )
-  dist
-}
-)
+#' #' @details Using brackets can be used to retrieve the count for a token from the 
+#' #' \code{partition} objects in a \code{partition_bundle}.
+#' #' @exportMethod [
+#' #' @rdname partition_bundle-class
+#' setMethod('[', 'partition_bundle', function(x,i){
+#'   a <- unname(unlist(lapply(x@objects, function(y) y@stat[i,2])))
+#'   sizes <- unlist(lapply(x@objects, function(y) y@size))
+#'   dist <- data.frame(
+#'     partition = names(x@objects),
+#'     count = a,
+#'     freq = round(a / sizes * 100000, 2),
+#'     row.names = 1L:length(x@objects)
+#'   )
+#'   dist
+#' }
+#' )
 
 
 #' @exportMethod barplot
 #' @rdname partition_bundle-class
 #' @examples
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' pb <- partition_bundle("REUTERS", s_attribute = "id")
 #' barplot(pb, las = 2)
 #' 
@@ -271,28 +273,27 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, progress
   }
   count_list <- split(CNT, by = "match_id")
   
+  prototype <- as(as(.Object, "corpus"), "partition")
+  prototype@p_attribute <- .Object@p_attribute
+  
   .fn <- function(i){
-    cpos_matrix <- as.matrix(regions_list[[i]][, c("cpos_left", "cpos_right")])
-    new(
-      "partition",
-      corpus = .Object@corpus,
-      encoding = .Object@encoding,
-      cpos = cpos_matrix,
-      size = sum(cpos_matrix[,2] - cpos_matrix[,1] + 1L),
-      xml = .Object@partition@xml,
-      p_attribute = .Object@p_attribute,
-      stat = count_list[[i]][, "match_id" := NULL]
-    )
+    y <- prototype
+    y@cpos <- as.matrix(regions_list[[i]][, c("cpos_left", "cpos_right")])
+    y@size <- sum(y@cpos[,2] - y@cpos[,1] + 1L)
+    y@stat = count_list[[i]][, "match_id" := NULL]
+    y
   }
-  partition_objects <- if (progress) pblapply(1L:length(.Object), .fn, cl = mc) else lapply(1L:length(.Object), .fn)
-  new(
-    "partition_bundle",
-    corpus = .Object@corpus,
-    encoding = .Object@encoding,
-    p_attribute = .Object@p_attribute,
-    objects = partition_objects,
-    explanation = "this partition_bundle is derived from a context object"
-  )
+  
+  retval <- as(as(.Object, "corpus"), "partition_bundle")
+  retval@p_attribute <- .Object@p_attribute
+  retval@objects <- if (progress)
+    pblapply(seq_along(.Object), .fn, cl = mc)
+  else
+    lapply(seq_along(.Object), .fn)
+  
+  
+  retval@explanation <- "this partition_bundle is derived from a context object"
+  retval
 })
 
 #' @rdname partition_bundle-class

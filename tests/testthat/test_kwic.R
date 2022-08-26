@@ -1,5 +1,7 @@
 library(polmineR)
 use("polmineR")
+use(pkg = "RcppCWB", corpus = "REUTERS")
+
 testthat::context("kwic")
 
 test_that(
@@ -162,5 +164,16 @@ test_that(
         c("Sehr", "geehrte")
       )
     }
+  }
+)
+
+test_that(
+  "",
+  {
+    oil <- kwic("REUTERS", query = "oil", s_attributes = "id") %>%
+      highlight(list(yellow = "prices")) %>%
+      tooltips(tooltips = list(yellow = "alert"))
+    expect_true("id" %in% colnames(oil@stat))
+    
   }
 )

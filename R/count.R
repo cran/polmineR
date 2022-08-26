@@ -76,6 +76,8 @@ NULL
 #' Baker, Paul (2006): \emph{Using Corpora in Discourse Analysis}. London: continuum, p. 47-69 (ch. 3).
 #' @examples
 #' use("polmineR")
+#' use(pkg = "RcppCWB", corpus = "REUTERS")
+#' 
 #' debates <- partition("GERMAPARLMINI", date = ".*", regex=TRUE)
 #' count(debates, query = "Arbeit") # get frequencies for one token
 #' count(debates, c("Arbeit", "Freizeit", "Zukunft")) # get frequencies for multiple tokens
@@ -178,8 +180,8 @@ setMethod("count", "subcorpus", function(
     if (length(p_attribute) == 1L){
       if (is.null(phrases)){
         count_matrix <- RcppCWB::region_matrix_to_count_matrix(
-          corpus = .Object@corpus, p_attribute = p_attribute,
-          matrix = .Object@cpos
+          corpus = .Object@corpus, registry = .Object@registry_dir,
+          p_attribute = p_attribute, matrix = .Object@cpos
         )
         TF <- data.table::as.data.table(count_matrix)
         setnames(TF, old = c("V1", "V2"), new = c(p_attr_id, "count"))
