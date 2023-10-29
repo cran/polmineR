@@ -7,9 +7,9 @@ NULL
 #' `subcorpus`, split up by an s-attribute if provided.
 #' 
 #' One or more s-attributes can be provided to get the dispersion of tokens
-#' across one or more dimensions. If `s_attribute` is a child of the s-attribute
-#' defining a `subcorpus` or `partition`, the struc values need to be decoded 
-#' for all corpus positions, which may take some time.
+#' across one or more dimensions. If more than one `s_attribute` is provided and
+#' the structure of s-attributes is nested, ordering attributes according to the
+#' ascending tree structure is advised for performance reasons.
 #' 
 #' @param x An object to get size(s) for.
 #' @param s_attribute A `character` vector with s-attributes (one or more).
@@ -70,23 +70,17 @@ setMethod("size", "corpus", function(x, s_attribute = NULL, verbose = TRUE, ...)
   }
   
   if (is.null(s_attribute)){
-    if (length(x@registry_dir) > 0L && length(x@corpus) > 0L){
-      corpus_size <- cl_attribute_size(
-        corpus = x@corpus, registry = x@registry_dir,
-        attribute = "word", attribute_type = "p"
-      )
-      return(corpus_size)
-    } else {
-      warning(
-        "unable to get size, lslots `corpus` and/or `registry_dir` not available"
-      )
-      return(NA_integer_)
-    }
+    corpus_size <- cl_attribute_size(
+      corpus = x@corpus, registry = x@registry_dir,
+      attribute = "word", attribute_type = "p"
+    )
+    return(corpus_size)
   } else {
     stopifnot(all(s_attribute %in% s_attributes(x)))
     
     all_siblings <- siblings(
-      corpus = x@corpus, registry = x@registry_dir,
+      corpus = x@corpus,
+      registry = x@registry_dir,
       s_attribute
     )
     if (is.na(all_siblings)) all_siblings <- TRUE
@@ -125,6 +119,10 @@ setMethod("size", "corpus", function(x, s_attribute = NULL, verbose = TRUE, ...)
       setnames(y, old = "V1", new = "size")
       setkeyv(y, cols = s_attribute)
     } else {
+      
+      if (verbose)
+        cli_progress_step("s-attributes are not siblings, get relationship")
+      
       relationship <- sapply(
         1L:(length(s_attribute) - 1L),
         function(i){
@@ -134,51 +132,99 @@ setMethod("size", "corpus", function(x, s_attribute = NULL, verbose = TRUE, ...)
           )
         }
       )
-      if (all(relationship <= 0L)){
+      if (verbose)
+        cli_progress_done()
+      
+      if (all(relationship <= 0L) || all(relationship >= 0L)){
+        if (all(relationship <= 0L) && verbose){
+          cli_alert_info("order of s-attributes starts with deep descendents")
+        } 
+        
+        if (all(relationship >= 0L) && verbose){
+          cli_alert_info(
+            "proceed with reversed order of s-attributes (descendents first)"
+          )
+          s_attribute <- rev(s_attribute)
+        } 
+
+        if (verbose)
+          cli_progress_step(
+            "get regions for s-attribute {.val {s_attribute[[1]]}}"
+          )
+        
         struc_size <- cl_attribute_size(
           corpus = x@corpus, registry = x@registry_dir,
           attribute_type = "s", attribute = s_attribute[[1]]
         )
-        strucs <- 0L:(struc_size - 1L)
+        strucs_seq <- 0L:(struc_size - 1L)
         m <- RcppCWB::get_region_matrix(
           corpus = x@corpus, registry = x@registry_dir,
-          s_attribute = s_attribute[[1]], strucs = strucs
+          s_attribute = s_attribute[[1]], strucs = strucs_seq
         )
-        dt <- data.table(size = m[,2] - m[,1] + 1L)
-        str <- struc2str(x = x, s_attr = s_attribute[[1]], struc = strucs)
+        dt <- data.table(size = m[,2L] - m[,1L] + 1L)
+        str <- struc2str(x = x, s_attr = s_attribute[[1]], struc = strucs_seq)
         dt[, (s_attribute[[1]]) := str]
         for (i in 2L:length(s_attribute)){
+          if (verbose)
+            cli_progress_step(
+              "get values for s-attribute {.val {s_attribute[[i]]}}"
+            )
           strucs <- cpos2struc(x, s_attr = s_attribute[[i]], cpos = m[,1])
           str <- struc2str(x, s_attr = s_attribute[[i]], struc = strucs)
           dt[, (s_attribute[[i]]) := str]
         }
+        if (verbose) cli_progress_step("aggregate region sizes")
         y <- dt[, sum(size), by = eval(s_attribute), with = TRUE]
-      } else {
-        dt <- rbindlist(lapply(
-          s_attribute,
-          function(s_attr){
-            df <- s_attribute_decode(
-              corpus = x@corpus, registry = x@registry_dir, data_dir = x@data_dir,
-              s_attribute = s_attr, method = "R"
-            )
-            dt <- data.table(df)
-            dt[, "struc" := 0L:(nrow(dt) - 1L)]
-            .fn <- function(.SD){
-              list(
-                cpos = .SD[["cpos_left"]]:.SD[["cpos_right"]],
-                value = .SD[["value"]]
-              )
-            }
-            dt_ext <- dt[, .fn(.SD), by = "struc", .SDcols = c("cpos_left", "cpos_right", "value")]
-            dt_ext[, "s_attr" := s_attr][, "struc" := NULL]
-            dt_ext
-          }
-        ))
-        foo <- dcast(data = dt, cpos ~ s_attr)
-        foo[, "size" := 1L]
-        y <- foo[, sum(size), by = eval(s_attribute), with = TRUE]
         setnames(x = y, old = "V1", new = "size")
+        if (verbose) cli_progress_done()
+      } else {
+        
+        if (verbose)
+          cli_alert_info(
+            "s-attributes not ordered according to tree structure (inefficient)"
+          )
+        
+        dt <- data.table(cpos = 0L:(size(x) - 1L))
+        
+        for (s_attr in s_attribute){
+          if (verbose) cli_progress_step("decode s-attribute {.val {s_attr}}")
+          n_strucs <- cl_attribute_size(
+            corpus = x@corpus,
+            registry = x@registry_dir,
+            attribute = s_attr,
+            attribute_type = "s"
+          )
+          struc_vec <- 0L:(n_strucs - 1L)
+          m <- get_region_matrix(
+            corpus = x@corpus,
+            registry = x@registry_dir,
+            s_attribute = s_attr,
+            strucs = struc_vec
+          )
+          ext <- data.table(cpos = RcppCWB::ranges_to_cpos(m))
+          struc_values <- cl_struc2str(
+            corpus = x@corpus,
+            registry = x@registry_dir,
+            s_attribute = s_attr,
+            struc = struc_vec
+          ) |>
+            as.nativeEnc(from = x@encoding)
+          unfolded <- rep(struc_values, times = m[,2] - m[, 1] + 1)
+          ext[, (s_attr) := unfolded]
+          
+          if (verbose) cli_progress_step(
+            "merge corpus position results for s-attribute {.val {s_attr}}"
+          )
+          
+          dt[, (s_attr) := ext[dt, on = "cpos"][[s_attr]]]
+          
+        }
+        dt[, "size" := 1L]
       }
+      if (verbose) cli_progress_step("aggregate results and get sizes")
+      y <- dt[, sum(size), by = eval(s_attribute), with = TRUE]
+      setnames(x = y, old = "V1", new = "size")
+      if (verbose) cli_progress_done()
       return(y)
     }
     return(y)

@@ -7,6 +7,7 @@
 \alias{ngrams,subcorpus-method}
 \alias{ngrams,data.table-method}
 \alias{ngrams,corpus-method}
+\alias{ngrams,list-method}
 \alias{ngrams,partition_bundle-method}
 \title{Get N-Grams}
 \usage{
@@ -74,12 +75,24 @@ ngrams(.Object, ...)
   ...
 )
 
+\S4method{ngrams}{list}(
+  .Object,
+  n = 2,
+  char = NULL,
+  mc = FALSE,
+  verbose = FALSE,
+  progress = FALSE,
+  ...
+)
+
 \S4method{ngrams}{partition_bundle}(
   .Object,
   n = 2,
   char = NULL,
+  vocab = NULL,
   p_attribute = "word",
   mc = FALSE,
+  verbose = FALSE,
   progress = FALSE,
   ...
 )
@@ -89,17 +102,22 @@ ngrams(.Object, ...)
 
 \item{...}{Further arguments.}
 
-\item{n}{number of tokens/characters}
+\item{n}{Number of tokens (if \code{char} is \code{NULL}) or characters otherwise.}
 
 \item{p_attribute}{the p-attribute to use (can be > 1)}
 
 \item{char}{If \code{NULL}, tokens will be counted, else characters, keeping
 only those provided by a character vector}
 
-\item{progress}{logical}
+\item{progress}{A \code{logical} value.}
 
 \item{mc}{A \code{logical} value, whether to use multicore, passed into call
-to \code{blapply} (see respective documentation)}
+to \code{blapply()}.}
+
+\item{verbose}{A length-one \code{logical} value, whether to show messages.}
+
+\item{vocab}{A \code{character} vector with an alternative vocabulary to the one
+stored on disk.}
 }
 \description{
 Count n-grams, either of words, or of characters.

@@ -7,15 +7,15 @@ test_that(
   "s_attributes for corpus, without specification of s_attribute",
   {
     s_attrs <- s_attributes("GERMAPARLMINI")
-    expect_equal(length(s_attrs), 5L)
+    expect_equal(length(s_attrs), 7L)
     expect_equal(is.character(s_attrs), TRUE)
-    expect_equal(all(s_attrs %in% c("protocol_date", "interjection", "date", "party", "speaker")), TRUE)
+    expect_equal(all(s_attrs %in% c("protocol_lp", "protocol_date", "interjection", "date", "party", "speaker", "role")), TRUE)
     
-    s_attrs <- s_attributes(corpus("GERMAPARLMINI"))
-    expect_equal(length(s_attrs), 5L)
+    s_attrs <- corpus("GERMAPARLMINI") %>%
+      s_attributes()
+    expect_equal(length(s_attrs), 7L)
     expect_equal(is.character(s_attrs), TRUE)
-    expect_equal(all(s_attrs %in% c("protocol_date", "interjection", "date", "party", "speaker")), TRUE)
-    
+    expect_equal(all(s_attrs %in% c("protocol_lp", "protocol_date", "interjection", "date", "party", "speaker", "role")), TRUE)
   }
 )
 
@@ -68,18 +68,18 @@ test_that(
   {
     expect_equal(
       s_attributes(quote(grep("Merkel", speaker)), corpus = "GERMAPARLMINI"),
-      "speaker"
+      setNames("speaker", "character")
     )
     expect_equal(
       s_attributes(quote(speaker == "Angela Merkel"), corpus = "GERMAPARLMINI"),
-      "speaker"
+      setNames("speaker", "character")
     )
     expect_equal(
       s_attributes(
         quote(speaker == "Angela Merkel" & date == "2009-10-28"),
         corpus = "GERMAPARLMINI"
       ),
-      c("speaker", "date")
+      c(character = "speaker", character = "date")
     )
     
     expect_equal(
@@ -87,7 +87,7 @@ test_that(
         rlang::new_quosure(quote(grep("Merkel", speaker))),
         corpus = "GERMAPARLMINI"
       ),
-      "speaker"
+      setNames("speaker", "character")
     )
     
   }

@@ -4,42 +4,46 @@ NULL
 #' Display full text.
 #' 
 #' Generate text (i.e. html) and display it in the viewer pane of RStudio for
-#' reading it. If called on a \code{partition_bundle}-object, skip through the
+#' reading it. If called on a `partition_bundle`-object, skip through the
 #' partitions contained in the bundle.
 #'
-#' To prepare the html output, the method \code{read} will call \code{html} and
-#' \code{as.markdown} subsequently, the latter method being the actual worker.
+#' To prepare the html output, the method `read()` will call `html()` and
+#' `as.markdown()` subsequently, the latter method being the actual worker.
 #' Consult these methods to understand how preparing the output works.
 #'
-#' The param \code{highlight} can be used to highlight terms. It is expected to
+#' The param `highlight()` can be used to highlight terms. It is expected to
 #' be a named list of character vectors, the names providing the colors, and the
 #' vectors the terms to be highlighted. To add tooltips, use the param
-#' \code{tooltips}.
+#' `tooltips`.
 #'
-#' The method \code{read} is a high-level function that calls the methods
-#' mentioned before. Results obtained through \code{read} can also be obtained
-#' through combining these methods in a pipe using the package \code{magrittr}.
+#' The method `read()` is a high-level function that calls the methods
+#' mentioned before. Results obtained through `read()` can also be obtained
+#' through combining these methods in a pipe using the package 'magrittr'.
 #' That may offer more flexibility, e.g. to highlight matches for CQP queries.
 #' See examples and the documentation for the different methods to learn more.
 #' 
-#' @param .Object an object to be read (\code{partition} or {partition_bundle})
+#' @param .Object aAn object to be read (`partition` or `partition_bundle`).
 #' @param meta a character vector supplying s-attributes for the metainformation
 #'   to be printed; if not stated explicitly, session settings will be used
 #' @param template template to format output
 #' @param highlight a named list of character vectors (see details)
 #' @param tooltips a named list (names are colors, vectors are tooltips)
+#' @param annotation Object inheriting from `subcorpus` class. If provided,
+#'   `highlight`, `tooltips` and `href` will be taken from the slot 'annotations'
+#'   of this object.
 #' @param verbose logical
-#' @param cpos logical, if TRUE, corpus positions will be assigned (invisibly) to a cpos
-#' tag of a html element surrounding the tokens
-#' @param col column of \code{data.table} with terms to be highlighted
-#' @param partition_bundle a \code{partition_bundle} object
-#' @param def a named list used to define a partition (names are s-attributes, vectors are
-#' values of s-attributes)
-#' @param i if \code{.Object} is an object of the classes \code{kwic} or \code{hits},
-#' the ith kwic line or hit to derive a partition to be inspected from
-#' @param type the partition type, see documentation for \code{partition}-method
+#' @param cpos logical, if `TRUE`, corpus positions will be assigned (invisibly)
+#'   to a cpos tag of a html element surrounding the tokens
+#' @param col column of `data.table` with terms to be highlighted
+#' @param partition_bundle A `partition_bundle` object.
+#' @param def a named list used to define a partition (names are s-attributes,
+#'   vectors are values of s-attributes)
+#' @param i If `.Object` is an object of the classes `kwic` or `hits`, the ith
+#'   kwic line or hit to derive a partition to be inspected from
+#' @param type the partition type, see documentation for `partition()`-method
 #' @param cutoff maximum number of tokens to display
-#' @param ... further parameters passed into read
+#' @param ... Further parameters passed into `read()`.
+#' @inheritParams href-function
 #' @exportMethod read
 #' @rdname read-method
 #' @examples
@@ -65,7 +69,7 @@ setGeneric("read", function(.Object, ...) standardGeneric("read"))
 setMethod("read", "partition",
   function(
     .Object, meta = NULL,
-    highlight = list(), tooltips = list(),
+    highlight = list(), tooltips = list(), href = list(),
     verbose = TRUE, cpos = TRUE, cutoff = getOption("polmineR.cutoff"), 
     template = get_template(.Object),
     ...
@@ -73,23 +77,31 @@ setMethod("read", "partition",
     newobj <- if (is.null(get_type(.Object))){
       "subcorpus"
     } else {
-      switch( get_type(.Object), "plpr" = "plpr_subcorpus", "press" = "press_subcorpus" )
+      switch(
+        get_type(.Object),
+        "plpr" = "plpr_subcorpus",
+        "press" = "press_subcorpus"
+      )
     }
     
     read(
-      .Object = as(.Object, newobj), meta = meta, highlight = highlight, tooltips = tooltips,
+      .Object = as(.Object, newobj),
+      meta = meta,
+      highlight = highlight, tooltips = tooltips, href = href,
       verbose = verbose, cpos = cpos, cutoff = cutoff,
       template = template,
       ...
     )
-  })
+  }
+)
 
 #' @rdname read-method
 setMethod(
   "read", "subcorpus",
   function(
     .Object, meta = NULL,
-    highlight = list(), tooltips = list(),
+    highlight = list(), tooltips = list(), href = list(),
+    annotation,
     verbose = TRUE, cpos = TRUE, cutoff = getOption("polmineR.cutoff"), 
     template = get_template(.Object),
     ...
@@ -102,16 +114,85 @@ setMethod(
         template_meta
     }
     stopifnot(all(meta %in% s_attributes(.Object@corpus)))
-    doc <- html(.Object, meta = meta,  cpos = cpos, cutoff = cutoff,  template = template, ...)
+    doc <- html(
+      .Object,
+      meta = meta,
+      cpos = cpos,
+      cutoff = cutoff,
+      template = template,
+      ...
+    )
     
-    if (length(highlight) > 0L) {
-      doc <- highlight(doc, highlight = highlight)
-      if (length(tooltips) > 0L){
-        doc <- tooltips(doc, tooltips = tooltips)
+    if (!missing(annotation)){
+      if (!inherits(annotation, "subcorpus"))
+        stop("argument 'annotation' required to inherit from subcorpus")
+      
+      if (!all(sapply(annotation@annotations, length) == nrow(annotation@cpos)))
+        stop("length of all annotations not identical with number of regions")
+      
+      if ("highlight" %in% names(annotation@annotations)){
+        highlight <- split(
+          ranges_to_cpos(annotation@cpos),
+          unlist(
+            mapply(
+              rep,
+              x = annotation@annotations[["highlight"]],
+              times = annotation@cpos[,2L] - annotation@cpos[,1L] + 1L,
+              SIMPLIFY = FALSE
+            )
+          )
+        )
+      }
+      
+      if ("tooltips" %in% names(annotation@annotations)){
+        tooltips <- as.list(
+          setNames(
+            unname(
+              unlist(
+                mapply(
+                  rep,
+                  x = annotation@annotations[["tooltips"]],
+                  times = annotation@cpos[,2L] - annotation@cpos[,1L] + 1L,
+                  SIMPLIFY = FALSE
+                )
+              )
+            ),
+            as.character(ranges_to_cpos(annotation@cpos))
+          )
+        )
+      }
+      
+      if ("href" %in% names(annotation@annotations)){
+        href <- as.list(
+          setNames(
+            unname(
+              unlist(
+                mapply(
+                  rep,
+                  x = annotation@annotations[["href"]],
+                  times = annotation@cpos[,2L] - annotation@cpos[,1L] + 1L,
+                  SIMPLIFY = FALSE
+                )
+              )
+            ),
+            as.character(ranges_to_cpos(annotation@cpos))
+          )
+        )
       }
     }
+    
+    if (length(highlight) > 0L)
+      doc <- highlight(doc, highlight = highlight)
+    
+    if (length(tooltips) > 0L)
+      doc <- tooltips(doc, tooltips = tooltips)
+    
+    if (length(href) > 0L)
+      doc <- href(doc, href = href)
+
     doc
-  })
+  }
+)
 
 #' @rdname read-method
 setMethod("read", "partition_bundle", function(.Object, highlight = list(), cpos = TRUE, ...){
@@ -129,7 +210,11 @@ setMethod("read", "data.table", function(.Object, col, partition_bundle, highlig
   DT <- .Object[which(.Object[[col]] > 0)]
   partitionsToGet <- DT[["partition"]]
   if (col == "TOTAL") col <- colnames(.Object)[2:(ncol(.Object)-1)]
-  toRead <- as.bundle(lapply(partitionsToGet, function(x) partition_bundle@objects[[x]]))
+  toRead <- as.bundle(
+    lapply(
+      partitionsToGet,
+      function(x) partition_bundle@objects[[x]])
+  )
   read(toRead, highlight = list(yellow = col), ...)
 })
 
@@ -170,7 +255,9 @@ setMethod("read", "kwic", function(.Object, i = NULL, type){
   if (length(i) > 1L){
     for (j in i){
       read(.Object, i = j, type = type)
-      user <- readline(prompt = "Hit 'q' to quit or any other key to continue.\n")
+      user <- readline(
+        prompt = "Hit 'q' to quit or any other key to continue.\n"
+      )
       if (user == "q") return( invisible(NULL) )
     }
   } else {

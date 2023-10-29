@@ -982,7 +982,7 @@ setMethod("summary", "subcorpus", function(object){
 #' @describeIn subcorpus Assign name to a `subcorpus` object.
 #' @exportMethod name<-
 setReplaceMethod("name", "subcorpus", function(x, value) {
-  x@name <- value
+  x@name <- as.character(value)
   x
 })
 
@@ -1011,10 +1011,11 @@ setClass("press_subcorpus", contains = "subcorpus")
 #'   \code{\link{regions}} class (which inherits from the and the
 #'   \code{\link{corpus}} class), without adding further slots.
 #' @family classes to manage corpora
-#' @name phrases
+#' @name phrases-class
 #' @rdname phrases-class
 #' @aliases phrases-class
 #' @examples
+#' \dontrun{
 #' # Workflow to create document-term-matrix with phrases
 #' 
 #' obs <- corpus("GERMAPARLMINI") %>%
@@ -1034,7 +1035,7 @@ setClass("press_subcorpus", contains = "subcorpus")
 #'   
 #' grep("erneuerbaren_Energien", colnames(dtm))
 #' grep("verpasste_Chancen", colnames(dtm))
-#' 
+#' }
 setClass(
   "phrases",
   contains = "regions"
@@ -1175,10 +1176,9 @@ setClass(
 #'   [,partition_bundle,ANY,ANY,ANY-method +,partition_bundle,partition-method 
 #'   +,partition_bundle,partition_bundle-method as.partition_bundle,list-method 
 #'   barplot,partition_bundle-method
-#' @param x a `partition_bundle` object
-#' @param .Object a `partition_bundle` object
-#' @param object a `partition_bundle` object
-#' @param s_attribute the s-attribute to use
+#' @param x A `partition_bundle` object.
+#' @param .Object A `partition_bundle` object.
+#' @param object A `partition_bundle` object.
 #' @param height height
 #' @param ... further parameters
 #' @rdname partition_bundle-class
@@ -1229,6 +1229,16 @@ setAs(from = "partition_bundle", to = "subcorpus_bundle", def = function(from){
   y@s_attributes_fixed <- from@s_attributes_fixed
   y@xml <- from@xml
   
+  y
+})
+
+#' @export
+setAs(from = "subcorpus_bundle", to = "partition_bundle", def = function(from){
+  y <- as(as(from, "corpus"), "partition_bundle")
+  old <- unique(sapply(from@objects, class))
+  if (length(old) > 1L) stop("mixed classes in subcorpus_bundle")
+  new <- gsub("subcorpus", "partition", old)
+  y@objects <- lapply(from@objects, function(x) as(as(x, "partition"), new))
   y
 })
 

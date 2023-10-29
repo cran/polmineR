@@ -4,8 +4,8 @@ NULL
 
 #' @rdname partition_bundle-class
 setMethod("show", "partition_bundle", function (object) {
-  message('** partition_bundle object: **')
-  message(sprintf('%-25s', 'Number of partitions:'), length(object@objects))
+  message('<<partition_bundle>>')
+  message(sprintf('%-25s', 'Number of objects:'), length(object@objects))
   # same code as in show-method for partition
   sFix <- unlist(lapply(
     names(object@s_attributes_fixed),
@@ -83,21 +83,24 @@ setMethod("merge", "partition_bundle", function(x, name = "", verbose = FALSE){
 })
 
 
-#' @param name The name of the new \code{subcorpus} object.
+#' @param name The name of the new `subcorpus` object.
 #' @rdname subcorpus_bundle
 setMethod("merge", "subcorpus_bundle", function(x, name = "", verbose = FALSE){
   y <- callNextMethod()
   corpus_type <- get_type(y@corpus)
   y@type <- if (is.null(corpus_type)) character() else corpus_type
   y@data_dir <- path(
-    corpus_data_dir(corpus = y@corpus, registry = corpus_registry_dir(y@corpus))
+    corpus_data_dir(
+      corpus = y@corpus,
+      registry = corpus_registry_dir(y@corpus)
+    )
   )
   y
 })
 
 
-#' @param ... Further \code{subcorpus} objects to be merged with \code{x} and \code{y}.
-#' @param y A \code{subcorpus} to be merged with \code{x}.
+#' @param ... Further `subcorpus` objects to be merged with `x` and `y`.
+#' @param y A `subcorpus` to be merged with `x`.
 #' @examples
 #' 
 #' # Merge multiple subcorpus objects
@@ -110,24 +113,6 @@ setMethod("merge", "subcorpus_bundle", function(x, name = "", verbose = FALSE){
 setMethod("merge", "subcorpus", function(x, y, ...){
   merge(as(c(list(x), c(y, list(...))), "bundle"), name = "", verbose = FALSE)
 })
-
-
-#' #' @details Using brackets can be used to retrieve the count for a token from the 
-#' #' \code{partition} objects in a \code{partition_bundle}.
-#' #' @exportMethod [
-#' #' @rdname partition_bundle-class
-#' setMethod('[', 'partition_bundle', function(x,i){
-#'   a <- unname(unlist(lapply(x@objects, function(y) y@stat[i,2])))
-#'   sizes <- unlist(lapply(x@objects, function(y) y@size))
-#'   dist <- data.frame(
-#'     partition = names(x@objects),
-#'     count = a,
-#'     freq = round(a / sizes * 100000, 2),
-#'     row.names = 1L:length(x@objects)
-#'   )
-#'   dist
-#' }
-#' )
 
 
 #' @exportMethod barplot
@@ -174,6 +159,7 @@ NULL
 #' @docType methods
 #' @rdname partition_bundle-method
 #' @examples
+#' \dontrun{
 #' use("polmineR")
 #' bt2009 <- partition("GERMAPARLMINI", date = "2009-.*", regex = TRUE)
 #' pb <- partition_bundle(bt2009, s_attribute = "date", progress = TRUE)
@@ -181,6 +167,7 @@ NULL
 #' dtm <- as.DocumentTermMatrix(pb, col = "count")
 #' summary(pb)
 #' pb <- partition_bundle("GERMAPARLMINI", s_attribute = "date")
+#' }
 #' @seealso \code{\link{partition}} and \code{\link{bundle}}
 setGeneric("partition_bundle", function(.Object, ...) standardGeneric("partition_bundle"))
 
@@ -249,10 +236,12 @@ setMethod("as.partition_bundle", "list", function(.Object, ...){
 #' @rdname partition_bundle-method
 #' @importFrom cli cli_progress_step
 #' @examples 
+#' \dontrun{
 #' use("RcppCWB", corpus = "REUTERS")
 #' pb <- corpus("REUTERS") %>%
 #'   context(query = "oil", p_attribute = "word") %>%
 #'   partition_bundle(node = FALSE, verbose = TRUE)
+#' }
 setMethod("partition_bundle", "context", function(.Object, node = TRUE, verbose = TRUE, progress = TRUE, mc = 1L){
   
   stopifnot(
@@ -270,7 +259,7 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, verbose 
   }
   
   if (verbose) cli_progress_step("generate list of {.code data.table} objects with regions")
-  .cpos_left_right <- function(.SD) 
+  .cpos_left_right <- function(.SD)
     list(cpos_left = min(.SD[["cpos"]]), cpos_right = max(.SD[["cpos"]]))
   
   DT_list <- list(
@@ -286,8 +275,8 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, verbose 
   CNT <- DT[, .N, by = c("match_id", paste(.Object@p_attribute, "id", sep = "_"))]
   setnames(CNT, old = "N", new = "count")
   for (p_attr in .Object@p_attribute){
-    CNT[[p_attr]] <- cl_id2str(
-      corpus = .Object@corpus, registry = corpus_registry_dir(.Object@corpus),
+    CNT[[p_attr]] <- RcppCWB::cl_id2str(
+      corpus = .Object@corpus, registry = RcppCWB::corpus_registry_dir(.Object@corpus),
       p_attribute = p_attr, id = CNT[[paste(p_attr, "id", sep = "_")]]
     )
   }
@@ -300,7 +289,7 @@ setMethod("partition_bundle", "context", function(.Object, node = TRUE, verbose 
   .fn <- function(i){
     y <- prototype
     y@cpos <- as.matrix(regions_list[[i]][, c("cpos_left", "cpos_right")])
-    y@size <- sum(y@cpos[,2] - y@cpos[,1] + 1L)
+    y@size <- as.integer(sum(y@cpos[,2] - y@cpos[,1] + 1L)) # see #265
     y@stat = count_list[[i]][, "match_id" := NULL]
     y
   }

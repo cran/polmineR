@@ -1,3 +1,4 @@
+#' @importFrom data.table setDTthreads
 .onLoad <- function (libname, pkgname) {
   
   # Options are set before anything else mainly to catch the CORPUS_REGISTRY
@@ -13,7 +14,7 @@
     "polmineR.cores" = if (.Platform$OS.type == "windows") 1L else 2L,
     "polmineR.browse" = FALSE,
     "polmineR.buttons" = interactive(),
-    "polmineR.specialChars" = "^[a-zA-Z\u00e9\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc-\u00df|-]+$",
+    "polmineR.specialChars" = "[^a-zA-Z\u00e9\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc-\u00df-]+",
     "polmineR.villainChars" = c("\u0084", "\u0093"),
     "polmineR.cutoff" = 5000,
     "polmineR.corpus_registry" = Sys.getenv("CORPUS_REGISTRY"),
@@ -38,15 +39,17 @@
   # will still be a subdirectory of the inst directory. Therefore both options
   # are considered whether extdata is in the inst directory, or immediately in
   # main directory of the package.
-  pkg_registry_dir_alternatives <- c(
+  alt <- c(
     path(libname, pkgname, "extdata", "cwb", "registry"),
     path(libname, pkgname, "inst", "extdata", "cwb", "registry")
   )
-  pkg_registry_dir <- pkg_registry_dir_alternatives[dir.exists(pkg_registry_dir_alternatives)]
+  pkg_registry_dir <- alt[dir.exists(alt)]
   
-  pkg_indexed_corpora_dir <- path(libname, pkgname, "extdata", "cwb", "indexed_corpora")
-  
-  
+  pkg_indexed_corpora_dir <- path(
+    libname, pkgname,
+    "extdata", "cwb", "indexed_corpora"
+  )
+
   if (!dir.exists(registry())) dir.create(registry())
   if (!dir.exists(data_dir())) dir.create(data_dir())
   
@@ -73,7 +76,6 @@
     } else {
       cqp_reset_registry(registry = registry())
     }
-    
   }
 
   NULL
@@ -113,7 +115,18 @@
       
     }
   }
-
+  
+  # Limit data.table's usage to 2 threads on CRAN, cp.CRAN Repository Policy:
+  # "If running a package uses multiple threads/cores it must never use more
+  # than two simultaneously: the check farm is a shared resource and will
+  # typically be running many checks simultaneously."
+  setDTthreads(if (.Platform$OS.type == "windows") 1L else 2L)
+  
+  packageStartupMessage(
+    "polmineR is throttled to use 2 cores as required by CRAN Repository Policy. To get full performance:\n",
+    "* Use `n_cores <- parallel::detectCores()` to detect the number of cores available on your machine\n",
+    "* Set number of cores using `options('polmineR.cores' = n_cores - 1)` and `data.table::setDTthreads(n_cores - 1)`"
+  )
 }
 
 .onUnload <- function(libpath){

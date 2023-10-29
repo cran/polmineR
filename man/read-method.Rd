@@ -18,6 +18,7 @@ read(.Object, ...)
   meta = NULL,
   highlight = list(),
   tooltips = list(),
+  href = list(),
   verbose = TRUE,
   cpos = TRUE,
   cutoff = getOption("polmineR.cutoff"),
@@ -30,6 +31,8 @@ read(.Object, ...)
   meta = NULL,
   highlight = list(),
   tooltips = list(),
+  href = list(),
+  annotation,
   verbose = TRUE,
   cpos = TRUE,
   cutoff = getOption("polmineR.cutoff"),
@@ -48,9 +51,9 @@ read(.Object, ...)
 \S4method{read}{regions}(.Object, meta = NULL)
 }
 \arguments{
-\item{.Object}{an object to be read (\code{partition} or {partition_bundle})}
+\item{.Object}{aAn object to be read (\code{partition} or \code{partition_bundle}).}
 
-\item{...}{further parameters passed into read}
+\item{...}{Further parameters passed into \code{read()}.}
 
 \item{meta}{a character vector supplying s-attributes for the metainformation
 to be printed; if not stated explicitly, session settings will be used}
@@ -59,26 +62,34 @@ to be printed; if not stated explicitly, session settings will be used}
 
 \item{tooltips}{a named list (names are colors, vectors are tooltips)}
 
+\item{href}{A named \code{list} with hypertext references that will be inserted as
+attribute href of a elements. The names of the list are either colors of
+highlighted text that has been generated previously, or corpus positions.}
+
 \item{verbose}{logical}
 
-\item{cpos}{logical, if TRUE, corpus positions will be assigned (invisibly) to a cpos
-tag of a html element surrounding the tokens}
+\item{cpos}{logical, if \code{TRUE}, corpus positions will be assigned (invisibly)
+to a cpos tag of a html element surrounding the tokens}
 
 \item{cutoff}{maximum number of tokens to display}
 
 \item{template}{template to format output}
 
+\item{annotation}{Object inheriting from \code{subcorpus} class. If provided,
+\code{highlight}, \code{tooltips} and \code{href} will be taken from the slot 'annotations'
+of this object.}
+
 \item{col}{column of \code{data.table} with terms to be highlighted}
 
-\item{partition_bundle}{a \code{partition_bundle} object}
+\item{partition_bundle}{A \code{partition_bundle} object.}
 
-\item{def}{a named list used to define a partition (names are s-attributes, vectors are
-values of s-attributes)}
+\item{def}{a named list used to define a partition (names are s-attributes,
+vectors are values of s-attributes)}
 
-\item{i}{if \code{.Object} is an object of the classes \code{kwic} or \code{hits},
-the ith kwic line or hit to derive a partition to be inspected from}
+\item{i}{If \code{.Object} is an object of the classes \code{kwic} or \code{hits}, the ith
+kwic line or hit to derive a partition to be inspected from}
 
-\item{type}{the partition type, see documentation for \code{partition}-method}
+\item{type}{the partition type, see documentation for \code{partition()}-method}
 }
 \description{
 Generate text (i.e. html) and display it in the viewer pane of RStudio for
@@ -86,18 +97,18 @@ reading it. If called on a \code{partition_bundle}-object, skip through the
 partitions contained in the bundle.
 }
 \details{
-To prepare the html output, the method \code{read} will call \code{html} and
-\code{as.markdown} subsequently, the latter method being the actual worker.
+To prepare the html output, the method \code{read()} will call \code{html()} and
+\code{as.markdown()} subsequently, the latter method being the actual worker.
 Consult these methods to understand how preparing the output works.
 
-The param \code{highlight} can be used to highlight terms. It is expected to
+The param \code{highlight()} can be used to highlight terms. It is expected to
 be a named list of character vectors, the names providing the colors, and the
 vectors the terms to be highlighted. To add tooltips, use the param
 \code{tooltips}.
 
-The method \code{read} is a high-level function that calls the methods
-mentioned before. Results obtained through \code{read} can also be obtained
-through combining these methods in a pipe using the package \code{magrittr}.
+The method \code{read()} is a high-level function that calls the methods
+mentioned before. Results obtained through \code{read()} can also be obtained
+through combining these methods in a pipe using the package 'magrittr'.
 That may offer more flexibility, e.g. to highlight matches for CQP queries.
 See examples and the documentation for the different methods to learn more.
 }

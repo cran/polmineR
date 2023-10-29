@@ -18,6 +18,7 @@ get_token_stream(.Object, ...)
 \S4method{get_token_stream}{numeric}(
   .Object,
   corpus,
+  registry = NULL,
   p_attribute,
   subset = NULL,
   boost = NULL,
@@ -30,7 +31,7 @@ get_token_stream(.Object, ...)
   ...
 )
 
-\S4method{get_token_stream}{matrix}(.Object, split = FALSE, ...)
+\S4method{get_token_stream}{matrix}(.Object, corpus, registry = NULL, split = FALSE, ...)
 
 \S4method{get_token_stream}{corpus}(.Object, left = NULL, right = NULL, ...)
 
@@ -54,6 +55,7 @@ get_token_stream(.Object, ...)
 \S4method{get_token_stream}{partition_bundle}(
   .Object,
   p_attribute = "word",
+  vocab = NULL,
   phrases = NULL,
   subset = NULL,
   min_length = NULL,
@@ -74,6 +76,8 @@ get_token_stream(.Object, ...)
 \code{get_token_stream}-method for a \code{numeric} vector, the real worker.}
 
 \item{corpus}{A CWB indexed corpus.}
+
+\item{registry}{Registry directory with registry file describing the corpus.}
 
 \item{p_attribute}{A \code{character} vector, the p-attribute(s) to decode.}
 
@@ -115,6 +119,9 @@ in a regions matrix.}
 
 \item{right}{Right corpus position.}
 
+\item{vocab}{A \code{character} vector with an alternative vocabulary to the one
+stored on disk.}
+
 \item{phrases}{A \code{phrases} object. Defined phrases will be concatenated.}
 
 \item{min_length}{If not \code{NULL} (default), an \code{integer} value with minimum
@@ -154,17 +161,23 @@ tools.
 \examples{
 use(pkg = "RcppCWB", corpus = "REUTERS")
 
-# Decode first words of GERMAPARLMINI corpus (first sentence)
-get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word")
+# Decode first words of REUTERS corpus (first sentence)
+get_token_stream(0:20, corpus = "REUTERS", p_attribute = "word")
 
 # Decode first sentence and collapse tokens into single string
-get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word", collapse = " ")
+get_token_stream(0:20, corpus = "REUTERS", p_attribute = "word", collapse = " ")
 
 # Decode regions defined by two-column integer matrix
-region_matrix <- matrix(c(0L,9L,10L,25L), ncol = 2, byrow = TRUE)
-get_token_stream(region_matrix, corpus = "GERMAPARLMINI", p_attribute = "word", encoding = "latin1")
+region_matrix <- matrix(c(0L,20L,21L,38L), ncol = 2, byrow = TRUE)
+get_token_stream(
+  region_matrix,
+  corpus = "REUTERS",
+  p_attribute = "word",
+  encoding = "latin1"
+)
 
 # Use argument 'beautify' to remove surplus whitespace
+\dontrun{
 get_token_stream(
   region_matrix,
   corpus = "GERMAPARLMINI",
@@ -172,10 +185,10 @@ get_token_stream(
   encoding = "latin1",
   collapse = " ", beautify = TRUE
 )
+}
 
 # Decode entire corpus (corpus object / specified by corpus ID)
-fulltext <- get_token_stream("GERMAPARLMINI", p_attribute = "word")
-corpus("GERMAPARLMINI") \%>\%
+corpus("REUTERS") \%>\%
   get_token_stream(p_attribute = "word") \%>\%
   head()
 
@@ -186,10 +199,12 @@ corpus("REUTERS") \%>\%
   head()
 
 # Decode partition_bundle
+\dontrun{
 pb_tokstr <- corpus("REUTERS") \%>\%
   split(s_attribute = "id") \%>\%
   get_token_stream(p_attribute = "word")
-\donttest{
+}
+\dontrun{
 # Get token stream for partition_bundle
 pb <- partition_bundle("REUTERS", s_attribute = "id")
 ts_list <- get_token_stream(pb)

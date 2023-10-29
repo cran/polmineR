@@ -1,31 +1,21 @@
 #' @include count.R S4classes.R
 NULL
 
-#' @importFrom stringi stri_sub
-.character_ngrams <- function(x, n, char){
-  if (char[1] != ""){
-    splitted <- unlist(strsplit(x, ""))
-    splitted <- ifelse(splitted %in% char, splitted, NA)
-    x <- paste(splitted[which(!is.na(splitted))], sep = "", collapse = "")
-  }
-  ngrams <- stringi::stri_sub(x, from = 1L:(nchar(x) - n + 1L), to = n:nchar(x))
-  dt <- data.table(ngram = ngrams)[, .N, by = "ngram"]
-  setnames(dt, old = "N", new = "count")
-  dt
-}
+
 
 #' Get N-Grams
 #' 
 #' Count n-grams, either of words, or of characters.
 #' 
-#' @param .Object object of class \code{partition}
-#' @param n number of tokens/characters
+#' @param .Object object of class `partition`
+#' @param n Number of tokens (if `char` is `NULL`) or characters otherwise.
 #' @param p_attribute the p-attribute to use (can be > 1)
-#' @param char If \code{NULL}, tokens will be counted, else characters, keeping
+#' @param char If `NULL`, tokens will be counted, else characters, keeping
 #'   only those provided by a character vector
-#' @param mc A \code{logical} value, whether to use multicore, passed into call
-#'   to \code{blapply} (see respective documentation)
-#' @param progress logical
+#' @param mc A `logical` value, whether to use multicore, passed into call
+#'   to `blapply()`.
+#' @inheritParams get_token_stream
+#' @param progress A `logical` value.
 #' @param ... Further arguments.
 #' @exportMethod ngrams
 #' @rdname ngrams
@@ -152,7 +142,8 @@ setMethod("ngrams", "corpus", function(.Object, n = 2, p_attribute = "word", cha
     setcolorder(TF, neworder = c(colnames(TF)[!colnames(TF) %in% "count"], "count"))
   } else {
     char_soup_base <- get_token_stream(.Object, p_attribute = p_attribute[1], collapse = "")
-    TF <- .character_ngrams(x = char_soup_base, n = n, char = char)
+    TF <- ngrams(.Object = list(char_soup_base), n = n, char = char)[[1]]
+    # TF <- .character_ngrams(x = char_soup_base, n = n, char = char)
   }
   
   y <- as(as(.Object, "corpus"), "ngrams")
@@ -164,8 +155,47 @@ setMethod("ngrams", "corpus", function(.Object, n = 2, p_attribute = "word", cha
   y
 })
 
+
+#' @importFrom stats na.omit
+#' @importFrom stringi stri_sub
 #' @rdname ngrams
-setMethod("ngrams", "partition_bundle", function(.Object, n = 2, char = NULL, p_attribute = "word", mc = FALSE, progress = FALSE, ...){
+setMethod("ngrams", "list", function(.Object, n = 2, char = NULL, mc = FALSE, verbose = FALSE, progress = FALSE, ...){
+  
+  .character_ngrams <- function(x, n, char){
+    # had tried stringi::stri_extract_all() - not faster
+    if (char[1] != ""){
+      splitted <- strsplit(x, "")[[1]]
+      splitted_min <- ifelse(splitted %in% char, splitted, NA)
+      x <- paste(na.omit(splitted_min), collapse = "")
+    }
+    ngrams <- stringi::stri_sub(x, from = 1L:(nchar(x) - n + 1L), to = n:nchar(x))
+    dt <- data.table(ngram = ngrams)[, .N, by = "ngram"]
+    setnames(dt, old = "N", new = "count")
+    dt
+  }
+  
+  if (progress){
+    if (mc){
+      dts <- pblapply(.Object, .character_ngrams, n = n, char = char, cl = mc)
+    } else {
+      dts <- pblapply(.Object, .character_ngrams, n = n, char = char, cl = NULL)
+    }
+  } else {
+    if (verbose) cli_progress_step("generate ngrams")
+    if (mc){
+      dts <- mclapply(.Object, .character_ngrams, n = n, char = char, mc.cores = mc)
+    } else {
+      dts <- lapply(.Object, .character_ngrams, n = n, char = char)
+    }
+    if (verbose) cli_progress_done()
+  }
+  
+  dts
+})
+
+
+#' @rdname ngrams
+setMethod("ngrams", "partition_bundle", function(.Object, n = 2, char = NULL, vocab = NULL, p_attribute = "word", mc = FALSE, verbose = FALSE, progress = FALSE, ...){
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   
@@ -179,21 +209,22 @@ setMethod("ngrams", "partition_bundle", function(.Object, n = 2, char = NULL, p_
     retval@p_attribute <- unique(unlist(lapply(retval@objects, function(x) x@p_attribute)))
   } else {
     retval@p_attribute <- p_attribute
-    li <- get_token_stream(.Object, p_attribute = p_attribute[1], collapse = "", verbose = FALSE)
-    if (progress){
-      if (mc){
-        dts <- pblapply(li, .character_ngrams, n = n, char = char, cl = mc)
-      } else {
-        dts <- pblapply(li, .character_ngrams, n = n, char = char, cl = NULL)
-      }
-    } else {
-      if (mc){
-        dts <- mclapply(li, .character_ngrams, n = n, char = char, mc.cores = mc)
-      } else {
-        dts <- lapply(li, .character_ngrams, n = n, char = char)
-      }
-    }
+    if (verbose) cli_progress_step("decoding token stream")
+    li <- get_token_stream(
+      .Object,
+      p_attribute = p_attribute[1],
+      collapse = "",
+      vocab = vocab,
+      verbose = FALSE
+    )
+    if (verbose) cli_progress_done()
+
+    dts <- ngrams(
+      li, n = n, char = char,
+      mc = mc, verbose = verbose, progress = progress
+    )
     
+    if (verbose) cli_progress_step("generate return value")
     proto <- as(as(.Object, "corpus"), "ngrams")
     proto@n = as.integer(n)
     proto@p_attribute = if (is.null(char)) p_attribute else "ngram"
@@ -207,6 +238,7 @@ setMethod("ngrams", "partition_bundle", function(.Object, n = 2, char = NULL, p_
         proto
       }
     )
+    if (verbose) cli_progress_done()
   }
   
   names(retval@objects) <- names(.Object)

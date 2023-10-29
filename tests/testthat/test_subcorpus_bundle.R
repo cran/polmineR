@@ -54,8 +54,11 @@ test_that(
 test_that(
   "count over subcorpus_bundle",
   {
-    cnt1 <- partition_bundle("REUTERS", s_attribute = "id") %>% count(query = "oil")
-    cnt2 <- corpus("REUTERS") %>% split(s_attribute = "id") %>% count(query = "oil")
+    cnt1 <- partition_bundle("REUTERS", s_attribute = "id") %>%
+      count(query = "oil")
+    
+    cnt2 <- corpus("REUTERS") %>% split(s_attribute = "id") %>%
+      count(query = "oil")
     
     expect_identical(cnt1, cnt2)
   }
@@ -170,5 +173,30 @@ test_that(
       .[ y1[["name"]] ] %>%
       summary()
     expect_identical(y1, y2)
+  }
+)
+
+test_that(
+  "subsetting subcorpus_bundle",
+  {
+    merkel <- corpus("GERMAPARLMINI") %>%
+      split(s_attribute = "protocol_date") %>%
+      subset(speaker == "Angela Dorothea Merkel")
+    expect_identical(length(merkel), 2L)
+
+    skip_on_cran()
+    
+    sp <- corpus("GERMAPARLMINI") %>%
+      as.speeches(
+        s_attribute_name = "speaker",
+        s_attribute_date = "protocol_date"
+      )
+    
+    sp_min <- subset(sp, interjection == "speech", iterate = TRUE, progress = FALSE)
+    expect_identical(length(sp), length(sp_min))
+    expect_identical(
+      unname(unlist(s_attributes(sp_min, "interjection"))),
+      rep("speech", times = length(sp_min))
+    )
   }
 )

@@ -72,10 +72,15 @@ setMethod("split", "subcorpus", function(
   type = get_type(x)
 ) {
   
+  stopifnot(is.character(s_attribute), length(s_attribute) == 1L)
+  if (!s_attribute %in% s_attributes(x))
+    stop(sprintf("s-attribute '%s' not available", s_attribute))
+
   if (missing(values))
-    values <- s_attr_has_values(s_attribute = s_attribute , x = x)
-  if (is.null(values))
-    values <- TRUE
+    # prospectvely use RcppCWB::cl_struc_values()
+    values <- s_attr_has_values(s_attribute = s_attribute, x = x)
+  if (is.null(values)) values <- TRUE
+  # result is reported, yet later with other info on s-attribute
   
   history <- rev(sapply(sys.calls(), function(x) deparse(x[[1]])))
   pb_call <- if (5L %in% which(history == "partition_bundle")) TRUE else FALSE
@@ -84,7 +89,12 @@ setMethod("split", "subcorpus", function(
   if (verbose) cli_alert_info("bundle class: {col_cyan({retval_class})}")
   
   cl <- if (isTRUE(pb_call)) "partition" else "subcorpus"
-  new_class <- if (length(x@type) == 0L) cl else paste(x@type, cl, sep = "_")
+  new_class <- if (length(x@type) == 0L || is.na(x@type)){
+    cl
+  } else {
+    paste(x@type, cl, sep = "_") 
+  }
+  
   prototype <- as(x, new_class)
   if (verbose) cli_alert_info("objects in bundle: {col_cyan({new_class})}")
 
@@ -104,12 +114,7 @@ setMethod("split", "subcorpus", function(
       corpus = x@corpus,
       registry = x@registry_dir
     )
-    if (is_descendent){
-      relation <- "descendent"
-      stop("split() not implemented if s_attribute is not a descendent")
-    } else {
-      relation <- "ancestor"
-    }
+    relation <- if (is_descendent) "descendent" else "ancestor"
   } else {
     relation <- "sibling"
   }
@@ -120,13 +125,19 @@ setMethod("split", "subcorpus", function(
         "of s-attribute {.val {x@s_attribute_strucs}}"
       )
     )
+    
+    # report here, together with further info on s-attribute 
+    cli_alert_info(
+      's-attribute {.val {s_attribute}} has values: {col_cyan({if (isFALSE(values)) "no" else "yes"})}'
+    )
   }
+
+  if (verbose) cli_progress_step("get list of regions")
 
   if (relation %in% c("sibling", "ancestor")){
     strucs <- cpos2struc(x, s_attr = s_attribute, cpos = x@cpos[,1])
     if (isTRUE(values)){
       strucs_values <- struc2str(x, s_attr = s_attribute, struc = strucs)
-      strucs_values <- as.nativeEnc(strucs_values, from = x@encoding)
     } else if (isFALSE(values)){
       if (verbose) cli_alert_info("split by change of strucs")
       strucs_values <- strucs
@@ -143,26 +154,40 @@ setMethod("split", "subcorpus", function(
       s_attr_strucs <- x@s_attribute_strucs
     }
   } else if (relation == "descendent"){
-    cpos <- ranges_to_cpos(x@cpos)
-    strucs <- unique(cpos2struc(x, cpos = cpos, s_attr = s_attribute))
+    # cpos <- ranges_to_cpos(x@cpos)
+    struc_matrix <- RcppCWB::region_matrix_to_struc_matrix(
+      corpus = x@corpus,
+      s_attribute = s_attribute,
+      region_matrix = x@cpos,
+      registry = x@registry_dir
+    )
+    strucs <- RcppCWB::ranges_to_cpos(struc_matrix)
+    # strucs <- unique(cpos2struc(x, cpos = cpos, s_attr = s_attribute))
     regions <- get_region_matrix(
       corpus = x@corpus,
       s_attribute = s_attribute,
       strucs = strucs,
       registry = x@registry_dir
     )
-    strucs_values <- struc2str(x, s_attr = s_attribute, struc = strucs)
-    strucs_values <- as.nativeEnc(strucs_values, from = x@encoding)
+    if (isTRUE(values)){
+      strucs_values <- struc2str(x, s_attr = s_attribute, struc = strucs)
+    } else if (isFALSE(values)){
+      if (verbose) cli_alert_info("split by change of strucs")
+      strucs_values <- strucs
+    }
     cpos_list <- split(regions, strucs_values)
     struc_list <- split(strucs, strucs_values) # different from sibling
     s_attr_strucs <- s_attribute
   }
+  if (verbose) cli_progress_done()
 
   if (is.character(values)){
+    if (verbose) cli_progress_step("keep only matches for values")
     for (i in rev(which(!names(cpos_list) %in% values))){
       cpos_list[[i]] <- NULL
       struc_list[[i]] <- NULL
     }
+    if (verbose) cli_progress_done()
   }
 
   .fn <- function(i){
@@ -183,11 +208,29 @@ setMethod("split", "subcorpus", function(
     y
   }
   
-  y@objects <- if (progress)
-    pblapply(seq_along(cpos_list), .fn)
-  else
-    lapply(seq_along(cpos_list), .fn)
-  
+  if (progress){
+    if (verbose)
+      cli_alert_info(
+        "instantiate {.val {length(cpos_list)}} {new_class} objects"
+      )
+    y@objects <- pblapply(seq_along(cpos_list), .fn)
+  } else {
+    if (isFALSE(mc)){
+      if (verbose) cli_progress_step(
+        "instantiate {.val {length(cpos_list)}} {new_class} objects "
+      )
+      y@objects <- lapply(seq_along(cpos_list), .fn)
+    } else {
+      if (isTRUE(mc)) mc <- parallel::detectCores() - 1L
+      if (verbose) cli_progress_step(
+        "instantiate {.val {length(cpos_list)}} {new_class} objects using {.val {mc}} cores"
+      )
+      y@objects <- mclapply(seq_along(cpos_list), .fn, mc.cores = mc)
+      
+    }
+    if (verbose) cli_progress_done()
+  }
+
   if (nchar(prefix) == 0L){
     names(y@objects) <- names(cpos_list)
   } else {
@@ -205,10 +248,27 @@ setMethod("split", "subcorpus", function(
 #' @rdname subcorpus_bundle
 #' @inheritParams partition_bundle
 setMethod("split", "corpus", function(
-  x, s_attribute, values = NULL, prefix = "",
+  x, s_attribute, values, prefix = "",
   mc = getOption("polmineR.mc"), verbose = TRUE, progress = FALSE,
   type = get_type(x), xml = "flat"
 ) {
+  
+  stopifnot(
+    is.character(s_attribute),
+    length(s_attribute) == 1L
+  )
+  if (!s_attribute %in% s_attributes(x))
+    stop(sprintf("s-attribute '%s' not available", s_attribute))
+  
+  if (missing(values))
+    # prospectively use RcppCWB::cl_struc_values()
+    values <- s_attr_has_values(s_attribute = s_attribute, x = x)
+  if (is.null(values)) values <- TRUE
+  
+  if (verbose) cli_alert_info(
+    's-attribute {.val {s_attribute}} has values: {col_cyan({if (isFALSE(values)) "no" else "yes"})}'
+  )
+  
   
   # Ensure that when split() is called within partition_bundle(), the resulting 
   # object is a partition_bundle and the objects in the slot 'object' are 
@@ -227,16 +287,33 @@ setMethod("split", "corpus", function(
   )
   strucs <- 0L:(struc_size - 1L)
   
+  if (verbose) cli_progress_step("get regions and get values")
   cpos_matrix <- get_region_matrix(
     corpus = x@corpus, registry = x@registry_dir,
     s_attribute = s_attribute, strucs = strucs
   )
-  strucs_values <- struc2str(x = x, s_attr = s_attribute, struc = strucs)
-  cpos_list <- split(cpos_matrix, strucs_values)
-  struc_list <- split(strucs, strucs_values)
   
-  if (!is.null(values)){
-    for (i in rev(which(!names(cpos_list) %in% values))) cpos_list[[i]] <- NULL
+  if (isFALSE(values)){
+    cpos_list <- split(cpos_matrix, strucs)
+    struc_list <- split(strucs, strucs)
+  } else {
+    strucs_values <- struc2str(x = x, s_attr = s_attribute, struc = strucs)
+    cpos_list <- split(cpos_matrix, strucs_values)
+    struc_list <- split(strucs, strucs_values)
+  }
+  
+  if (verbose) cli_progress_done()
+  
+  if (!is.null(values) && is.character(values)){
+    if (verbose) cli_progress_step(
+      "keep only matches for {col_cyan({length(values)})} values provided"
+    )
+    drop <- which(!names(cpos_list) %in% values)
+    if (length(drop) > 0L){
+      cpos_list <- cpos_list[-drop]
+      struc_list <- struc_list[-drop]
+    }
+    if (verbose) cli_progress_done()
   }
   
   prototype <- as(x, new_class)
@@ -254,17 +331,23 @@ setMethod("split", "corpus", function(
     y
   }
   
+  if (verbose)
+    cli_progress_step("instantiate objects (n = {.val {length(cpos_list)}})")
+  
   y@objects <- if (progress)
     pblapply(seq_along(cpos_list), .fn, cl = mc)
   else
     lapply(seq_along(cpos_list), .fn)
+  if (verbose) cli_progress_done()
   
+  if (verbose) cli_progress_step("assign names")
   if (nchar(prefix) == 0L){
     names(y@objects) <- names(cpos_list)
   } else {
     names(y) <- paste(prefix, names(cpos_list), sep = "_")
   }
   names(y@objects) <- sapply(y@objects, function(x) x@name)
+  if (verbose) cli_progress_done()
   
   y
 })

@@ -3,20 +3,20 @@ NULL
 
 #' Get markdown-formatted full text of a partition.
 #' 
-#' The method is the worker behind the \code{read}-method, which will be called
-#' usually to reconstruct the full text of a \code{partition} and read it. The
-#' \code{as.markdown}-method can be customized for different classes inheriting
-#' from the \code{partition}-class.
+#' The method is the worker behind the `read()`-method, which will be called
+#' usually to reconstruct the full text of a `partition` and read it. The
+#' `as.markdown()`-method can be customized for different classes inheriting
+#' from the `partition`-class.
 #' 
-#' @param .Object The object to be converted, a \code{partition}, or a class
-#'   inheriting from \code{partition}, such as \code{plpr_partition}.
+#' @param .Object The object to be converted, a `partition`, or a class
+#'   inheriting from `partition`, such as `plpr_partition`.
 #' @param meta The metainformation (s-attributes) to be displayed.
-#' @param cpos A \code{logical} value, whether to add cpos as ids in span elements.
-#' @param interjections A \code{logical} value, whether to format interjections.
-#' @param cutoff The maximum number of tokens to reconstruct, to avoid that full text is
-#' excessively long.
+#' @param cpos A `logical` value, whether to add cpos as ids in span elements.
+#' @param interjections A `logical` value, whether to format interjections.
+#' @param cutoff The maximum number of tokens to reconstruct, to avoid that full
+#'   text is excessively long.
 #' @param template A template for formating output.
-#' @param verbose A \code{logical} value, whether to output messages.
+#' @param verbose A `logical` value, whether to output messages.
 #' @param ... further arguments
 #' @rdname as.markdown
 #' @exportMethod as.markdown
@@ -32,10 +32,32 @@ setGeneric("as.markdown", function(.Object, ...) standardGeneric("as.markdown"))
 # vectorized sprintf is considerably faster than shiny::span,
 # an alternative that could be considered
 .tagTokens <- function(tokens){
-  if (is.null(names(tokens))) {
-    return( sprintf('<span token="%s" class="fulltext">%s</span>', tokens, tokens) )
+  
+  # This is different from purging markdown doc from signs that would interfere
+  # with markdown formatting syntax: We replace signs that would mess up 
+  # opening and closing double quotes here.
+  
+  if ('"' %in% tokens) tokens[which(tokens == '"')] <- "'"
+  if ('\u201e' %in% tokens) tokens[which(tokens == '\u201e')] <- "'"
+  if ('\u201c' %in% tokens) tokens[which(tokens == '\u201c')] <- "'"
+  
+  if (is.null(names(tokens))){
+    return(
+      sprintf(
+        '<span token="%s" class="fulltext">%s</span>',
+        tokens,
+        tokens
+      )
+    )
   } else {
-    return( sprintf('<span id="%s" token="%s" class="fulltext">%s</span>', names(tokens), tokens, tokens) )
+    return(
+      sprintf(
+        '<span id="%s" token="%s" class="fulltext">%s</span>',
+        names(tokens),
+        tokens,
+        tokens
+      )
+    )
   }
 }
 
@@ -70,7 +92,9 @@ setMethod(
     .message("as.markdown", verbose = verbose)
     # ensure that template requested is available
     if (is.null(template)){
-      warning(sprintf("No template available for corpus '%s', using default template.", get_corpus(.Object)))
+      cli_alert_warning(
+        "No template available for corpus {.val {get_corpus(.Object)}}. Using default template."
+      )
       template <- default_template
     }
     if (is.null(template[["paragraphs"]])){
@@ -85,9 +109,9 @@ setMethod(
       txt_raw <- paste(tokens, sep = "\n")
       txt <- gsub("(.)\\s([,.:!?])", "\\1\\2", txt_raw)
     } else {
-      .message("generating paragraphs (template for paras)", verbose = verbose)
+      if (verbose) cli_alert_info("generating paragraphs (using template)")
       articles <- apply(
-        .Object@cpos, 1,
+        .Object@cpos, 1L,
         function(row){
           # Previously, there was a check here whether template is NULL
           # but there is the initial check already!
@@ -135,13 +159,23 @@ setMethod(
           body_li <- Map(
             function(p_type, chunk){
               tokens <- get_token_stream(
-                chunk, corpus = corpus, p_attribute = "word",
+                chunk, corpus = .Object@corpus, p_attribute = "word",
                 encoding = .Object@encoding, cpos = cpos, cutoff = cutoff
               )
               tokens <- .tagTokens(tokens)
               paste(
                 template[["paragraphs"]][["format"]][[p_type]][1],
-                paste(tokens, collapse = " "),
+                paste(
+                  stringi::stri_c(
+                    ifelse(
+                      c(TRUE, grepl("[,.:!?]", tokens[2L:length(tokens)])),
+                      "",
+                      " "
+                    ),
+                    tokens
+                  ),
+                  collapse = ""
+                ),
                 template[["paragraphs"]][["format"]][[p_type]][2],
                 sep = ""
               )
@@ -150,19 +184,14 @@ setMethod(
           )
           article <- c(meta_values, unlist(body_li))
           md <- paste(article, collapse = "\n\n")
-          gsub("(.)\\s([,.:!?])", "\\1\\2", md)
+          md
         }
       )
       txt <- paste(c("\n", unlist(articles)), collapse = '\n* * *\n')
     }
-    txt
-    meta_info <- paste(
-      sapply(meta, function(x) sprintf("%s: %s", x, paste(s_attributes(.Object, x), collapse = "|"))),
-      collapse = " // "
-    )
+    
     corpus_info <- paste("## Corpus: ", .Object@corpus, "\n\n", sep = "")
-    header <- paste(corpus_info, paste("### ", meta_info), "\n\n", sep = "")
-    txt <- paste(header, txt, '\n', collapse = "\n")
+    txt <- paste(corpus_info, txt, '\n', collapse = "\n")
     txt
   })
 

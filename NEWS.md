@@ -1,4 +1,80 @@
-# polmineR v0.8.7.9001-9015
+# polmineR v0.8.9
+
+* `split()` sets type of `subcorpus` to `NA`, causing an error if another 
+split is performed. Fixed.
+* `split()` throwed misleading error message if `s_attribute` not existing. The
+error message is now telling #242.
+* `split()` was not implemented if s_attribute was child. Done #243.
+* Inefficiency of `size()` for `corpus` objects for scenario of nested s-attributes
+addressed #231.
+* `enrich()` for `subcorpus_bundle` objects (returning `partition_bundle` now) 
+#224.
+* `subset()` implemented for `subcorpus_bundle` obejcts #234.
+* Sample corpus GERMAPARLMINI now includes s-attribute protocol_lp.
+* Bug removed from `setAs()`-method from `slice` to "AnnotatedPlainTextDocument"
+that would prevent using GERMAPARLMINI as sample data.
+* Method `decode()` can return 'AnnotatedPlainTextDocument' from NLP package.
+* Coerce method `as(x, "AnnotatedPlainTextDocument")` not available any more.
+* Method `decode()` has new argument "stoplist" to drop terms from 'AnnotatedPlainTextDocument'. Unused for other return values.
+* Tooltips now have auto width - all text is displayed.
+* The s-attribute 'role' has been added to GERMAPARLMINI to make it more suitable
+for demonstration purposes for data linkage.
+* Improved documentation of method `get_template()`, examples added.
+* Formatting instructions for "subtitle" added to template file
+"article.template.json" in folder "templates".
+* The `show()`-method for `corpus` objects gives an information whether a
+template is available.
+* Bug removed from `as.markdown()` that would prevent fulltext display for
+non-parliamentary-protocol documents.
+* Method `tooltips()` has new argument `fmt` to provide flexibility to assign 
+tooltips based on corpus positions.
+* New function `href()` to add hypertext references to fulltext output.
+* Method `read()` has new argument `annotation` to get values for arguments
+`highlight`, `tooltips` and `href` from a subcorpus object.
+* Internally, variants of opening/closing double quotes are removed that interfere
+with html output.
+* The `format()` method used internally to produce output does not drop
+s-attributes ending on "_id" any more #253.
+* The default value for argument `progress` is FALSE for the `hits()` method for
+character class objects, as a matter of consistency #252.
+* Performance improvement for application of values in `split()` for `corpus`
+objects.
+* The `decode()` method for `subcorpus` objects is now able to process nested 
+corpora. Performance gain for all scenarios.
+* `as.TermDocumentMatrix()` for `bundle` objects speed ups instantiation of 
+`simple_triplet_matrix`.
+* Method `s_attributes()` for `bundle` objects is implemented much more
+efficiently.
+* Methods `get_token_stream()` and `ngrams()` have new argument `vocab` to pass
+in alternative dictionary. Envisaged usage is to efficiently use pruned
+vocabulary for decoding the token stream.
+* New method `ngrams()` for `list` objects. Serves as worker for `ngrams()`-method
+for `partition_bundle` objects.
+* Better handling of conflicting registry directories by method  `corpus()`.
+* Method `get_token_stream()` for `numeric` input has new argument `registry`
+to optionally specify registry directory.
+* Method `count()` for `subcorpus` objects did not pass value of argument 
+`verbose` to `cpos()`, resulting in potentially unwanted verbosity. Fixed.
+* Subsetting a `subcorpus` using `subset()`-method kept strucs for nested 
+attributes but assigned ancestor s-attribute to slot "s_attribute_strucs",
+resulting in false counts, for example. Fixed.
+* The `split()`-method for `subcorpus` objects was not implemented correctly for
+descendent attributes without values, so that getting subcorpora with sentences
+in a subcorpus would have wrong result. Fixed.
+* Argument `values` of method `split()` for `corpus` objects did not process 
+value `FALSE` to split corpus by s-attribute without values #263. Fixed.
+* New `s_attributes()`-method for `context` objects. Returns s-attribute values
+for the matches for query in context object.
+* Method `hits()` has new argument `decoce`. If `FALSE`, the strucs for are not
+decoded.
+* `s_attributes()`-method for `expression` assigns types of vectors matched
+against as names if possible.
+* `subset` for `corpus` and `subset` objects will use integer struc values for
+subsetting, if integer values are passed in logical expression.
+* Number of cores limited to 2 as required by CRAN Repository Policy.
+
+
+# polmineR v0.8.8
 
 * Improved performance of `enrich()`-method for `partition_bundle` objects #225.
 * Refactored `as.TermDocumentMatrix()` for `partition_bundle` and `bundle`, 
@@ -56,7 +132,7 @@ inherit this slot.
 
 # polmineR v0.8.7
 
-## New feautres
+## New features
 
 - Using the `corpus` class throughout is an opportunity to keep the corpus ID
 together with the registry directory of a corpus. And as we are able now to

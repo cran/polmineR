@@ -58,17 +58,23 @@ NULL
 #' @examples
 #' use(pkg = "RcppCWB", corpus = "REUTERS")
 #' 
-#' # Decode first words of GERMAPARLMINI corpus (first sentence)
-#' get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word")
+#' # Decode first words of REUTERS corpus (first sentence)
+#' get_token_stream(0:20, corpus = "REUTERS", p_attribute = "word")
 #'
 #' # Decode first sentence and collapse tokens into single string
-#' get_token_stream(0:9, corpus = "GERMAPARLMINI", p_attribute = "word", collapse = " ")
+#' get_token_stream(0:20, corpus = "REUTERS", p_attribute = "word", collapse = " ")
 #'
 #' # Decode regions defined by two-column integer matrix
-#' region_matrix <- matrix(c(0L,9L,10L,25L), ncol = 2, byrow = TRUE)
-#' get_token_stream(region_matrix, corpus = "GERMAPARLMINI", p_attribute = "word", encoding = "latin1")
+#' region_matrix <- matrix(c(0L,20L,21L,38L), ncol = 2, byrow = TRUE)
+#' get_token_stream(
+#'   region_matrix,
+#'   corpus = "REUTERS",
+#'   p_attribute = "word",
+#'   encoding = "latin1"
+#' )
 #'
 #' # Use argument 'beautify' to remove surplus whitespace
+#' \dontrun{
 #' get_token_stream(
 #'   region_matrix,
 #'   corpus = "GERMAPARLMINI",
@@ -76,10 +82,10 @@ NULL
 #'   encoding = "latin1",
 #'   collapse = " ", beautify = TRUE
 #' )
+#' }
 #'
 #' # Decode entire corpus (corpus object / specified by corpus ID)
-#' fulltext <- get_token_stream("GERMAPARLMINI", p_attribute = "word")
-#' corpus("GERMAPARLMINI") %>%
+#' corpus("REUTERS") %>%
 #'   get_token_stream(p_attribute = "word") %>%
 #'   head()
 #'
@@ -90,27 +96,36 @@ NULL
 #'   head()
 #'
 #' # Decode partition_bundle
+#' \dontrun{
 #' pb_tokstr <- corpus("REUTERS") %>%
 #'   split(s_attribute = "id") %>%
 #'   get_token_stream(p_attribute = "word")
+#' }
 setGeneric("get_token_stream", function(.Object, ...) standardGeneric("get_token_stream"))
 
 
-#' @inheritParams decode
+#' @inheritParams decode-method
+#' @param registry Registry directory with registry file describing the corpus.
 #' @rdname get_token_stream-method
-setMethod("get_token_stream", "numeric", function(.Object, corpus, p_attribute, subset = NULL, boost = NULL, encoding = NULL, collapse = NULL, beautify = TRUE, cpos = FALSE, cutoff = NULL, decode = TRUE, ...){
+setMethod("get_token_stream", "numeric", function(.Object, corpus, registry = NULL, p_attribute, subset = NULL, boost = NULL, encoding = NULL, collapse = NULL, beautify = TRUE, cpos = FALSE, cutoff = NULL, decode = TRUE, ...){
   
   if ("pAttribute" %in% names(list(...))) p_attribute <- list(...)[["pAttribute"]]
   
   # apply cutoff if length of cpos exceeds maximum number of tokens specified by cutoff
   if (!is.null(cutoff)) if (cutoff < length(.Object)) .Object <- .Object[1L:cutoff]
+  if (is.null(registry)) registry <- corpus_registry_dir(corpus)[1]
   
   ids <- cl_cpos2id(
-    corpus = corpus, registry = corpus_registry_dir(corpus),
+    corpus = corpus, registry = registry,
     p_attribute = p_attribute, cpos = .Object
   )
   if (isTRUE(decode)){
-    tokens <- decode(.Object = ids, corpus = corpus, p_attributes = p_attribute, boost = boost)
+    tokens <- decode(
+      .Object = ids,
+      corpus = corpus(corpus, registry = registry),
+      p_attributes = p_attribute,
+      boost = boost
+    )
     rm(ids)
   } else if (isFALSE(decode)){
     return(ids)
@@ -145,8 +160,13 @@ setMethod("get_token_stream", "numeric", function(.Object, corpus, p_attribute, 
 })
 
 #' @rdname get_token_stream-method
-setMethod("get_token_stream", "matrix", function(.Object, split = FALSE, ...){
-  ts_vec <- get_token_stream(ranges_to_cpos(.Object), ...)
+setMethod("get_token_stream", "matrix", function(.Object, corpus, registry = NULL, split = FALSE, ...){
+  ts_vec <- get_token_stream(
+    ranges_to_cpos(.Object),
+    corpus = corpus, 
+    registry = registry,
+    ...
+  )
   
   if (isFALSE(is.logical(split))) stop("'split' needs to be a logical value.")
   if (isFALSE(split)){
@@ -164,7 +184,13 @@ setMethod("get_token_stream", "matrix", function(.Object, split = FALSE, ...){
 setMethod("get_token_stream", "corpus", function(.Object, left = NULL, right = NULL, ...){
   if (is.null(left)) left <- 0L
   if (is.null(right)) right <- size(.Object) - 1L
-  get_token_stream(left:right, corpus = .Object@corpus, encoding = encoding(.Object), ...)
+  get_token_stream(
+    left:right,
+    corpus = .Object@corpus,
+    registry = .Object@registry_dir,
+    encoding = encoding(.Object),
+    ...
+  )
 })
 
 
@@ -177,8 +203,13 @@ setMethod("get_token_stream", "character", function(.Object, left = NULL, right 
 #' @rdname get_token_stream-method
 setMethod("get_token_stream", "slice", function(.Object, p_attribute, collapse = NULL, cpos = FALSE, ...){
   get_token_stream(
-    .Object = .Object@cpos, corpus = .Object@corpus, p_attribute = p_attribute,
-    encoding = .Object@encoding, collapse = collapse, cpos = cpos,
+    .Object = .Object@cpos,
+    corpus = .Object@corpus,
+    registry = .Object@registry_dir,
+    p_attribute = p_attribute,
+    encoding = .Object@encoding,
+    collapse = collapse,
+    cpos = cpos,
     ...
     )
 })
@@ -207,11 +238,13 @@ setMethod("get_token_stream", "regions", function(.Object, p_attribute = "word",
 #' @param min_length If not `NULL` (default), an `integer` value with minimum
 #'   length of documents required to keep them in the `list` object that is 
 #'   returned.
+#' @param vocab A `character` vector with an alternative vocabulary to the one
+#'   stored on disk. 
 #' @rdname get_token_stream-method
 #' @importFrom stringi stri_c
-#' @importFrom RcppCWB region_matrix_to_ids
+#' @importFrom RcppCWB region_matrix_to_ids cl_lexicon_size
 #' @examples 
-#' \donttest{
+#' \dontrun{
 #' # Get token stream for partition_bundle
 #' pb <- partition_bundle("REUTERS", s_attribute = "id")
 #' ts_list <- get_token_stream(pb)
@@ -244,7 +277,7 @@ setMethod("get_token_stream", "regions", function(.Object, p_attribute = "word",
 #'   verbose = FALSE
 #' )
 #' }
-setMethod("get_token_stream", "partition_bundle", function(.Object, p_attribute = "word", phrases = NULL, subset = NULL, min_length = NULL, collapse = NULL, cpos = FALSE, decode = TRUE, beautify = FALSE, verbose = TRUE, progress = FALSE, mc = FALSE, ...){
+setMethod("get_token_stream", "partition_bundle", function(.Object, p_attribute = "word", vocab = NULL, phrases = NULL, subset = NULL, min_length = NULL, collapse = NULL, cpos = FALSE, decode = TRUE, beautify = FALSE, verbose = TRUE, progress = FALSE, mc = FALSE, ...){
   
   if (verbose) cli_progress_step("creating vector of document ids")
   sizes <- sapply(.Object@objects, slot, "size")
@@ -263,9 +296,25 @@ setMethod("get_token_stream", "partition_bundle", function(.Object, p_attribute 
       p_attribute = p_attr, matrix = region_matrix
     )
     if (isTRUE(decode)){
-      tokens <- id2str(x = .Object, p_attribute = p_attr, id = ids)
-      rm(ids); gc()
-      tokens <- iconv(x = tokens, from = .Object@encoding, to = encoding())
+      if (is.null(vocab)){
+        tokens <- id2str(x = .Object, p_attribute = p_attr, id = ids)
+        rm(ids); gc()
+        tokens <- iconv(x = tokens, from = .Object@encoding, to = encoding())
+      } else {
+        corpus_vocab_size <- cl_lexicon_size(
+          corpus = .Object@corpus,
+          registry = .Object@registry_dir,
+          p_attribute = p_attr
+        )
+        if (length(vocab) != corpus_vocab_size){
+          cli_alert_danger(
+            "length of vector `vocab` ({.val {length(vocab)}}) is not identical with vocabulary size of corpus ({.val {corpus_vocab_size}})"
+          )
+          stop()
+        }
+        if (length(p_attribute) > 1L) cli_alert_warning("reusing vocabulary")
+        tokens <- vocab[ids + 1L]
+      }
       
       if (beautify){
         whitespace <- rep(" ", times = length(tokens))
@@ -363,17 +412,25 @@ setOldClass("String")
 #' Decode as String.
 #'
 #' @examples
-#' use("polmineR")
-#' p <- partition("GERMAPARLMINI", date = "2009-11-10", speaker = "Angela Dorothea Merkel")
-#' s <- as(p, "String")
+#' corpus("REUTERS") %>% 
+#'   subset(id == "127") %>% 
+#'   as("String")
 #' @name partition_to_string
 setAs(from = "slice", to = "String", def = function(from){
   word <- get_token_stream(from, p_attribute = "word")
-  whitespace_after <- c(ifelse(word %in% c(".", ",", ":", "!", "?", ";"), FALSE, TRUE)[2L:length(word)], FALSE)
-  word_with_whitespace <- paste(word, ifelse(whitespace_after, " ", ""), sep = "")
+  whitespace_after <- c(
+    ifelse(word %in% c(".", ",", ":", "!", "?", ";"), FALSE, TRUE)[-1],
+    FALSE
+  )
+  word_with_whitespace <- paste(
+    word,
+    ifelse(whitespace_after, " ", ""),
+    sep = ""
+  )
   y <- paste(word_with_whitespace, collapse = "")
-  # to avoid importing the NLP packgage (with its rJava dependency), the following 
-  # lines are adapted from the .String_from_string() auxiliary function of the NLP package.
+  # to avoid importing the NLP packgage (with its rJava dependency), the
+  # following lines are adapted from the .String_from_string() auxiliary
+  # function of the NLP package.
   y <- enc2utf8(y)
   class(y) <- "String"
   y

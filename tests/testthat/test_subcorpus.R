@@ -114,7 +114,10 @@ test_that(
     # subcorpus as point of departure
     gparl_sub <- corpus("GERMAPARLMINI") %>% subset(date == "2009-11-10")
     persons <- c("Angela Dorothea Merkel", "Volker Kauder", "Ronald Pofalla")
-    subcorpora <- lapply(persons, function(who) subset(gparl_sub, speaker == !!who))
+    subcorpora <- lapply(
+      persons,
+      function(who) subset(gparl_sub, speaker == !!who)
+    )
     names(subcorpora) <- persons
     for (person in persons){
       p <- partition(as(gparl_sub, "partition"), speaker = person, verbose = FALSE)
@@ -189,5 +192,36 @@ test_that(
     expect_identical(cpos1@cpos, cpos2)
     expect_identical(cpos2, cpos3)
     
+  }
+)
+
+test_that(
+  "unquote expression",
+  {
+    ids <- c("127", "144", "191", "194")
+    corpus("REUTERS") %>% 
+      subset(id %in% !!ids)
+    
+    ids <- 0:5
+    corpus("REUTERS") %>% 
+      subset(id %in% !!ids)
+  }
+)
+
+test_that(
+  "subset by integer struc values",
+  {
+    expect_identical(
+      corpus("REUTERS") %>% subset(id == 0L) %>% s_attributes("id"),
+      "127"
+    )
+    
+    ids <- corpus("REUTERS") %>% s_attributes("id", unique = FALSE)
+    for (i in 0L:3L){
+      expect_identical(
+        corpus("REUTERS") %>% subset(id == !!i) %>% s_attributes("id"),
+        ids[i + 1L]
+      )
+    }
   }
 )
